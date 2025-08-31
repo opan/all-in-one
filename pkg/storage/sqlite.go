@@ -55,7 +55,7 @@ func (s *SQLiteStorage) GetAll() ([]models.Item, error) {
 		var item models.Item
 		var createdAt, updatedAt string
 
-		err := rows.Scan(&item.ID, &item.Title, &item.Description, &createdAt, &updatedAt)
+		err := rows.Scan(&item.ID, &item.Name, &item.Description, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -76,10 +76,10 @@ func (s *SQLiteStorage) Get(id int) (models.Item, error) {
 	var createdAt, updatedAt string
 
 	err := s.db.QueryRow(`
-		SELECT id, title, description, created_at, updated_at 
+		SELECT id, Name, description, created_at, updated_at 
 		FROM items 
 		WHERE id = ?
-	`, id).Scan(&item.ID, &item.Title, &item.Description, &createdAt, &updatedAt)
+	`, id).Scan(&item.ID, &item.Name, &item.Description, &createdAt, &updatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -100,9 +100,9 @@ func (s *SQLiteStorage) Create(item models.Item) (models.Item, error) {
 	now := time.Now().Format(time.RFC3339)
 
 	result, err := s.db.Exec(`
-		INSERT INTO items (title, description, created_at, updated_at) 
+		INSERT INTO items (Name, description, created_at, updated_at) 
 		VALUES (?, ?, ?, ?)
-	`, item.Title, item.Description, now, now)
+	`, item.Name, item.Description, now, now)
 
 	if err != nil {
 		return models.Item{}, err
@@ -133,9 +133,9 @@ func (s *SQLiteStorage) Update(id int, item models.Item) (models.Item, error) {
 
 	_, err = s.db.Exec(`
 		UPDATE items 
-		SET title = ?, description = ?, updated_at = ? 
+		SET Name = ?, description = ?, updated_at = ? 
 		WHERE id = ?
-	`, item.Title, item.Description, now, id)
+	`, item.Name, item.Description, now, id)
 
 	if err != nil {
 		return models.Item{}, err
@@ -172,15 +172,15 @@ func (s *SQLiteStorage) InitializeSampleData() int {
 
 	sampleItems := []models.Item{
 		{
-			Title:       "Sample Task 1",
+			Name:        "Sample Task 1",
 			Description: "This is a sample task for testing",
 		},
 		{
-			Title:       "Sample Task 2",
+			Name:        "Sample Task 2",
 			Description: "Another sample task with different content",
 		},
 		{
-			Title:       "Sample Task 3",
+			Name:        "Sample Task 3",
 			Description: "Third sample task for demonstration",
 		},
 	}

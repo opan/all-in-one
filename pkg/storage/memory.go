@@ -112,15 +112,15 @@ func (s *MemoryStorage) InitializeSampleData() int {
 
 	sampleItems := []models.Item{
 		{
-			Title:       "Sample Task 1",
+			Name:        "Sample Task 1",
 			Description: "This is a sample task for testing",
 		},
 		{
-			Title:       "Sample Task 2",
+			Name:        "Sample Task 2",
 			Description: "Another sample task with different content",
 		},
 		{
-			Title:       "Sample Task 3",
+			Name:        "Sample Task 3",
 			Description: "Third sample task for demonstration",
 		},
 	}

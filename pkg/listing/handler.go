@@ -82,8 +82,8 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate required fields
-	if newItem.Title == "" {
-		sendError(w, "Title is required", http.StatusBadRequest)
+	if newItem.Name == "" {
+		sendError(w, "Name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -117,8 +117,8 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate required fields
-	if updatedItem.Title == "" {
-		sendError(w, "Title is required", http.StatusBadRequest)
+	if updatedItem.Name == "" {
+		sendError(w, "Name is required", http.StatusBadRequest)
 		return
 	}
 
