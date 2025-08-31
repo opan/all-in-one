@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/all-in-one/pkg/book"
+	"github.com/all-in-one/pkg/common"
 	"github.com/all-in-one/pkg/listing"
-	"github.com/all-in-one/pkg/models"
-	"github.com/all-in-one/pkg/storage"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
 
 // Health check endpoint
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	response := models.Response{
+	response := common.Response{
 		Success: true,
 		Message: "API is running",
 		Data: map[string]interface{}{
@@ -30,12 +30,32 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Initialize storage
-	itemStore := storage.NewMemoryStorage()
+	// Initialize listing storage
+	// Option 1: In-memory storage
+	listingStore := listing.NewMemoryStorage()
+
+	// Option 2: SQLite storage (uncomment to use)
+	// listingStore, err := listing.NewSQLiteStorage("./data/listings.db")
+	// if err != nil {
+	//     log.Fatalf("Failed to initialize SQLite storage: %v", err)
+	// }
+	// defer listingStore.(*listing.SQLiteStorage).Close()
+
+	// Initialize book storage
+	// Option 1: In-memory storage
+	bookStore := book.NewMemoryStorage()
+
+	// Option 2: SQLite storage (uncomment to use)
+	// bookStore, err := book.NewSQLiteStorage("./data/books.db")
+	// if err != nil {
+	//     log.Fatalf("Failed to initialize SQLite storage: %v", err)
+	// }
+	// defer bookStore.(*book.SQLiteStorage).Close()
 
 	// Initialize sample data
-	itemCount := itemStore.InitializeSampleData()
-	fmt.Printf("✅ Initialized with %d sample items\n", itemCount)
+	listingCount := listingStore.InitializeSampleData()
+	bookCount := bookStore.InitializeSampleData()
+	fmt.Printf("✅ Initialized with %d sample listings and %d sample books\n", listingCount, bookCount)
 
 	// Initialize router
 	r := mux.NewRouter()
@@ -44,13 +64,15 @@ func main() {
 	api := r.PathPrefix("/api/v1").Subrouter()
 
 	// Initialize and register listing handler
-	listingHandler := listing.NewHandler(itemStore)
+	listingHandler := listing.NewHandler(listingStore)
 	listingHandler.RegisterRoutes(api)
 
-	// Health check
-	api.HandleFunc("/health", healthCheck).Methods("GET")
+	// Initialize and register book handler
+	bookHandler := book.NewHandler(bookStore)
+	bookHandler.RegisterRoutes(api)
 
-	// Setup CORS for frontend integration
+	// Health check
+	api.HandleFunc("/health", healthCheck).Methods("GET") // Setup CORS for frontend integration
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"}, // In production, specify your frontend domain
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -70,6 +92,11 @@ func main() {
 	fmt.Println("  GET    /api/v1/items/{id}  - Get item by ID")
 	fmt.Println("  PUT    /api/v1/items/{id}  - Update item")
 	fmt.Println("  DELETE /api/v1/items/{id}  - Delete item")
+	fmt.Println("  GET    /api/v1/books       - Get all books")
+	fmt.Println("  POST   /api/v1/books       - Create new book")
+	fmt.Println("  GET    /api/v1/books/{id}  - Get book by ID")
+	fmt.Println("  PUT    /api/v1/books/{id}  - Update book")
+	fmt.Println("  DELETE /api/v1/books/{id}  - Delete book")
 	fmt.Println()
 
 	log.Fatal(http.ListenAndServe(port, handler))

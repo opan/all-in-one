@@ -1,4 +1,4 @@
-package listing
+package book
 
 import (
 	"encoding/json"
@@ -9,139 +9,147 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Handler manages HTTP requests for the listing service
+// Handler manages HTTP requests for the book service
 type Handler struct {
 	store Storage
 }
 
-// NewHandler creates a new listing handler
+// NewHandler creates a new book handler
 func NewHandler(store Storage) *Handler {
 	return &Handler{
 		store: store,
 	}
 }
 
-// RegisterRoutes registers the listing routes to the given router
+// RegisterRoutes registers the book routes to the given router
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/items", h.GetItems).Methods("GET")
-	router.HandleFunc("/items", h.CreateItem).Methods("POST")
-	router.HandleFunc("/items/{id}", h.GetItem).Methods("GET")
-	router.HandleFunc("/items/{id}", h.UpdateItem).Methods("PUT")
-	router.HandleFunc("/items/{id}", h.DeleteItem).Methods("DELETE")
+	router.HandleFunc("/books", h.GetBooks).Methods("GET")
+	router.HandleFunc("/books", h.CreateBook).Methods("POST")
+	router.HandleFunc("/books/{id}", h.GetBook).Methods("GET")
+	router.HandleFunc("/books/{id}", h.UpdateBook).Methods("PUT")
+	router.HandleFunc("/books/{id}", h.DeleteBook).Methods("DELETE")
 }
 
-// GET /items - Get all items
-func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
-	items, err := h.store.GetAll()
+// GET /books - Get all books
+func (h *Handler) GetBooks(w http.ResponseWriter, r *http.Request) {
+	books, err := h.store.GetAll()
 	if err != nil {
-		sendError(w, "Failed to retrieve items", http.StatusInternalServerError)
+		sendError(w, "Failed to retrieve books", http.StatusInternalServerError)
 		return
 	}
 
 	response := common.Response{
 		Success: true,
-		Data:    items,
+		Data:    books,
 	}
 
 	sendJSON(w, response, http.StatusOK)
 }
 
-// GET /items/{id} - Get item by ID
-func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
+// GET /books/{id} - Get book by ID
+func (h *Handler) GetBook(w http.ResponseWriter, r *http.Request) {
 	id, err := getIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	item, err := h.store.Get(id)
+	book, err := h.store.Get(id)
 	if err != nil {
 		if err == common.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			sendError(w, "Book not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to retrieve item", http.StatusInternalServerError)
+		sendError(w, "Failed to retrieve book", http.StatusInternalServerError)
 		return
 	}
 
 	response := common.Response{
 		Success: true,
-		Data:    item,
+		Data:    book,
 	}
 
 	sendJSON(w, response, http.StatusOK)
 }
 
-// POST /items - Create a new item
-func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
-	var newItem Item
-	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
+// POST /books - Create a new book
+func (h *Handler) CreateBook(w http.ResponseWriter, r *http.Request) {
+	var newBook Book
+	if err := json.NewDecoder(r.Body).Decode(&newBook); err != nil {
 		sendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
-	if newItem.Title == "" {
+	if newBook.Title == "" {
 		sendError(w, "Title is required", http.StatusBadRequest)
 		return
 	}
+	if newBook.Author == "" {
+		sendError(w, "Author is required", http.StatusBadRequest)
+		return
+	}
 
-	createdItem, err := h.store.Create(newItem)
+	createdBook, err := h.store.Create(newBook)
 	if err != nil {
-		sendError(w, "Failed to create item", http.StatusInternalServerError)
+		sendError(w, "Failed to create book", http.StatusInternalServerError)
 		return
 	}
 
 	response := common.Response{
 		Success: true,
-		Message: "Item created successfully",
-		Data:    createdItem,
+		Message: "Book created successfully",
+		Data:    createdBook,
 	}
 
 	sendJSON(w, response, http.StatusCreated)
 }
 
-// PUT /items/{id} - Update an existing item
-func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
+// PUT /books/{id} - Update an existing book
+func (h *Handler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	id, err := getIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	var updatedItem Item
-	if err := json.NewDecoder(r.Body).Decode(&updatedItem); err != nil {
+	var updatedBook Book
+	if err := json.NewDecoder(r.Body).Decode(&updatedBook); err != nil {
 		sendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
-	if updatedItem.Title == "" {
+	if updatedBook.Title == "" {
 		sendError(w, "Title is required", http.StatusBadRequest)
 		return
 	}
+	if updatedBook.Author == "" {
+		sendError(w, "Author is required", http.StatusBadRequest)
+		return
+	}
 
-	result, err := h.store.Update(id, updatedItem)
+	result, err := h.store.Update(id, updatedBook)
 	if err != nil {
 		if err == common.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			sendError(w, "Book not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to update item", http.StatusInternalServerError)
+		sendError(w, "Failed to update book", http.StatusInternalServerError)
 		return
 	}
 
 	response := common.Response{
 		Success: true,
-		Message: "Item updated successfully",
+		Message: "Book updated successfully",
 		Data:    result,
 	}
 
 	sendJSON(w, response, http.StatusOK)
 }
 
-// DELETE /items/{id} - Delete an item
-func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
+// DELETE /books/{id} - Delete a book
+func (h *Handler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 	id, err := getIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid ID", http.StatusBadRequest)
@@ -151,16 +159,16 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	err = h.store.Delete(id)
 	if err != nil {
 		if err == common.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			sendError(w, "Book not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to delete item", http.StatusInternalServerError)
+		sendError(w, "Failed to delete book", http.StatusInternalServerError)
 		return
 	}
 
 	response := common.Response{
 		Success: true,
-		Message: "Item deleted successfully",
+		Message: "Book deleted successfully",
 	}
 
 	sendJSON(w, response, http.StatusOK)

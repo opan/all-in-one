@@ -1,51 +1,76 @@
 # All-in-One API Server
 
-A modular Go API server with a flexible storage backend implementation.
+A modular Go API server with multiple domain packages and flexible storage backends.
 
 ## Architecture
 
-The application is designed with modularity in mind, using the following structure:
+This project demonstrates a modular, domain-driven design approach for a Go API server:
 
-- **main.go**: The entry point that wires everything together
-- **pkg/models**: Shared data structures across the application
-- **pkg/storage**: Storage interfaces and implementations
-  - `interface.go`: Defines the storage interface
-  - `memory.go`: In-memory implementation
-  - `sqlite.go`: SQLite implementation (optional)
-- **pkg/listing**: The listing service implementation
-  - `handler.go`: HTTP handlers for listing API endpoints
+- Each domain (e.g., `listing`, `book`) is in its own package
+- Each domain has its own storage interface with multiple implementations
+- Main application wires everything together with dependency injection
 
-## Storage Backend
+### Project Structure
 
-The application uses a flexible storage backend pattern through interfaces. You can switch between:
-
-1. **Memory Storage** (default): Data is stored in memory and lost when the server stops
-2. **SQLite Storage**: Data is persisted to an SQLite database file
-
-To switch the storage backend, modify the `main.go` file:
-
-```go
-// For in-memory storage (default)
-itemStore := storage.NewMemoryStorage()
-
-// For SQLite storage (uncomment to use)
-// itemStore, err := storage.NewSQLiteStorage("./data.db")
-// if err != nil {
-//     log.Fatalf("Failed to initialize SQLite storage: %v", err)
-// }
-// defer itemStore.(*storage.SQLiteStorage).Close()
+```
+all-in-one/
+├── main.go              # Application entry point
+├── go.mod               # Go module definition
+├── pkg/                 # Package directory
+│   ├── common/          # Shared code across domains
+│   │   └── common.go    # Common response types and errors
+│   ├── listing/         # Listing domain
+│   │   ├── model.go     # Listing entity and storage interface
+│   │   ├── memory.go    # In-memory storage implementation
+│   │   ├── sqlite.go    # SQLite storage implementation
+│   │   └── handler.go   # HTTP handlers for listing API
+│   └── book/            # Book domain
+│       ├── model.go     # Book entity and storage interface
+│       ├── memory.go    # In-memory storage implementation
+│       ├── sqlite.go    # SQLite storage implementation
+│       └── handler.go   # HTTP handlers for book API
+└── data/                # Database files (created at runtime)
 ```
 
-## API Endpoints
+## Features
 
-The server exposes the following REST API endpoints:
+- RESTful API with JSON responses
+- Multiple storage backends (in-memory and SQLite)
+- Domain-driven design with separate modules
+- CORS support for frontend integration
+- Easily extensible with new domains
 
-- `GET /api/v1/health`: Health check endpoint
-- `GET /api/v1/items`: Get all items
-- `POST /api/v1/items`: Create a new item
-- `GET /api/v1/items/{id}`: Get an item by ID
-- `PUT /api/v1/items/{id}`: Update an item
-- `DELETE /api/v1/items/{id}`: Delete an item
+## Available Endpoints
+
+- Health Check:
+  - `GET /api/v1/health` - API health status
+
+- Listing API:
+  - `GET /api/v1/items` - Get all items
+  - `POST /api/v1/items` - Create new item
+  - `GET /api/v1/items/{id}` - Get item by ID
+  - `PUT /api/v1/items/{id}` - Update item
+  - `DELETE /api/v1/items/{id}` - Delete item
+
+- Book API:
+  - `GET /api/v1/books` - Get all books
+  - `POST /api/v1/books` - Create new book
+  - `GET /api/v1/books/{id}` - Get book by ID
+  - `PUT /api/v1/books/{id}` - Update book
+  - `DELETE /api/v1/books/{id}` - Delete book
+
+## Storage Options
+
+The application supports multiple storage backends:
+
+1. **In-memory Storage** (default)
+   - Stores data in memory, resets on server restart
+   - Fast but not persistent
+
+2. **SQLite Storage** (commented in main.go)
+   - Stores data in SQLite database files
+   - Persistent between server restarts
+   - To use, uncomment the SQLite initialization in main.go
 
 ## Running the Server
 
@@ -53,18 +78,20 @@ The server exposes the following REST API endpoints:
 go run main.go
 ```
 
-The server will start on port 8080 by default.
+The server will start on port 8080.
 
-## Extending the Application
+## Adding a New Domain
 
-To add more modules:
+To add a new domain (e.g., `user`):
 
-1. Create a new package under `/pkg`
-2. Implement the necessary functionality
-3. Wire it up in `main.go`
+1. Create a new package `pkg/user/`
+2. Create the following files:
+   - `model.go` - Define the entity and storage interface
+   - `memory.go` - Implement in-memory storage
+   - `sqlite.go` - Implement SQLite storage
+   - `handler.go` - Implement HTTP handlers
+3. Update `main.go` to initialize and wire up the new domain
 
-For example, to add a new "products" module:
+## Frontend Integration
 
-1. Create `/pkg/products/` with handlers and models
-2. Implement the storage interface for products
-3. Register the routes in `main.go`
+The API is CORS-enabled for integration with a frontend application (e.g., Svelte).
