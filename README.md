@@ -77,13 +77,27 @@ The server will start on port 8080.
 
 To add a new domain (e.g., `user`):
 
-1. Create a new package `pkg/user/`
-2. Create the following files:
+1. Create a new directory structure under `internal/user/`:
+   ```
+   internal/user/
+   ├── service.go        # Main service integration point
+   └── pkg/              # Domain-specific packages
+       ├── model/        # Data models and interfaces
+       │   └── model.go
+       ├── storage/      # Storage implementations
+       │   ├── memory.go
+       │   └── sqlite.go
+       └── handler/      # HTTP handlers
+           └── handler.go
+   ```
+
+2. Implement the required components:
    - `model.go` - Define the entity and storage interface
-   - `memory.go` - Implement in-memory storage
-   - `sqlite.go` - Implement SQLite storage
+   - `memory.go` and `sqlite.go` - Implement storage backends
    - `handler.go` - Implement HTTP handlers
-3. Update `main.go` to initialize and wire up the new domain
+   - `service.go` - Create the service that ties everything together
+
+3. Update `main.go` to initialize and wire up the new domain service
 
 ## Frontend Integration
 
