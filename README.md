@@ -6,7 +6,7 @@ A modular Go API server with multiple domain packages and flexible storage backe
 
 This project demonstrates a modular, domain-driven design approach for a Go API server:
 
-- Each domain (e.g., `listing`, `book`) is in its own package
+- Each domain (e.g., `listing`) is in its own package
 - Each domain has its own storage interface with multiple implementations
 - Main application wires everything together with dependency injection
 
@@ -19,16 +19,11 @@ all-in-one/
 ├── pkg/                 # Package directory
 │   ├── common/          # Shared code across domains
 │   │   └── common.go    # Common response types and errors
-│   ├── listing/         # Listing domain
-│   │   ├── model.go     # Listing entity and storage interface
-│   │   ├── memory.go    # In-memory storage implementation
-│   │   ├── sqlite.go    # SQLite storage implementation
-│   │   └── handler.go   # HTTP handlers for listing API
-│   └── book/            # Book domain
-│       ├── model.go     # Book entity and storage interface
+│   └── listing/         # Listing domain
+│       ├── model.go     # Listing entity and storage interface
 │       ├── memory.go    # In-memory storage implementation
 │       ├── sqlite.go    # SQLite storage implementation
-│       └── handler.go   # HTTP handlers for book API
+│       └── handler.go   # HTTP handlers for listing API
 └── data/                # Database files (created at runtime)
 ```
 
@@ -51,13 +46,6 @@ all-in-one/
   - `GET /api/v1/items/{id}` - Get item by ID
   - `PUT /api/v1/items/{id}` - Update item
   - `DELETE /api/v1/items/{id}` - Delete item
-
-- Book API:
-  - `GET /api/v1/books` - Get all books
-  - `POST /api/v1/books` - Create new book
-  - `GET /api/v1/books/{id}` - Get book by ID
-  - `PUT /api/v1/books/{id}` - Update book
-  - `DELETE /api/v1/books/{id}` - Delete book
 
 ## Storage Options
 

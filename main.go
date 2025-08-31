@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/all-in-one/pkg/book"
 	"github.com/all-in-one/pkg/common"
 	"github.com/all-in-one/pkg/listing"
 	"github.com/gorilla/mux"
@@ -41,21 +40,9 @@ func main() {
 	// }
 	// defer listingStore.(*listing.SQLiteStorage).Close()
 
-	// Initialize book storage
-	// Option 1: In-memory storage
-	bookStore := book.NewMemoryStorage()
-
-	// Option 2: SQLite storage (uncomment to use)
-	// bookStore, err := book.NewSQLiteStorage("./data/books.db")
-	// if err != nil {
-	//     log.Fatalf("Failed to initialize SQLite storage: %v", err)
-	// }
-	// defer bookStore.(*book.SQLiteStorage).Close()
-
 	// Initialize sample data
 	listingCount := listingStore.InitializeSampleData()
-	bookCount := bookStore.InitializeSampleData()
-	fmt.Printf("✅ Initialized with %d sample listings and %d sample books\n", listingCount, bookCount)
+	fmt.Printf("✅ Initialized with %d sample listings\n", listingCount)
 
 	// Initialize router
 	r := mux.NewRouter()
@@ -66,10 +53,6 @@ func main() {
 	// Initialize and register listing handler
 	listingHandler := listing.NewHandler(listingStore)
 	listingHandler.RegisterRoutes(api)
-
-	// Initialize and register book handler
-	bookHandler := book.NewHandler(bookStore)
-	bookHandler.RegisterRoutes(api)
 
 	// Health check
 	api.HandleFunc("/health", healthCheck).Methods("GET") // Setup CORS for frontend integration
@@ -92,11 +75,6 @@ func main() {
 	fmt.Println("  GET    /api/v1/items/{id}  - Get item by ID")
 	fmt.Println("  PUT    /api/v1/items/{id}  - Update item")
 	fmt.Println("  DELETE /api/v1/items/{id}  - Delete item")
-	fmt.Println("  GET    /api/v1/books       - Get all books")
-	fmt.Println("  POST   /api/v1/books       - Create new book")
-	fmt.Println("  GET    /api/v1/books/{id}  - Get book by ID")
-	fmt.Println("  PUT    /api/v1/books/{id}  - Update book")
-	fmt.Println("  DELETE /api/v1/books/{id}  - Delete book")
 	fmt.Println()
 
 	log.Fatal(http.ListenAndServe(port, handler))
