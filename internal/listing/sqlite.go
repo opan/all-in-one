@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/all-in-one/pkg/common"
+	"github.com/all-in-one/internal/common"
 	_ "github.com/mattn/go-sqlite3"
 )
 

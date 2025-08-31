@@ -27,4 +27,7 @@ type Storage interface {
 
 	// Delete removes a listing item
 	Delete(id int) error
+
+	// InitializeSampleData adds sample data to the storage
+	InitializeSampleData() int
 }

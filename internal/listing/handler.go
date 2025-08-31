@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/all-in-one/pkg/common"
+	"github.com/all-in-one/internal/common"
 	"github.com/gorilla/mux"
 )
 

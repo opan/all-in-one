@@ -16,7 +16,7 @@ This project demonstrates a modular, domain-driven design approach for a Go API 
 all-in-one/
 ├── main.go              # Application entry point
 ├── go.mod               # Go module definition
-├── pkg/                 # Package directory
+├── internal/            # Internal packages (not for external use)
 │   ├── common/          # Shared code across domains
 │   │   └── common.go    # Common response types and errors
 │   └── listing/         # Listing domain

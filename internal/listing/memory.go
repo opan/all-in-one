@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/all-in-one/pkg/common"
+	"github.com/all-in-one/internal/common"
 )
 
 // MemoryStorage implements Storage with an in-memory data store

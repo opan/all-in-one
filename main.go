@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/all-in-one/pkg/common"
-	"github.com/all-in-one/pkg/listing"
+	"github.com/all-in-one/internal/common"
+	"github.com/all-in-one/internal/listing"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
