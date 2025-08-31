@@ -1,15 +1,16 @@
-package listing
+package storage
 
 import (
 	"sync"
 	"time"
 
 	"github.com/all-in-one/internal/common"
+	"github.com/all-in-one/internal/listing/pkg/model"
 )
 
 // MemoryStorage implements Storage with an in-memory data store
 type MemoryStorage struct {
-	items  map[int]Item
+	items  map[int]model.Item
 	lastID int
 	mutex  sync.RWMutex
 }
@@ -17,17 +18,17 @@ type MemoryStorage struct {
 // NewMemoryStorage creates a new memory-based storage for listings
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		items:  make(map[int]Item),
+		items:  make(map[int]model.Item),
 		lastID: 0,
 	}
 }
 
 // GetAll returns all items
-func (s *MemoryStorage) GetAll() ([]Item, error) {
+func (s *MemoryStorage) GetAll() ([]model.Item, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	items := make([]Item, 0, len(s.items))
+	items := make([]model.Item, 0, len(s.items))
 	for _, item := range s.items {
 		items = append(items, item)
 	}
@@ -36,20 +37,20 @@ func (s *MemoryStorage) GetAll() ([]Item, error) {
 }
 
 // Get returns an item by ID
-func (s *MemoryStorage) Get(id int) (Item, error) {
+func (s *MemoryStorage) Get(id int) (model.Item, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	item, exists := s.items[id]
 	if !exists {
-		return Item{}, common.ErrNotFound
+		return model.Item{}, common.ErrNotFound
 	}
 
 	return item, nil
 }
 
 // Create adds a new item
-func (s *MemoryStorage) Create(item Item) (Item, error) {
+func (s *MemoryStorage) Create(item model.Item) (model.Item, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -66,13 +67,13 @@ func (s *MemoryStorage) Create(item Item) (Item, error) {
 }
 
 // Update modifies an existing item
-func (s *MemoryStorage) Update(id int, item Item) (Item, error) {
+func (s *MemoryStorage) Update(id int, item model.Item) (model.Item, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	existingItem, exists := s.items[id]
 	if !exists {
-		return Item{}, common.ErrNotFound
+		return model.Item{}, common.ErrNotFound
 	}
 
 	// Update item while preserving ID and CreatedAt
@@ -104,7 +105,7 @@ func (s *MemoryStorage) InitializeSampleData() int {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	sampleItems := []Item{
+	sampleItems := []model.Item{
 		{
 			Title:       "Sample Task 1",
 			Description: "This is a sample task for testing",

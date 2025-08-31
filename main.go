@@ -29,19 +29,19 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Initialize listing storage
-	// Option 1: In-memory storage
-	listingStore := listing.NewMemoryStorage()
+	// Initialize listing service
+	// Option 1: In-memory service
+	listingService := listing.NewMemoryService()
 
-	// Option 2: SQLite storage (uncomment to use)
-	// listingStore, err := listing.NewSQLiteStorage("./data/listings.db")
+	// Option 2: SQLite service (uncomment to use)
+	// listingService, err := listing.NewSQLiteService("./data/listings.db")
 	// if err != nil {
 	//     log.Fatalf("Failed to initialize SQLite storage: %v", err)
 	// }
-	// defer listingStore.(*listing.SQLiteStorage).Close()
+	// defer listingService.Close()
 
 	// Initialize sample data
-	listingCount := listingStore.InitializeSampleData()
+	listingCount := listingService.InitializeSampleData()
 	fmt.Printf("✅ Initialized with %d sample listings\n", listingCount)
 
 	// Initialize router
@@ -50,9 +50,8 @@ func main() {
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 
-	// Initialize and register listing handler
-	listingHandler := listing.NewHandler(listingStore)
-	listingHandler.RegisterRoutes(api)
+	// Register listing routes
+	listingService.RegisterRoutes(api)
 
 	// Health check
 	api.HandleFunc("/health", healthCheck).Methods("GET") // Setup CORS for frontend integration

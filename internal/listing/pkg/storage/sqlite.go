@@ -1,10 +1,11 @@
-package listing
+package storage
 
 import (
 	"database/sql"
 	"time"
 
 	"github.com/all-in-one/internal/common"
+	"github.com/all-in-one/internal/listing/pkg/model"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -38,7 +39,7 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 }
 
 // GetAll returns all items
-func (s *SQLiteStorage) GetAll() ([]Item, error) {
+func (s *SQLiteStorage) GetAll() ([]model.Item, error) {
 	rows, err := s.db.Query(`
 		SELECT id, title, description, created_at, updated_at 
 		FROM listing_items
@@ -49,9 +50,9 @@ func (s *SQLiteStorage) GetAll() ([]Item, error) {
 	}
 	defer rows.Close()
 
-	var items []Item
+	var items []model.Item
 	for rows.Next() {
-		var item Item
+		var item model.Item
 		var createdAt, updatedAt string
 
 		err := rows.Scan(&item.ID, &item.Title, &item.Description, &createdAt, &updatedAt)
@@ -70,8 +71,8 @@ func (s *SQLiteStorage) GetAll() ([]Item, error) {
 }
 
 // Get returns an item by ID
-func (s *SQLiteStorage) Get(id int) (Item, error) {
-	var item Item
+func (s *SQLiteStorage) Get(id int) (model.Item, error) {
+	var item model.Item
 	var createdAt, updatedAt string
 
 	err := s.db.QueryRow(`
@@ -82,9 +83,9 @@ func (s *SQLiteStorage) Get(id int) (Item, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return Item{}, common.ErrNotFound
+			return model.Item{}, common.ErrNotFound
 		}
-		return Item{}, err
+		return model.Item{}, err
 	}
 
 	// Parse timestamps
@@ -95,7 +96,7 @@ func (s *SQLiteStorage) Get(id int) (Item, error) {
 }
 
 // Create adds a new item
-func (s *SQLiteStorage) Create(item Item) (Item, error) {
+func (s *SQLiteStorage) Create(item model.Item) (model.Item, error) {
 	now := time.Now().Format(time.RFC3339)
 
 	result, err := s.db.Exec(`
@@ -104,12 +105,12 @@ func (s *SQLiteStorage) Create(item Item) (Item, error) {
 	`, item.Title, item.Description, now, now)
 
 	if err != nil {
-		return Item{}, err
+		return model.Item{}, err
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return Item{}, err
+		return model.Item{}, err
 	}
 
 	// Set the returned item with current values
@@ -121,11 +122,11 @@ func (s *SQLiteStorage) Create(item Item) (Item, error) {
 }
 
 // Update modifies an existing item
-func (s *SQLiteStorage) Update(id int, item Item) (Item, error) {
+func (s *SQLiteStorage) Update(id int, item model.Item) (model.Item, error) {
 	// First check if the item exists
 	existingItem, err := s.Get(id)
 	if err != nil {
-		return Item{}, err
+		return model.Item{}, err
 	}
 
 	now := time.Now().Format(time.RFC3339)
@@ -137,7 +138,7 @@ func (s *SQLiteStorage) Update(id int, item Item) (Item, error) {
 	`, item.Title, item.Description, now, id)
 
 	if err != nil {
-		return Item{}, err
+		return model.Item{}, err
 	}
 
 	// Set the returned item with updated values
@@ -169,7 +170,7 @@ func (s *SQLiteStorage) InitializeSampleData() int {
 		return 0 // Don't add sample data if there's an error or if data exists
 	}
 
-	sampleItems := []Item{
+	sampleItems := []model.Item{
 		{
 			Title:       "Sample Task 1",
 			Description: "This is a sample task for testing",

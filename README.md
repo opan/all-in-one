@@ -20,10 +20,15 @@ all-in-one/
 │   ├── common/          # Shared code across domains
 │   │   └── common.go    # Common response types and errors
 │   └── listing/         # Listing domain
-│       ├── model.go     # Listing entity and storage interface
-│       ├── memory.go    # In-memory storage implementation
-│       ├── sqlite.go    # SQLite storage implementation
-│       └── handler.go   # HTTP handlers for listing API
+│       ├── service.go   # Main service integration point
+│       └── pkg/         # Domain-specific packages
+│           ├── model/   # Data models and interfaces
+│           │   └── model.go
+│           ├── storage/ # Storage implementations
+│           │   ├── memory.go
+│           │   └── sqlite.go
+│           └── handler/ # HTTP handlers
+│               └── handler.go
 └── data/                # Database files (created at runtime)
 ```
 

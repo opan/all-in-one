@@ -1,4 +1,4 @@
-package listing
+package handler
 
 import (
 	"encoding/json"
@@ -6,16 +6,17 @@ import (
 	"strconv"
 
 	"github.com/all-in-one/internal/common"
+	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/gorilla/mux"
 )
 
 // Handler manages HTTP requests for the listing service
 type Handler struct {
-	store Storage
+	store model.Storage
 }
 
 // NewHandler creates a new listing handler
-func NewHandler(store Storage) *Handler {
+func NewHandler(store model.Storage) *Handler {
 	return &Handler{
 		store: store,
 	}
@@ -74,7 +75,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 
 // POST /items - Create a new item
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
-	var newItem Item
+	var newItem model.Item
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
 		sendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
@@ -109,7 +110,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updatedItem Item
+	var updatedItem model.Item
 	if err := json.NewDecoder(r.Body).Decode(&updatedItem); err != nil {
 		sendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
