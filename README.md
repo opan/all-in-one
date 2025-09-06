@@ -52,6 +52,34 @@ all-in-one/
   - `PUT /api/v1/items/{id}` - Update item
   - `DELETE /api/v1/items/{id}` - Delete item
 
+## Configuration
+
+The application uses Viper for configuration management with the following priority order:
+1. Environment variables (highest priority)
+2. Configuration file (`config.yaml`)
+3. Default values (lowest priority)
+
+### Configuration Options
+
+| Setting | Environment Variable | Default | Description |
+|---------|---------------------|---------|-------------|
+| Server Port | `ALLINONE_SERVER_PORT` | `:8080` | Port for the HTTP server |
+| Storage Type | `ALLINONE_STORAGE_TYPE` | `memory` | Storage backend (`memory` or `sqlite`) |
+| Storage Path | `ALLINONE_STORAGE_PATH` | `./data/listings.db` | SQLite database file path |
+
+### Configuration File
+
+Create a `config.yaml` file in the project root:
+
+```yaml
+server:
+  port: ":8080"
+
+storage:
+  type: "memory"  # Options: "memory" or "sqlite"
+  path: "./data/listings.db"  # Only used when type is "sqlite"
+```
+
 ## Storage Options
 
 The application supports multiple storage backends:
@@ -60,18 +88,65 @@ The application supports multiple storage backends:
    - Stores data in memory, resets on server restart
    - Fast but not persistent
 
-2. **SQLite Storage** (commented in main.go)
+2. **SQLite Storage** 
    - Stores data in SQLite database files
    - Persistent between server restarts
-   - To use, uncomment the SQLite initialization in main.go
+   - Configurable via config file or environment variables
 
 ## Running the Server
 
+### Basic Usage
+
+```bash
+# Install dependencies
+go mod tidy
+
+# Run with default settings (memory storage, port 8080)
+go run main.go
+```
+
+### With Configuration File
+
+1. Create `config.yaml` (see Configuration section above)
+2. Run the server:
 ```bash
 go run main.go
 ```
 
-The server will start on port 8080.
+### With Environment Variables
+
+```bash
+# Use SQLite storage
+ALLINONE_STORAGE_TYPE=sqlite go run main.go
+
+# Use custom port
+ALLINONE_SERVER_PORT=:9000 go run main.go
+
+# Use both custom storage and port
+ALLINONE_STORAGE_TYPE=sqlite ALLINONE_STORAGE_PATH=./custom.db ALLINONE_SERVER_PORT=:3000 go run main.go
+```
+
+### Running the Frontend (Svelte)
+
+```bash
+# Navigate to UI directory
+cd ui
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173` and automatically proxy API requests to the backend.
+
+## Frontend Integration
+
+The API is CORS-enabled and includes:
+- Vite proxy configuration for seamless frontend-backend communication
+- Svelte routes for listing data at `/listing`
+- Automatic data loading and table display
 
 ## Adding a New Domain
 
