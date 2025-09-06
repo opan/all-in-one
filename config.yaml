@@ -1,0 +1,6 @@
+server:
+  port: ":8080"
+
+storage:
+  type: "sqlite"  # Options: "memory" or "sqlite"
+  path: "all-in-one.db"  # Only used when type is "sqlite"

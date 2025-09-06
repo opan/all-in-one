@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/all-in-one/internal/common"
+	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -29,16 +30,33 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Initialize listing service
-	// Option 1: In-memory service
-	listingService := listing.NewMemoryService()
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
 
-	// Option 2: SQLite service (uncomment to use)
-	// listingService, err := listing.NewSQLiteService("./data/listings.db")
-	// if err != nil {
-	//     log.Fatalf("Failed to initialize SQLite storage: %v", err)
-	// }
-	// defer listingService.Close()
+	fmt.Printf("🔧 Using %s storage\n", cfg.Storage.Type)
+
+	// Initialize listing service based on configuration
+	var listingService *listing.Service
+
+	switch cfg.Storage.Type {
+	case "sqlite":
+		listingService, err = listing.NewSQLiteService(cfg.Storage.Path)
+		if err != nil {
+			log.Fatalf("Failed to initialize SQLite storage: %v", err)
+		}
+		defer func() {
+			if err := listingService.Close(); err != nil {
+				log.Printf("Error closing SQLite storage: %v", err)
+			}
+		}()
+	case "memory":
+		listingService = listing.NewMemoryService()
+	default:
+		log.Fatalf("Unknown storage type: %s. Supported types: memory, sqlite", cfg.Storage.Type)
+	}
 
 	// Initialize sample data
 	listingCount := listingService.InitializeSampleData()
@@ -65,7 +83,7 @@ func main() {
 	handler := c.Handler(r)
 
 	// Start server
-	port := ":8080"
+	port := cfg.Server.Port
 	fmt.Printf("🚀 Server starting on port %s\n", port)
 	fmt.Println("📋 Available endpoints:")
 	fmt.Println("  GET    /api/v1/health      - Health check")
