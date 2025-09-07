@@ -32,7 +32,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	fmt.Println("🏷️  Starting Listing Service...")
-	
+
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {

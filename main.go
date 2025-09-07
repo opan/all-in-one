@@ -9,7 +9,7 @@ import (
 func main() {
 	fmt.Println("🚀 All-in-One Service Platform")
 	fmt.Println("=============================")
-	
+
 	// Check if a service is specified
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run main.go <service>")
@@ -25,7 +25,7 @@ func main() {
 	}
 
 	service := os.Args[1]
-	
+
 	switch service {
 	case "listing":
 		fmt.Println("🏷️  Launching Listing Service...")
