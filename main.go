@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
+
+	listingCmd "github.com/all-in-one/cmd/listing"
 )
 
 func main() {
@@ -12,15 +13,15 @@ func main() {
 
 	// Check if a service is specified
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <service>")
+		fmt.Println("Usage: ./all-in-one <service>")
 		fmt.Println("Available services:")
 		fmt.Println("  listing  - Start the listing service")
 		fmt.Println()
 		fmt.Println("Example:")
-		fmt.Println("  go run main.go listing")
+		fmt.Println("  ./all-in-one listing")
 		fmt.Println()
-		fmt.Println("Or run services directly:")
-		fmt.Println("  go run cmd/listing/main.go")
+		fmt.Println("Development:")
+		fmt.Println("  go run main.go listing")
 		os.Exit(1)
 	}
 
@@ -29,14 +30,7 @@ func main() {
 	switch service {
 	case "listing":
 		fmt.Println("🏷️  Launching Listing Service...")
-		cmd := exec.Command("go", "run", "cmd/listing/main.go")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err := cmd.Run()
-		if err != nil {
-			fmt.Printf("Error running listing service: %v\n", err)
-			os.Exit(1)
-		}
+		listingCmd.Run()
 	default:
 		fmt.Printf("Unknown service: %s\n", service)
 		fmt.Println("Available services: listing")
