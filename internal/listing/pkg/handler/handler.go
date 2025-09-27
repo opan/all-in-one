@@ -7,18 +7,19 @@ import (
 
 	"github.com/all-in-one/internal/common"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
 )
 
 // Handler manages HTTP requests for the listing service
 type Handler struct {
-	store model.Storage
+	storage repository.Storage
 }
 
 // NewHandler creates a new listing handler
-func NewHandler(store model.Storage) *Handler {
+func NewHandler(storage repository.Storage) *Handler {
 	return &Handler{
-		store: store,
+		storage: storage,
 	}
 }
 
@@ -33,7 +34,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 
 // GET /items - Get all items
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
-	items, err := h.store.GetAll()
+	items, err := h.storage.Items().GetAll()
 	if err != nil {
 		sendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
@@ -55,7 +56,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.store.Get(id)
+	item, err := h.storage.Items().Get(id)
 	if err != nil {
 		if err == common.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -87,7 +88,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdItem, err := h.store.Create(newItem)
+	createdItem, err := h.storage.Items().Create(newItem)
 	if err != nil {
 		sendError(w, "Failed to create item", http.StatusInternalServerError)
 		return
@@ -122,7 +123,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.store.Update(id, updatedItem)
+	result, err := h.storage.Items().Update(id, updatedItem)
 	if err != nil {
 		if err == common.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -149,7 +150,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.Delete(id)
+	err = h.storage.Items().Delete(id)
 	if err != nil {
 		if err == common.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)

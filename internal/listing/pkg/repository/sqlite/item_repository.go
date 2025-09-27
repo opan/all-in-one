@@ -1,4 +1,4 @@
-package storage
+package sqlite
 
 import (
 	"database/sql"
@@ -9,38 +9,19 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// SQLiteStorage implements Storage with an SQLite database
-type SQLiteStorage struct {
+// itemRepository implements the item repository with SQLite storage
+type itemRepository struct {
 	db *sql.DB
 }
 
-// NewSQLiteStorage creates a new SQLite-based storage for listings
-func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create table if it doesn't exist
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS listing_items (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT,
-			created_at TIMESTAMP,
-			updated_at TIMESTAMP
-		)
-	`)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLiteStorage{db: db}, nil
+// newItemRepository creates a new SQLite-based item repository
+func newItemRepository(db *sql.DB) *itemRepository {
+	return &itemRepository{db: db}
 }
 
 // GetAll returns all items
-func (s *SQLiteStorage) GetAll() ([]model.Item, error) {
-	rows, err := s.db.Query(`
+func (r *itemRepository) GetAll() ([]model.Item, error) {
+	rows, err := r.db.Query(`
 		SELECT id, title, description, created_at, updated_at 
 		FROM listing_items
 		ORDER BY id
@@ -71,11 +52,11 @@ func (s *SQLiteStorage) GetAll() ([]model.Item, error) {
 }
 
 // Get returns an item by ID
-func (s *SQLiteStorage) Get(id int) (model.Item, error) {
+func (r *itemRepository) Get(id int) (model.Item, error) {
 	var item model.Item
 	var createdAt, updatedAt string
 
-	err := s.db.QueryRow(`
+	err := r.db.QueryRow(`
 		SELECT id, title, description, created_at, updated_at 
 		FROM listing_items 
 		WHERE id = ?
@@ -96,10 +77,10 @@ func (s *SQLiteStorage) Get(id int) (model.Item, error) {
 }
 
 // Create adds a new item
-func (s *SQLiteStorage) Create(item model.Item) (model.Item, error) {
+func (r *itemRepository) Create(item model.Item) (model.Item, error) {
 	now := time.Now().Format(time.RFC3339)
 
-	result, err := s.db.Exec(`
+	result, err := r.db.Exec(`
 		INSERT INTO listing_items (title, description, created_at, updated_at) 
 		VALUES (?, ?, ?, ?)
 	`, item.Title, item.Description, now, now)
@@ -122,16 +103,16 @@ func (s *SQLiteStorage) Create(item model.Item) (model.Item, error) {
 }
 
 // Update modifies an existing item
-func (s *SQLiteStorage) Update(id int, item model.Item) (model.Item, error) {
+func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
 	// First check if the item exists
-	existingItem, err := s.Get(id)
+	existingItem, err := r.Get(id)
 	if err != nil {
 		return model.Item{}, err
 	}
 
 	now := time.Now().Format(time.RFC3339)
 
-	_, err = s.db.Exec(`
+	_, err = r.db.Exec(`
 		UPDATE listing_items 
 		SET title = ?, description = ?, updated_at = ? 
 		WHERE id = ?
@@ -150,22 +131,22 @@ func (s *SQLiteStorage) Update(id int, item model.Item) (model.Item, error) {
 }
 
 // Delete removes an item
-func (s *SQLiteStorage) Delete(id int) error {
+func (r *itemRepository) Delete(id int) error {
 	// First check if the item exists
-	_, err := s.Get(id)
+	_, err := r.Get(id)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Exec("DELETE FROM listing_items WHERE id = ?", id)
+	_, err = r.db.Exec("DELETE FROM listing_items WHERE id = ?", id)
 	return err
 }
 
 // InitializeSampleData adds sample data to the storage
-func (s *SQLiteStorage) InitializeSampleData() int {
+func (r *itemRepository) InitializeSampleData() int {
 	// Check if there's already data
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM listing_items").Scan(&count)
+	err := r.db.QueryRow("SELECT COUNT(*) FROM listing_items").Scan(&count)
 	if err != nil || count > 0 {
 		return 0 // Don't add sample data if there's an error or if data exists
 	}
@@ -186,16 +167,11 @@ func (s *SQLiteStorage) InitializeSampleData() int {
 	}
 
 	for _, item := range sampleItems {
-		_, err := s.Create(item)
+		_, err := r.Create(item)
 		if err != nil {
 			return 0
 		}
 	}
 
 	return len(sampleItems)
-}
-
-// Close closes the database connection
-func (s *SQLiteStorage) Close() error {
-	return s.db.Close()
 }

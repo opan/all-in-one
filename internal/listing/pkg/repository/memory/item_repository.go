@@ -1,4 +1,4 @@
-package storage
+package memory
 
 import (
 	"sync"
@@ -8,28 +8,28 @@ import (
 	"github.com/all-in-one/internal/listing/pkg/model"
 )
 
-// MemoryStorage implements Storage with an in-memory data store
-type MemoryStorage struct {
+// itemRepository implements the item repository with in-memory storage
+type itemRepository struct {
 	items  map[int]model.Item
 	lastID int
 	mutex  sync.RWMutex
 }
 
-// NewMemoryStorage creates a new memory-based storage for listings
-func NewMemoryStorage() *MemoryStorage {
-	return &MemoryStorage{
+// newItemRepository creates a new memory-based item repository
+func newItemRepository() *itemRepository {
+	return &itemRepository{
 		items:  make(map[int]model.Item),
 		lastID: 0,
 	}
 }
 
 // GetAll returns all items
-func (s *MemoryStorage) GetAll() ([]model.Item, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+func (r *itemRepository) GetAll() ([]model.Item, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 
-	items := make([]model.Item, 0, len(s.items))
-	for _, item := range s.items {
+	items := make([]model.Item, 0, len(r.items))
+	for _, item := range r.items {
 		items = append(items, item)
 	}
 
@@ -37,11 +37,11 @@ func (s *MemoryStorage) GetAll() ([]model.Item, error) {
 }
 
 // Get returns an item by ID
-func (s *MemoryStorage) Get(id int) (model.Item, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+func (r *itemRepository) Get(id int) (model.Item, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 
-	item, exists := s.items[id]
+	item, exists := r.items[id]
 	if !exists {
 		return model.Item{}, common.ErrNotFound
 	}
@@ -50,28 +50,28 @@ func (s *MemoryStorage) Get(id int) (model.Item, error) {
 }
 
 // Create adds a new item
-func (s *MemoryStorage) Create(item model.Item) (model.Item, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (r *itemRepository) Create(item model.Item) (model.Item, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	// Assign ID and timestamps
-	s.lastID++
-	item.ID = s.lastID
+	r.lastID++
+	item.ID = r.lastID
 	item.CreatedAt = time.Now()
 	item.UpdatedAt = time.Now()
 
 	// Store the item
-	s.items[item.ID] = item
+	r.items[item.ID] = item
 
 	return item, nil
 }
 
 // Update modifies an existing item
-func (s *MemoryStorage) Update(id int, item model.Item) (model.Item, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-	existingItem, exists := s.items[id]
+	existingItem, exists := r.items[id]
 	if !exists {
 		return model.Item{}, common.ErrNotFound
 	}
@@ -81,29 +81,29 @@ func (s *MemoryStorage) Update(id int, item model.Item) (model.Item, error) {
 	item.CreatedAt = existingItem.CreatedAt
 	item.UpdatedAt = time.Now()
 
-	s.items[id] = item
+	r.items[id] = item
 
 	return item, nil
 }
 
 // Delete removes an item
-func (s *MemoryStorage) Delete(id int) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (r *itemRepository) Delete(id int) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-	_, exists := s.items[id]
+	_, exists := r.items[id]
 	if !exists {
 		return common.ErrNotFound
 	}
 
-	delete(s.items, id)
+	delete(r.items, id)
 	return nil
 }
 
 // InitializeSampleData adds sample data to the storage
-func (s *MemoryStorage) InitializeSampleData() int {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (r *itemRepository) InitializeSampleData() int {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	sampleItems := []model.Item{
 		{
@@ -121,11 +121,11 @@ func (s *MemoryStorage) InitializeSampleData() int {
 	}
 
 	for _, item := range sampleItems {
-		s.lastID++
-		item.ID = s.lastID
+		r.lastID++
+		item.ID = r.lastID
 		item.CreatedAt = time.Now()
 		item.UpdatedAt = time.Now()
-		s.items[item.ID] = item
+		r.items[item.ID] = item
 	}
 
 	return len(sampleItems)
