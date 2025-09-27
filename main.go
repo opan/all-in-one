@@ -5,35 +5,36 @@ import (
 	"os"
 
 	listingCmd "github.com/all-in-one/cmd/listing"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	fmt.Println("🚀 All-in-One Service Platform")
-	fmt.Println("=============================")
+var rootCmd = &cobra.Command{
+	Use:   "all-in-one",
+	Short: "🚀 All-in-One Service Platform",
+	Long: `🚀 All-in-One Service Platform
+=============================
 
-	// Check if a service is specified
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: ./all-in-one <service>")
-		fmt.Println("Available services:")
-		fmt.Println("  listing  - Start the listing service")
-		fmt.Println()
-		fmt.Println("Example:")
-		fmt.Println("  ./all-in-one listing")
-		fmt.Println()
-		fmt.Println("Development:")
-		fmt.Println("  go run main.go listing")
-		os.Exit(1)
-	}
+A comprehensive service platform that provides multiple microservices
+in a single application for development and deployment convenience.`,
+}
 
-	service := os.Args[1]
-
-	switch service {
-	case "listing":
+var listingCommand = &cobra.Command{
+	Use:   "listing",
+	Short: "Start the listing service",
+	Long:  "🏷️  Launch the listing service to manage and serve listing data",
+	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("🏷️  Launching Listing Service...")
 		listingCmd.Run()
-	default:
-		fmt.Printf("Unknown service: %s\n", service)
-		fmt.Println("Available services: listing")
+	},
+}
+
+func main() {
+	// Setup commands
+	rootCmd.AddCommand(listingCommand)
+
+	// Execute the root command
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
