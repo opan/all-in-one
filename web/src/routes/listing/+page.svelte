@@ -1,4 +1,7 @@
 <script lang="ts">
+  import * as Table from "$lib/components/ui/table/index"
+  import { Button } from "$lib/components/ui/button/index"
+
   export let data: { listings: Item[] };
   let listings: Item[] = data.listings;
   
@@ -145,160 +148,50 @@
   }
 </script>
 
-<style>
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-  
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-  
-  .btn {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-  
-  .btn-primary {
-    background-color: #007bff;
-    color: white;
-  }
-  
-  .btn-primary:hover {
-    background-color: #0056b3;
-  }
-  
-  .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-  }
-  
-  .btn-secondary:hover {
-    background-color: #545b62;
-  }
-  
-  .btn-danger {
-    background-color: #dc3545;
-    color: white;
-  }
-  
-  .btn-danger:hover {
-    background-color: #c82333;
-  }
-  
-  .btn-small {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-    margin: 0 0.25rem;
-  }
-  
-  .form-container {
-    background-color: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-  
-  .form-group {
-    margin-bottom: 1rem;
-  }
-  
-  .form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-  }
-  
-  .form-group input,
-  .form-group textarea {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
-  }
-  
-  .form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-  
-  .form-actions {
-    display: flex;
-    gap: 1rem;
-  }
-  
-  .table-container {
-    overflow-x: auto;
-  }
-  
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  
-  th, td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-  }
-  
-  th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-  }
-  
-  tr:hover {
-    background-color: #f8f9fa;
-  }
-  
-  .actions {
-    white-space: nowrap;
-  }
-  
-  .error {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: 0.75rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-  }
-  
-  .loading {
-    opacity: 0.6;
-    pointer-events: none;
-  }
-  
-  .edit-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .edit-form input,
-  .edit-form textarea {
-    padding: 0.25rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-  }
-  
-  .edit-actions {
-    display: flex;
-    gap: 0.25rem;
-  }
-</style>
+
+
+<Table.Root>
+  <Table.Caption>
+    Listing Items Table
+  </Table.Caption>
+
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>ID</Table.Head>
+      <Table.Head>Title</Table.Head>
+      <Table.Head>Description</Table.Head>
+      <Table.Head>Created</Table.Head>
+      <Table.Head>Updated</Table.Head>
+      <Table.Head>Actions</Table.Head>
+    </Table.Row>
+  </Table.Header>
+
+  <Table.Body>
+    {#each listings as item}
+      <Table.Row>
+        <Table.Cell>{item.id}</Table.Cell>
+        <Table.Cell>{item.title}</Table.Cell>
+        <Table.Cell>{item.description}</Table.Cell>
+        <Table.Cell>{formatDate(item.created_at)}</Table.Cell>
+        <Table.Cell>{formatDate(item.updated_at)}</Table.Cell>
+        <Table.Cell>
+          <!-- Actions like Edit/Delete can go here -->
+          <Button variant="default" onclick={() => startEdit(item)}>Edit</Button>
+          <!-- <button on:click={() => startEdit(item)}>Edit</button> -->
+          <button on:click={() => deleteItem(item.id)}>Delete</button>
+        </Table.Cell>
+      </Table.Row>
+    {/each}
+  </Table.Body>
+</Table.Root>
+
+
+            <!-- <th>ID</th>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Created</th>
+            <th>Updated</th>
+            <th>Actions</th> -->
 
 <div class="container" class:loading>
   <div class="header">
