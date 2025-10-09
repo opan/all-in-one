@@ -18,7 +18,6 @@
   }
   
   // Form state
-  let showAddForm = false;
   let editingItem: number | null = null;
   let formData = {
     title: '',
@@ -30,7 +29,9 @@
   let error = '';
   
   // Add new item
-  async function addItem() {
+  async function addItem(e: any) {
+    e.preventDefault();
+
     if (!formData.title.trim() || !formData.description.trim()) {
       error = 'Title and description are required';
       return;
@@ -60,7 +61,7 @@
       
       // Reset form
       formData = { title: '', description: '' };
-      showAddForm = false;
+      dialogOpen = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
     } finally {
@@ -75,14 +76,18 @@
       title: item.title,
       description: item.description
     };
+    dialogOpen = true;
   }
   
   function cancelEdit() {
     editingItem = null;
     formData = { title: '', description: '' };
+    dialogOpen = false;
   }
-  
-  async function saveEdit(id: number) {
+
+  async function saveEdit(e: any, id: number) {
+    e.preventDefault();
+
     if (!formData.title.trim() || !formData.description.trim()) {
       error = 'Title and description are required';
       return;
@@ -114,6 +119,7 @@
       
       editingItem = null;
       formData = { title: '', description: '' };
+      dialogOpen = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
     } finally {
@@ -161,17 +167,50 @@
 
     <Dialog.Content preventScroll={false}> 
       <Dialog.Header> 
-        <Dialog.Title>Edit Form</Dialog.Title>
+        <Dialog.Title>{editingItem ? 'Edit Item' : 'Add New Item'}</Dialog.Title>
 
-        <Dialog.Description>Form to edit the item</Dialog.Description>
+        <Dialog.Description>{editingItem ? 'Edit the existing item' : 'Create a new item'}</Dialog.Description>
 
-         
       </Dialog.Header>
+
+      <form onsubmit={(e) => editingItem ? saveEdit(e, editingItem) : addItem(e)} class="space-y-4">
+        {#if error}
+          <p class="text-red-500">{error}</p>
+        {/if}
+
+        <div>
+          <Label for="title">Title</Label>
+          <Input id="title" type="text" bind:value={formData.title} required />
+        </div>
+
+        <div>
+          <Label for="description">Description</Label>
+          <Input id="description" type="text" bind:value={formData.description} required />
+        </div>
+
+        <div class="flex justify-end space-x-2">
+          {#if editingItem}
+            <Button type="button" variant="secondary" onclick={cancelEdit} disabled={loading}>Cancel</Button>
+            <Button type="submit" variant="default" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
+          {:else}
+            <Button type="button" variant="secondary" onclick={() => dialogOpen = false} disabled={loading}>Cancel</Button>
+            <Button type="submit" variant="default" disabled={loading}>{loading ? 'Adding...' : 'Add'}</Button>
+          {/if}
+        </div>
+      </form>
     </Dialog.Content>
 
   </Dialog.Portal>
 
 </Dialog.Root>
+
+<div class="mb-4">
+  <Button onclick={() => {
+    editingItem = null;
+    formData = { title: '', description: '' };
+    dialogOpen = true;
+  }}>Add New Item</Button>
+</div>
 
 <Table.Root>
   <Table.Caption>
