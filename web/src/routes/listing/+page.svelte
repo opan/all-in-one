@@ -7,7 +7,7 @@
 
   // export let data: { listings: Item[] };
   const { data } = $props<{ data: { listings: Item[] } }>();
-  let listings: Item[] = data.listings;
+  let listings = $state(data.listings);
   
   interface Item {
     id: number;
@@ -18,15 +18,15 @@
   }
   
   // Form state
-  let editingItem: number | null = null;
-  let formData = {
+  let editingItem = $state<number | null>(null);
+  let formData = $state({
     title: '',
     description: ''
-  };
+  });
   
   // Loading and error states
-  let loading = false;
-  let error = '';
+  let loading = $state(false);
+  let error = $state('');
   
   // Add new item
   async function addItem(e: any) {
@@ -57,7 +57,9 @@
       }
       
       const newItem = await response.json();
-      listings = [...listings, newItem.data];
+      console.log('New item created:', newItem);
+      listings.push(newItem.data);
+      listings = listings; // Force reactivity
       
       // Reset form
       formData = { title: '', description: '' };
@@ -113,9 +115,12 @@
       }
       
       const updatedItem = await response.json();
-      listings = listings.map((item: Item) => 
-        item.id === id ? updatedItem.data : item
-      );
+      console.log('Item updated:', updatedItem);
+      const itemIndex = listings.findIndex(item => item.id === id);
+      if (itemIndex !== -1) {
+        listings[itemIndex] = updatedItem.data;
+        listings = listings; // Force reactivity
+      }
       
       editingItem = null;
       formData = { title: '', description: '' };
@@ -145,7 +150,12 @@
         throw new Error('Failed to delete item');
       }
       
-      listings = listings.filter((item: Item) => item.id !== id);
+      console.log('Item deleted:', id);
+      const itemIndex = listings.findIndex(item => item.id === id);
+      if (itemIndex !== -1) {
+        listings.splice(itemIndex, 1);
+        listings = listings; // Force reactivity
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
     } finally {
@@ -155,6 +165,20 @@
   
   function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleString();
+  }
+
+  // Refresh data from server
+  async function refreshListings() {
+    try {
+      const response = await fetch('/api/v1/items');
+      if (response.ok) {
+        const result = await response.json();
+        listings = result.data || [];
+        console.log('Listings refreshed:', listings);
+      }
+    } catch (err) {
+      console.error('Failed to refresh listings:', err);
+    }
   }
 
 
@@ -204,12 +228,16 @@
 
 </Dialog.Root>
 
-<div class="mb-4">
+<div class="mb-4 flex gap-2">
   <Button onclick={() => {
     editingItem = null;
     formData = { title: '', description: '' };
     dialogOpen = true;
   }}>Add New Item</Button>
+  
+  <Button variant="secondary" onclick={refreshListings} disabled={loading}>
+    {loading ? 'Refreshing...' : 'Refresh'}
+  </Button>
 </div>
 
 <Table.Root>
