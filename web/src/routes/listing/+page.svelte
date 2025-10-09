@@ -1,8 +1,12 @@
 <script lang="ts">
   import * as Table from "$lib/components/ui/table/index"
   import { Button } from "$lib/components/ui/button/index"
+  import * as Dialog from "$lib/components/ui/dialog/index"
+  import { Input } from "$lib/components/ui/input/index";
+  import { Label } from "$lib/components/ui/label/index";
 
-  export let data: { listings: Item[] };
+  // export let data: { listings: Item[] };
+  const { data } = $props<{ data: { listings: Item[] } }>();
   let listings: Item[] = data.listings;
   
   interface Item {
@@ -146,9 +150,28 @@
   function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleString();
   }
+
+
+  let dialogOpen = $state(false);
 </script>
 
+<Dialog.Root bind:open={dialogOpen}>
+  <Dialog.Portal> 
+    <Dialog.Overlay />
 
+    <Dialog.Content preventScroll={false}> 
+      <Dialog.Header> 
+        <Dialog.Title>Edit Form</Dialog.Title>
+
+        <Dialog.Description>Form to edit the item</Dialog.Description>
+
+         
+      </Dialog.Header>
+    </Dialog.Content>
+
+  </Dialog.Portal>
+
+</Dialog.Root>
 
 <Table.Root>
   <Table.Caption>
@@ -177,8 +200,7 @@
         <Table.Cell>
           <!-- Actions like Edit/Delete can go here -->
           <Button variant="default" onclick={() => startEdit(item)}>Edit</Button>
-          <!-- <button on:click={() => startEdit(item)}>Edit</button> -->
-          <button on:click={() => deleteItem(item.id)}>Delete</button>
+          <Button variant="destructive" onclick={() => deleteItem(item.id)}>Delete</Button>
         </Table.Cell>
       </Table.Row>
     {/each}
@@ -193,149 +215,3 @@
             <th>Updated</th>
             <th>Actions</th> -->
 
-<div class="container" class:loading>
-  <div class="header">
-    <h1>Listing Items</h1>
-    <button 
-      class="btn btn-primary" 
-      on:click={() => showAddForm = !showAddForm}
-      disabled={loading}
-    >
-      {showAddForm ? 'Cancel' : 'Add New Item'}
-    </button>
-  </div>
-  
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
-  
-  {#if showAddForm}
-    <div class="form-container">
-      <h3>Add New Item</h3>
-      <form on:submit|preventDefault={addItem}>
-        <div class="form-group">
-          <label for="title">Title</label>
-          <input 
-            id="title"
-            type="text" 
-            bind:value={formData.title}
-            disabled={loading}
-            required
-          />
-        </div>
-        
-        <div class="form-group">
-          <label for="description">Description</label>
-          <textarea 
-            id="description"
-            bind:value={formData.description}
-            disabled={loading}
-            required
-          ></textarea>
-        </div>
-        
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" disabled={loading}>
-            {loading ? 'Adding...' : 'Add Item'}
-          </button>
-          <button 
-            type="button" 
-            class="btn btn-secondary" 
-            on:click={() => showAddForm = false}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
-  {/if}
-  
-  {#if listings.length > 0}
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Description</th>
-            <th>Created</th>
-            <th>Updated</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each listings as item}
-            <tr>
-              <td>{item.id}</td>
-              <td>
-                {#if editingItem === item.id}
-                  <div class="edit-form">
-                    <input 
-                      type="text" 
-                      bind:value={formData.title}
-                      disabled={loading}
-                    />
-                  </div>
-                {:else}
-                  {item.title}
-                {/if}
-              </td>
-              <td>
-                {#if editingItem === item.id}
-                  <div class="edit-form">
-                    <textarea 
-                      bind:value={formData.description}
-                      disabled={loading}
-                    ></textarea>
-                  </div>
-                {:else}
-                  {item.description}
-                {/if}
-              </td>
-              <td>{formatDate(item.created_at)}</td>
-              <td>{formatDate(item.updated_at)}</td>
-              <td class="actions">
-                {#if editingItem === item.id}
-                  <div class="edit-actions">
-                    <button 
-                      class="btn btn-primary btn-small"
-                      on:click={() => saveEdit(item.id)}
-                      disabled={loading}
-                    >
-                      Save
-                    </button>
-                    <button 
-                      class="btn btn-secondary btn-small"
-                      on:click={cancelEdit}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                {:else}
-                  <button 
-                    class="btn btn-primary btn-small"
-                    on:click={() => startEdit(item)}
-                    disabled={loading}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    class="btn btn-danger btn-small"
-                    on:click={() => deleteItem(item.id)}
-                    disabled={loading}
-                  >
-                    Delete
-                  </button>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {:else}
-    <p>No listings found. <button class="btn btn-primary" on:click={() => showAddForm = true}>Add the first item</button></p>
-  {/if}
-</div>
