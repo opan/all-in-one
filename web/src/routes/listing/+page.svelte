@@ -2,13 +2,13 @@
   import * as Table from "$lib/components/ui/table/index"
   import { Button } from "$lib/components/ui/button/index"
   import * as Dialog from "$lib/components/ui/dialog/index"
+  import * as Card from "$lib/components/ui/card/index"
+  import * as Sidebar from "$lib/components/ui/sidebar/index"
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
+  import ThemeToggle from "$lib/components/theme-toggle.svelte";
+  import AppSidebar from "$lib/components/app-sidebar.svelte";
 
-  // export let data: { listings: Item[] };
-  const { data } = $props<{ data: { listings: Item[] } }>();
-  let listings = $state(data.listings);
-  
   interface Item {
     id: number;
     title: string;
@@ -16,8 +16,17 @@
     created_at: string;
     updated_at: string;
   }
+
+  // Dummy data for now
+  let listings = $state<Item[]>([
+    { id: 1, title: "First Item", description: "Description for first item", created_at: "2025-10-15T10:00:00Z", updated_at: "2025-10-15T10:00:00Z" },
+    { id: 2, title: "Second Item", description: "Description for second item", created_at: "2025-10-16T11:30:00Z", updated_at: "2025-10-16T11:30:00Z" },
+    { id: 3, title: "Third Item", description: "Description for third item", created_at: "2025-10-17T09:15:00Z", updated_at: "2025-10-17T09:15:00Z" },
+    { id: 4, title: "Fourth Item", description: "Description for fourth item", created_at: "2025-10-18T14:20:00Z", updated_at: "2025-10-18T14:20:00Z" },
+  ]);
   
   // Form state
+  let dialogOpen = $state(false);
   let editingItem = $state<number | null>(null);
   let formData = $state({
     title: '',
@@ -27,9 +36,22 @@
   // Loading and error states
   let loading = $state(false);
   let error = $state('');
+
+  function openAddDialog() {
+    editingItem = null;
+    formData = { title: '', description: '' };
+    dialogOpen = true;
+  }
+
+  function openEditDialog(item: Item) {
+    editingItem = item.id;
+    formData = { title: item.title, description: item.description };
+    dialogOpen = true;
+  }
+
   
   // Add new item
-  async function addItem(e: any) {
+  async function handleSubmit(e: Event) {
     e.preventDefault();
 
     if (!formData.title.trim() || !formData.description.trim()) {
@@ -41,89 +63,54 @@
     error = '';
     
     try {
-      const response = await fetch('/api/v1/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          description: formData.description.trim()
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create item');
+      if (editingItem) {
+        // Update existing item
+        const response = await fetch(`/api/v1/items/${editingItem}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: formData.title.trim(),
+            description: formData.description.trim()
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update item');
+        }
+        
+        const updatedItem = await response.json();
+        const itemIndex = listings.findIndex(item => item.id === editingItem);
+        if (itemIndex !== -1) {
+          listings[itemIndex] = updatedItem.data;
+          listings = listings;
+        }
+      } else {
+        // Create new item
+        const response = await fetch('/api/v1/items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: formData.title.trim(),
+            description: formData.description.trim()
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create item');
+        }
+        
+        const newItem = await response.json();
+        listings.push(newItem.data);
+        listings = listings;
       }
-      
-      const newItem = await response.json();
-      console.log('New item created:', newItem);
-      listings.push(newItem.data);
-      listings = listings; // Force reactivity
       
       // Reset form
       formData = { title: '', description: '' };
-      dialogOpen = false;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'An unexpected error occurred';
-    } finally {
-      loading = false;
-    }
-  }
-  
-  // Edit item
-  function startEdit(item: Item) {
-    editingItem = item.id;
-    formData = {
-      title: item.title,
-      description: item.description
-    };
-    dialogOpen = true;
-  }
-  
-  function cancelEdit() {
-    editingItem = null;
-    formData = { title: '', description: '' };
-    dialogOpen = false;
-  }
-
-  async function saveEdit(e: any, id: number) {
-    e.preventDefault();
-
-    if (!formData.title.trim() || !formData.description.trim()) {
-      error = 'Title and description are required';
-      return;
-    }
-    
-    loading = true;
-    error = '';
-    
-    try {
-      const response = await fetch(`/api/v1/items/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          description: formData.description.trim()
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update item');
-      }
-      
-      const updatedItem = await response.json();
-      console.log('Item updated:', updatedItem);
-      const itemIndex = listings.findIndex(item => item.id === id);
-      if (itemIndex !== -1) {
-        listings[itemIndex] = updatedItem.data;
-        listings = listings; // Force reactivity
-      }
-      
       editingItem = null;
-      formData = { title: '', description: '' };
       dialogOpen = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -150,11 +137,10 @@
         throw new Error('Failed to delete item');
       }
       
-      console.log('Item deleted:', id);
       const itemIndex = listings.findIndex(item => item.id === id);
       if (itemIndex !== -1) {
         listings.splice(itemIndex, 1);
-        listings = listings; // Force reactivity
+        listings = listings;
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -166,119 +152,111 @@
   function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleString();
   }
-
-  // Refresh data from server
-  async function refreshListings() {
-    try {
-      const response = await fetch('/api/v1/items');
-      if (response.ok) {
-        const result = await response.json();
-        listings = result.data || [];
-        console.log('Listings refreshed:', listings);
-      }
-    } catch (err) {
-      console.error('Failed to refresh listings:', err);
-    }
-  }
-
-
-  let dialogOpen = $state(false);
 </script>
 
-<Dialog.Root bind:open={dialogOpen}>
-  <Dialog.Portal> 
-    <Dialog.Overlay />
-
-    <Dialog.Content preventScroll={false}> 
-      <Dialog.Header> 
-        <Dialog.Title>{editingItem ? 'Edit Item' : 'Add New Item'}</Dialog.Title>
-
-        <Dialog.Description>{editingItem ? 'Edit the existing item' : 'Create a new item'}</Dialog.Description>
-
-      </Dialog.Header>
-
-      <form onsubmit={(e) => editingItem ? saveEdit(e, editingItem) : addItem(e)} class="space-y-4">
-        {#if error}
-          <p class="text-red-500">{error}</p>
-        {/if}
-
-        <div>
-          <Label for="title">Title</Label>
-          <Input id="title" type="text" bind:value={formData.title} required />
-        </div>
-
-        <div>
-          <Label for="description">Description</Label>
-          <Input id="description" type="text" bind:value={formData.description} required />
-        </div>
-
-        <div class="flex justify-end space-x-2">
-          {#if editingItem}
-            <Button type="button" variant="secondary" onclick={cancelEdit} disabled={loading}>Cancel</Button>
-            <Button type="submit" variant="default" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
-          {:else}
-            <Button type="button" variant="secondary" onclick={() => dialogOpen = false} disabled={loading}>Cancel</Button>
-            <Button type="submit" variant="default" disabled={loading}>{loading ? 'Adding...' : 'Add'}</Button>
-          {/if}
-        </div>
-      </form>
-    </Dialog.Content>
-
-  </Dialog.Portal>
-
-</Dialog.Root>
-
-<div class="mb-4 flex gap-2">
-  <Button onclick={() => {
-    editingItem = null;
-    formData = { title: '', description: '' };
-    dialogOpen = true;
-  }}>Add New Item</Button>
+<Sidebar.Provider>
+  <AppSidebar />
   
-  <Button variant="secondary" onclick={refreshListings} disabled={loading}>
-    {loading ? 'Refreshing...' : 'Refresh'}
-  </Button>
-</div>
+  <Sidebar.Inset>
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 flex h-14 items-center gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <Sidebar.Trigger />
+      
+      <div class="flex flex-1 items-center justify-between">
+        <h1 class="text-xl font-semibold">NAVIGATION MENU</h1>
+        
+        <div class="flex items-center gap-2">
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
 
-<Table.Root>
-  <Table.Caption>
-    Listing Items Table
-  </Table.Caption>
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-auto">
+      <div class="container mx-auto p-6">
+        <Card.Root class="min-h-[calc(100vh-8rem)]">
+          <Card.Header class="border-b">
+            <div class="flex items-center justify-between">
+              <Card.Title class="text-2xl">TABLE</Card.Title>
+              <Button onclick={openAddDialog}>Add New Item</Button>
+            </div>
+          </Card.Header>
+          <Card.Content class="p-6">
+            <div class="rounded-md border">
+              <Table.Root>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.Head class="w-[80px]">ID</Table.Head>
+                    <Table.Head>Title</Table.Head>
+                    <Table.Head>Description</Table.Head>
+                    <Table.Head class="w-[180px]">Created</Table.Head>
+                    <Table.Head class="w-[180px]">Updated</Table.Head>
+                    <Table.Head class="w-[180px] text-right">Actions</Table.Head>
+                  </Table.Row>
+                </Table.Header>
 
-  <Table.Header>
-    <Table.Row>
-      <Table.Head>ID</Table.Head>
-      <Table.Head>Title</Table.Head>
-      <Table.Head>Description</Table.Head>
-      <Table.Head>Created</Table.Head>
-      <Table.Head>Updated</Table.Head>
-      <Table.Head>Actions</Table.Head>
-    </Table.Row>
-  </Table.Header>
+                <Table.Body>
+                  {#each listings as item}
+                    <Table.Row>
+                      <Table.Cell class="font-medium">{item.id}</Table.Cell>
+                      <Table.Cell>{item.title}</Table.Cell>
+                      <Table.Cell>{item.description}</Table.Cell>
+                      <Table.Cell class="text-muted-foreground">{formatDate(item.created_at)}</Table.Cell>
+                      <Table.Cell class="text-muted-foreground">{formatDate(item.updated_at)}</Table.Cell>
+                      <Table.Cell class="text-right">
+                        <div class="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onclick={() => openEditDialog(item)}>Edit</Button>
+                          <Button variant="destructive" size="sm" onclick={() => deleteItem(item.id)}>Delete</Button>
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  {/each}
+                </Table.Body>
+              </Table.Root>
+            </div>
+          </Card.Content>
+        </Card.Root>
+      </div>
+    </main>
+  </Sidebar.Inset>
+</Sidebar.Provider>
 
-  <Table.Body>
-    {#each listings as item}
-      <Table.Row>
-        <Table.Cell>{item.id}</Table.Cell>
-        <Table.Cell>{item.title}</Table.Cell>
-        <Table.Cell>{item.description}</Table.Cell>
-        <Table.Cell>{formatDate(item.created_at)}</Table.Cell>
-        <Table.Cell>{formatDate(item.updated_at)}</Table.Cell>
-        <Table.Cell>
-          <!-- Actions like Edit/Delete can go here -->
-          <Button variant="default" onclick={() => startEdit(item)}>Edit</Button>
-          <Button variant="destructive" onclick={() => deleteItem(item.id)}>Delete</Button>
-        </Table.Cell>
-      </Table.Row>
-    {/each}
-  </Table.Body>
-</Table.Root>
+<!-- Add/Edit Dialog -->
+<Dialog.Root bind:open={dialogOpen}>
+  <Dialog.Content class="sm:max-w-[425px]">
+    <Dialog.Header>
+      <Dialog.Title>{editingItem ? 'Edit Item' : 'Add New Item'}</Dialog.Title>
+      <Dialog.Description>
+        {editingItem ? 'Make changes to your item here.' : 'Add a new item to your listing.'}
+      </Dialog.Description>
+    </Dialog.Header>
 
+    <form onsubmit={handleSubmit} class="space-y-4">
+      {#if error}
+        <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      {/if}
 
-            <!-- <th>ID</th>
-            <th>Title</th>
-            <th>Description</th>
-            <th>Created</th>
-            <th>Updated</th>
-            <th>Actions</th> -->
+      <div class="space-y-2">
+        <Label for="title">Title</Label>
+        <Input id="title" type="text" bind:value={formData.title} required />
+      </div>
+
+      <div class="space-y-2">
+        <Label for="description">Description</Label>
+        <Input id="description" type="text" bind:value={formData.description} required />
+      </div>
+
+      <Dialog.Footer>
+        <Button type="button" variant="outline" onclick={() => { dialogOpen = false; editingItem = null; }} disabled={loading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Saving...' : editingItem ? 'Save changes' : 'Add item'}
+        </Button>
+      </Dialog.Footer>
+    </form>
+  </Dialog.Content>
+</Dialog.Root>
 
