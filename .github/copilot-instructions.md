@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-All-in-one is an app that contains multiple application. User can start this app in different form, for example a listing app (`all-in-one listing`). And more app will be added.
+All-in-one is an app that contains multiple application. User can start this app in different form, for example to run a listing app we can run (`all-in-one listing <options>`). And more app will be added.
 
 - Full-stack web application.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
@@ -34,10 +34,19 @@ All-in-one is an app that contains multiple application. User can start this app
   - `github.com/spf13/viper` (configuration)
   - `github.com/spf13/cobra` (CLI)
   - `github.com/rs/zerolog` (structured logging)
+  - `github.com/jmoiron/sqlx` (database access)
 - Use idiomatic Go: small functions, explicit error handling, `context.Context` passed to handlers/services.
 - Use dependency injection (no globals) where practical.
-- Organize code into `handlers`, `services`, `repositories`, `models`.
-- Database access should use `database/sql` with prepared statements and migrations (if applicable).
+- Each app might support multiple storage backends (e.g., SQLite, in-memory). Abstract storage access via repository interfaces.
+- In general, organize code:
+  - `internal/common/` for code that can be shared between app.
+  - `internal/<app-name>` for code specific to an app. Each app can have its own sub-packages as needed
+  - `internal/<app-name>/handler/` for HTTP handlers
+  - `internal/<app-name>/service/` for business logic
+  - `internal/<app-name>/model/` for domain models
+  - `internal/<app-name>/repository/` for data access. 
+
+- Database access should use `github.com/jmoiron/sqlx` with prepared statements and migrations (if applicable).
 - Configuration:
   - Default config file: `config/config.yaml`
   - Allow env var overrides via `viper`
