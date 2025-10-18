@@ -1,54 +1,146 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar/index";
-  import { House, LayoutDashboard, Settings } from "@lucide/svelte/icons";
+  import { 
+    SquareTerminal, 
+    BookOpen, 
+    Settings, 
+    ChevronDown,
+    History,
+    Star,
+    Bot,
+    SquareUser
+  } from "@lucide/svelte/icons";
   import { page } from "$app/stores";
 
-  const menuItems = [
+  let playgroundOpen = $state(true);
+
+  const platformItems = [
     {
-      title: "Listings",
-      url: "/listing",
-      icon: House,
+      title: "Playground",
+      icon: SquareTerminal,
+      isExpandable: true,
+      subitems: [
+        { title: "History", url: "/playground/history", icon: History },
+        { title: "Starred", url: "/playground/starred", icon: Star },
+        { title: "Settings", url: "/playground/settings", icon: Settings },
+      ]
     },
     {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
+      title: "Models",
+      url: "/models",
+      icon: Bot,
+      isExpandable: false,
+    },
+    {
+      title: "Documentation",
+      url: "/documentation",
+      icon: BookOpen,
+      isExpandable: false,
     },
     {
       title: "Settings",
       url: "/settings",
       icon: Settings,
+      isExpandable: false,
     },
   ];
 </script>
 
 <Sidebar.Root>
   <Sidebar.Header>
-    <div class="flex h-14 items-center px-4">
-      <h2 class="text-lg font-semibold">SIDEBAR MENU</h2>
-    </div>
+    <Sidebar.Menu>
+      <Sidebar.MenuItem>
+        <Sidebar.MenuButton size="lg" tooltipContent="Acme Inc">
+          {#snippet child({ props })}
+            <a href="/" {...props}>
+              <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <SquareTerminal class="size-4" />
+              </div>
+              <div class="grid flex-1 text-left text-sm leading-tight">
+                <span class="truncate font-semibold">Acme Inc</span>
+                <span class="truncate text-xs text-muted-foreground">Enterprise</span>
+              </div>
+            </a>
+          {/snippet}
+        </Sidebar.MenuButton>
+      </Sidebar.MenuItem>
+    </Sidebar.Menu>
   </Sidebar.Header>
   
   <Sidebar.Content>
     <Sidebar.Group>
+      <Sidebar.GroupLabel>Platform</Sidebar.GroupLabel>
       <Sidebar.GroupContent>
         <Sidebar.Menu>
-          {#each menuItems as item}
+          {#each platformItems as item}
             <Sidebar.MenuItem>
-              <Sidebar.MenuButton isActive={item.url === $page.url.pathname}>
-                {#snippet child({ props })}
-                  <a href={item.url} {...props}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </a>
-                {/snippet}
-              </Sidebar.MenuButton>
+              {#if item.isExpandable}
+                <Sidebar.MenuButton
+                  tooltipContent={item.title}
+                  onclick={() => playgroundOpen = !playgroundOpen}
+                >
+                  {#snippet child({ props })}
+                    <button {...props}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                      <ChevronDown class="ml-auto transition-transform duration-200 {playgroundOpen ? 'rotate-180' : ''}" />
+                    </button>
+                  {/snippet}
+                </Sidebar.MenuButton>
+                {#if playgroundOpen && item.subitems}
+                  <Sidebar.MenuSub>
+                    {#each item.subitems as subitem}
+                      <Sidebar.MenuSubItem>
+                        <Sidebar.MenuSubButton isActive={subitem.url === $page.url.pathname}>
+                          {#snippet child({ props })}
+                            <a href={subitem.url} {...props}>
+                              <span>{subitem.title}</span>
+                            </a>
+                          {/snippet}
+                        </Sidebar.MenuSubButton>
+                      </Sidebar.MenuSubItem>
+                    {/each}
+                  </Sidebar.MenuSub>
+                {/if}
+              {:else}
+                <Sidebar.MenuButton 
+                  isActive={item.url === $page.url.pathname}
+                  tooltipContent={item.title}
+                >
+                  {#snippet child({ props })}
+                    <a href={item.url} {...props}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  {/snippet}
+                </Sidebar.MenuButton>
+              {/if}
             </Sidebar.MenuItem>
           {/each}
         </Sidebar.Menu>
       </Sidebar.GroupContent>
     </Sidebar.Group>
   </Sidebar.Content>
+  
+  <Sidebar.Footer>
+    <Sidebar.Menu>
+      <Sidebar.MenuItem>
+        <Sidebar.MenuButton size="lg" tooltipContent="shadcn (m@example.com)">
+          {#snippet child({ props })}
+            <button {...props}>
+              <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted">
+                <SquareUser class="size-4" />
+              </div>
+              <div class="grid flex-1 text-left text-sm leading-tight">
+                <span class="truncate font-semibold">shadcn</span>
+                <span class="truncate text-xs text-muted-foreground">m@example.com</span>
+              </div>
+            </button>
+          {/snippet}
+        </Sidebar.MenuButton>
+      </Sidebar.MenuItem>
+    </Sidebar.Menu>
+  </Sidebar.Footer>
   
   <Sidebar.Rail />
 </Sidebar.Root>

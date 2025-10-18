@@ -4,8 +4,10 @@
   import * as Dialog from "$lib/components/ui/dialog/index"
   import * as Card from "$lib/components/ui/card/index"
   import * as Sidebar from "$lib/components/ui/sidebar/index"
+  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index"
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
+  import { Separator } from "$lib/components/ui/separator/index";
   import ThemeToggle from "$lib/components/theme-toggle.svelte";
   import AppSidebar from "$lib/components/app-sidebar.svelte";
 
@@ -159,15 +161,24 @@
   
   <Sidebar.Inset>
     <!-- Top Navigation Bar -->
-    <header class="sticky top-0 z-50 flex h-14 items-center gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <Sidebar.Trigger />
+    <header class="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+      <Sidebar.Trigger class="-ml-1" />
+      <Separator orientation="vertical" class="mr-2 h-4" />
       
-      <div class="flex flex-1 items-center justify-between">
-        <h1 class="text-xl font-semibold">NAVIGATION MENU</h1>
-        
-        <div class="flex items-center gap-2">
-          <ThemeToggle />
-        </div>
+      <Breadcrumb.Root>
+        <Breadcrumb.List>
+          <Breadcrumb.Item>
+            <Breadcrumb.Link href="/">Building Your Application</Breadcrumb.Link>
+          </Breadcrumb.Item>
+          <Breadcrumb.Separator />
+          <Breadcrumb.Item>
+            <Breadcrumb.Page>Data Fetching</Breadcrumb.Page>
+          </Breadcrumb.Item>
+        </Breadcrumb.List>
+      </Breadcrumb.Root>
+      
+      <div class="ml-auto flex items-center gap-2">
+        <ThemeToggle />
       </div>
     </header>
 
