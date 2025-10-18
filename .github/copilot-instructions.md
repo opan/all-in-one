@@ -83,12 +83,17 @@ All-in-one is an app that contains multiple application. User can start this app
 ## Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+
 - **TypeScript:** 5.9+
+- **node:**: 22.19+
+- **npm:** 10+
 - Frontend code located in the `web/` directory.
 - Use `<script lang="ts">` in Svelte components.
 - Keep an API client wrapper (e.g., `web/src/lib/api.ts`) and define shared TS interfaces for request/response shapes.
 - Use Svelte stores for shared state.
 - Configure API base URL via environment variable (e.g. `VITE_API_BASE_URL` or preferred solution for your build tooling).
 - Minimal routing and components under `web/src/` (e.g., `components/`, `routes/` or `pages/` according to your router).
+- styling:
+  - Use tailwindcss.
+  - Use shadcn-svelte (https://shadcn-svelte.com/docs) for component. for example `npx shadcn-svelte@latest add dialog`
 
 ## CLI & Commands
 - Use `cobra` to implement CLI entrypoints under `cmd/`.
