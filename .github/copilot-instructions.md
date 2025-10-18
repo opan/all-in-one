@@ -1,13 +1,15 @@
 # GitHub Copilot Instructions
 
-These guidelines help GitHub Copilot generate code consistent with this project's architecture.
-
 ## Project Overview
+
+All-in-one is an app that contains multiple application. User can start this app in different form, for example a listing app (`all-in-one listing`). And more app will be added.
+
 - Full-stack web application.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
 - **Frontend:** Svelte 5+ with TypeScript 5.9+, source under `web/`.
 
 ## Project Layout
+
 .
 ├── cmd/ # Cobra CLI entrypoints
 ├── config/ # viper configuration files (e.g. config.yaml)
@@ -24,9 +26,6 @@ These guidelines help GitHub Copilot generate code consistent with this project'
 ├── go.mod
 ├── go.sum
 └── main.go
-
-markdown
-Copy code
 
 ## Backend (Go) Guidelines
 - **Go version:** 1.25+
@@ -75,6 +74,7 @@ Copy code
   - `version` — print app version
 
 ## Example Commands (dev)
+
 ```bash
 # Backend (run)
 go run main.go serve
@@ -91,30 +91,29 @@ npm run dev
 cd web
 npm run build
 Copilot Hints
+```
+
 When Copilot generates or suggests code:
 
-Prefer modular, testable Go code over single-file implementations.
-
-Use context.Context for request boundaries and cancellations.
-
-Use zerolog for all logs, include context fields.
-
-Use viper to read config/config.yaml and environment variables.
-
-Put API endpoints under /api/v1/....
-
-Generate frontend code under web/src/ only; use TypeScript types for all API interactions.
+- Prefer modular, testable Go code over single-file implementations.
+- Use context.Context for request boundaries and cancellations.
+- Use zerolog for all logs, include context fields.
+- Use viper to read config/config.yaml and environment variables.
+- Put API endpoints under /api/v1/....
+- Generate frontend code under web/src/ only; use TypeScript types for all API interactions.
 
 Keep examples minimal and idiomatic.
 
 Minimal config/config.yaml example
-yaml
-Copy code
+
+```yaml
 server:
   port: 8080
 
 database:
   path: "data/app.db"
+```
+
 Response Format Expectations
 Successful JSON responses should populate success: true, data: <...>, error: null.
 
@@ -122,7 +121,8 @@ On errors, use success: false, data: null, and a descriptive error string.
 
 HTTP status codes must match the result (e.g., 200, 201, 400, 404, 500).
 
-Notes
+## Notes
+
 Backend code lives in the repository root (top-level Go modules).
 
 Frontend source code must live under web/.
