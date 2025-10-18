@@ -11,7 +11,7 @@ All-in-one is an app that contains multiple application. User can start this app
 ## Project Layout
 
 .
-├── cmd/ # Cobra CLI entrypoints
+├── cmd/ # Cobra CLI entrypoints as main app entry points
 ├── config/ # viper configuration files (e.g. config.yaml)
 ├── internal/ # application internal packages
 │ ├── handlers/ # HTTP handlers
@@ -39,26 +39,41 @@ All-in-one is an app that contains multiple application. User can start this app
 - Use dependency injection (no globals) where practical.
 - Each app might support multiple storage backends (e.g., SQLite, in-memory). Abstract storage access via repository interfaces.
 - In general, organize code:
+  - `bin/` for compiled binaries (if applicable).
+  - `cmd/<app-name>/` for CLI entrypoints
   - `internal/common/` for code that can be shared between app.
   - `internal/<app-name>` for code specific to an app. Each app can have its own sub-packages as needed
   - `internal/<app-name>/handler/` for HTTP handlers
   - `internal/<app-name>/service/` for business logic
   - `internal/<app-name>/model/` for domain models
   - `internal/<app-name>/repository/` for data access. 
+  - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
+
+- Use middleware for common functionality:
+  - Request logging
+  - Error handling
+  - Request ID
+
+- Support authentications:
+  - Basic Auth (username/password)
+  - Token-based (e.g., Bearer token in Authorization header)
+  - JWT (implement later)
 
 - Database access should use `github.com/jmoiron/sqlx` with prepared statements and migrations (if applicable).
+- Use squirrel library to build SQL queries safely (where applicable).
 - Configuration:
-  - Default config file: `config/config.yaml`
+  - Default config file: `internal/config/config.yaml`
   - Allow env var overrides via `viper`
 - Logging:
   - Use `zerolog` with structured fields such as `request_id`, `module`, `error`.
 - REST API:
   - Base path: `/api/v1/`
   - JSON-only responses
-  - Standard response envelope:
+  - Standard response envelope (as stated in `internal/common/response.go`):
     ```json
     {
       "success": true,
+      "message": <string|null>,
       "data": <object|null>,
       "error": <string|null>
     }
@@ -85,8 +100,8 @@ All-in-one is an app that contains multiple application. User can start this app
 ## Example Commands (dev)
 
 ```bash
-# Backend (run)
-go run main.go serve
+# Backend (run) to run listing app
+go run main.go listing server --config internal/config/config.yaml
 
 # Backend (build)
 go build -o bin/server main.go
