@@ -8,26 +8,9 @@ All-in-one is an app that contains multiple application. User can start this app
 - **Backend:** Go (1.25+), REST API, stored in the project root.
 - **Frontend:** Svelte 5+ with TypeScript 5.9+, source under `web/`.
 
-## Project Layout
+## Tech stacks
 
-.
-├── cmd/ # Cobra CLI entrypoints as main app entry points
-├── config/ # viper configuration files (e.g. config.yaml)
-├── internal/ # application internal packages
-│ ├── handlers/ # HTTP handlers
-│ ├── services/ # business logic
-│ ├── repositories/ # data access (SQLite)
-│ ├── models/ # domain models
-│ └── server/ # server setup & middleware
-├── web/ # Svelte + TypeScript frontend
-│ ├── src/
-│ ├── static/
-│ └── package.json
-├── go.mod
-├── go.sum
-└── main.go
-
-## Backend (Go) Guidelines
+### Backend (Go) Guidelines
 - **Go version:** 1.25+
 - **Libraries to prefer:**
   - `github.com/mattn/go-sqlite3` (SQLite driver)
@@ -38,7 +21,9 @@ All-in-one is an app that contains multiple application. User can start this app
 - Use idiomatic Go: small functions, explicit error handling, `context.Context` passed to handlers/services.
 - Use dependency injection (no globals) where practical.
 - Each app might support multiple storage backends (e.g., SQLite, in-memory). Abstract storage access via repository interfaces.
-- In general, organize code:
+
+#### Project structure
+In general, organize code:
   - `bin/` for compiled binaries (if applicable).
   - `cmd/<app-name>/` for CLI entrypoints
   - `internal/common/` for code that can be shared between app.
@@ -48,22 +33,30 @@ All-in-one is an app that contains multiple application. User can start this app
   - `internal/<app-name>/model/` for domain models
   - `internal/<app-name>/repository/` for data access. 
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
+  - `web/` for frontend source code.
 
-- Use middleware for common functionality:
+#### Configuration
+Configuration:
+  - Default config file: `<root-dir>/config.yaml`
+  - Allow env var overrides via `viper`
+
+
+#### Middleware
+
+Use middleware for common functionality:
+  - Authentication and authorization
   - Request logging
   - Error handling
   - Request ID
 
-- Support authentications:
+#### Authentication
+Support authentications:
   - Basic Auth (username/password)
   - Token-based (e.g., Bearer token in Authorization header)
   - JWT (implement later)
 
 - Database access should use `github.com/jmoiron/sqlx` with prepared statements and migrations (if applicable).
 - Use squirrel library to build SQL queries safely (where applicable).
-- Configuration:
-  - Default config file: `internal/config/config.yaml`
-  - Allow env var overrides via `viper`
 - Logging:
   - Use `zerolog` with structured fields such as `request_id`, `module`, `error`.
 - REST API:
