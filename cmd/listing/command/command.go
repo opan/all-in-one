@@ -2,6 +2,8 @@ package command
 
 import (
 	listingServer "github.com/all-in-one/cmd/listing/server"
+	"github.com/all-in-one/internal/config"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +23,16 @@ func New() *cobra.Command {
 		Short: "start listing server",
 		Long:  "start listing server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := listingServer.Opts{}
+
+			// Load configuration
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				logrus.Fatalf("Failed to load config: %v", err)
+			}
+
+			opts := listingServer.Opts{
+				Config: *cfg,
+			}
 			server := listingServer.New(opts)
 
 			return server.Start()
