@@ -58,7 +58,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// Run starts the listing service
+// Server starts the listing service
 func Run() {
 	// Setup logging
 	logrus.SetFormatter(&logrus.JSONFormatter{})
