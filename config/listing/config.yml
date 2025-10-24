@@ -1,0 +1,10 @@
+server:
+  port: ":8080"
+
+storage:
+  type: "sqlite"  # Options: "memory" or "sqlite"
+  sqlite:
+    db_path: "all-in-one.db"
+
+log:
+  level: "debug"  # Options: "debug", "info", "warn", "error"

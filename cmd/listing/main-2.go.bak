@@ -60,9 +60,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 // Server starts the listing service
 func Run() {
-	// Setup logging
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	logrus.SetLevel(logrus.InfoLevel)
 
 	fmt.Println("🏷️  Starting Listing Service...")
 	logrus.Info("Initializing Listing Service")

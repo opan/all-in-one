@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Server  ServerConfig  `mapstructure:"server"`
 	Storage StorageConfig `mapstructure:"storage"`
+	Logging LoggingConfig `mapstructure:"log"`
 }
 
 type ServerConfig struct {
@@ -17,29 +18,35 @@ type ServerConfig struct {
 }
 
 type StorageConfig struct {
-	Type string `mapstructure:"type"` // "memory" or "sqlite"
-	Path string `mapstructure:"path"` // used for sqlite storage
+	Type   string       `mapstructure:"type"`   // "memory" or "sqlite"
+	Memory MemoryConfig `mapstructure:"memory"` // used for memory storage
+	SQLite SQLiteConfig `mapstructure:"sqlite"` // used for sqlite storage
 }
 
-func LoadConfig() (*Config, error) {
+type MemoryConfig struct{}
+
+type SQLiteConfig struct {
+	DBPath string `mapstructure:"db_path"`
+}
+
+type LoggingConfig struct {
+	Level string `mapstructure:"level"` // e.g., "info", "debug"
+}
+
+func Load() (*Config, error) {
 	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
+	viper.SetConfigType("yml")
 	viper.AddConfigPath(".")
-	viper.AddConfigPath("./config")
+	viper.AddConfigPath("./config/listing")
 
 	// Set default values
 	viper.SetDefault("server.port", ":8080")
 	viper.SetDefault("storage.type", "memory")
-	viper.SetDefault("storage.path", "./data/listings.db")
+	viper.SetDefault("log.level", "debug")
 
 	// Enable environment variable support
 	viper.AutomaticEnv()
-	viper.SetEnvPrefix("ALLINONE")
-
-	// Allow command-line flags to override config
-	viper.BindEnv("storage.type", "ALLINONE_STORAGE_TYPE")
-	viper.BindEnv("storage.path", "ALLINONE_STORAGE_PATH")
-	viper.BindEnv("server.port", "ALLINONE_SERVER_PORT")
+	viper.SetEnvPrefix("ALLINONE_LISTING")
 
 	// Try to read config file (it's okay if it doesn't exist)
 	if err := viper.ReadInConfig(); err != nil {

@@ -1,9 +1,11 @@
 package command
 
 import (
+	"fmt"
+
 	listingServer "github.com/all-in-one/cmd/listing/server"
 	"github.com/all-in-one/internal/config"
-	"github.com/sirupsen/logrus"
+	"github.com/all-in-one/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -25,13 +27,19 @@ func New() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// Load configuration
-			cfg, err := config.LoadConfig()
+			cfg, err := config.Load()
 			if err != nil {
-				logrus.Fatalf("Failed to load config: %v", err)
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			log, err := logging.New(cfg.Logging)
+			if err != nil {
+				return fmt.Errorf("failed to initialize logger: %w", err)
 			}
 
 			opts := listingServer.Opts{
 				Config: *cfg,
+				Logger: log,
 			}
 			server := listingServer.New(opts)
 
