@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/all-in-one/internal/common"
+	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
@@ -40,7 +40,7 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := common.Response{
+	response := httpHelper.Response{
 		Success: true,
 		Data:    items,
 	}
@@ -58,7 +58,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 
 	item, err := h.storage.Items().Get(id)
 	if err != nil {
-		if err == common.ErrNotFound {
+		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
@@ -66,7 +66,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := common.Response{
+	response := httpHelper.Response{
 		Success: true,
 		Data:    item,
 	}
@@ -94,7 +94,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := common.Response{
+	response := httpHelper.Response{
 		Success: true,
 		Message: "Item created successfully",
 		Data:    createdItem,
@@ -125,7 +125,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.storage.Items().Update(id, updatedItem)
 	if err != nil {
-		if err == common.ErrNotFound {
+		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
@@ -133,7 +133,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := common.Response{
+	response := httpHelper.Response{
 		Success: true,
 		Message: "Item updated successfully",
 		Data:    result,
@@ -152,7 +152,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 
 	err = h.storage.Items().Delete(id)
 	if err != nil {
-		if err == common.ErrNotFound {
+		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
@@ -160,7 +160,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := common.Response{
+	response := httpHelper.Response{
 		Success: true,
 		Message: "Item deleted successfully",
 	}
@@ -185,7 +185,7 @@ func sendJSON(w http.ResponseWriter, data interface{}, statusCode int) {
 
 // sendError sends an error response
 func sendError(w http.ResponseWriter, message string, statusCode int) {
-	response := common.Response{
+	response := httpHelper.Response{
 		Success: false,
 		Error:   message,
 	}

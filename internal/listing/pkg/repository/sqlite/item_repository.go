@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/all-in-one/internal/common"
+	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -64,7 +64,7 @@ func (r *itemRepository) Get(id int) (model.Item, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return model.Item{}, common.ErrNotFound
+			return model.Item{}, httpHelper.ErrNotFound
 		}
 		return model.Item{}, err
 	}
