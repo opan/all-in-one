@@ -1,7 +1,12 @@
 package server
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/all-in-one/internal/config"
 	httpHelper "github.com/all-in-one/internal/http"
@@ -30,12 +35,15 @@ func New(opts Opts) *server {
 }
 
 func (s *server) Start() error {
-	// Implementation of server start logic
+	// Create context for server lifetime
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	s.log.Info().Msg("Initiating server start...")
 
+	// Initialize storage with context
 	storage := storage.NewStorage(s.config, s.log)
-	svc, err := storage.CreateService()
+	svc, err := storage.CreateService(ctx)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
 		return err
@@ -73,10 +81,53 @@ func (s *server) Start() error {
 	// Wrap router with CORS
 	handler := c.Handler(r)
 	port := s.config.Server.Port
-	s.log.Info().Msgf("Starting server on port %s...", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		s.log.Error().Err(err).Msg("Server failed to start")
-		return err
+
+	// Create HTTP server
+	httpServer := &http.Server{
+		Addr:    ":" + port,
+		Handler: handler,
+	}
+
+	// Channel to listen for errors coming from the server
+	serverErrors := make(chan error, 1)
+
+	// Start the server in a goroutine
+	go func() {
+		s.log.Info().Msgf("Starting server on port %s...", port)
+		serverErrors <- httpServer.ListenAndServe()
+	}()
+
+	// Channel to listen for interrupt or terminate signals
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+
+	// Block until we receive a signal or an error
+	select {
+	case err := <-serverErrors:
+		if err != nil && err != http.ErrServerClosed {
+			s.log.Error().Err(err).Msg("Server failed to start")
+			return err
+		}
+
+	case sig := <-shutdown:
+		s.log.Info().Msgf("Shutdown signal received: %v", sig)
+
+		// Cancel the server context
+		cancel()
+
+		// Create a deadline for graceful shutdown
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+
+		// Attempt graceful shutdown
+		s.log.Info().Msg("Initiating graceful shutdown...")
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			s.log.Error().Err(err).Msg("Error during graceful shutdown, forcing close")
+			httpServer.Close()
+			return err
+		}
+
+		s.log.Info().Msg("Server shutdown completed successfully")
 	}
 
 	return nil

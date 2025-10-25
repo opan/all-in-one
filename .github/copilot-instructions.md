@@ -25,8 +25,8 @@ All-in-one is an app that contains multiple application. User can start this app
 #### Project structure
 In general, organize code:
   - `bin/` for compiled binaries (if applicable).
-  - `cmd/<app-name>/` for CLI entrypoints
-  - `internal/common/` for code that can be shared between app.
+  - `cmd/<app-name>/main.go` for CLI entrypoints.
+  - `internal/config/` for configuration related code.
   - `internal/<app-name>` for code specific to an app. Each app can have its own sub-packages as needed
   - `internal/<app-name>/handler/` for HTTP handlers
   - `internal/<app-name>/service/` for business logic
@@ -37,7 +37,7 @@ In general, organize code:
 
 #### Configuration
 Configuration:
-  - Default config file: `<root-dir>/config.yaml`
+  - Default config file: `config/<appname>/config.yml`
   - Allow env var overrides via `viper`
 
 
@@ -72,6 +72,10 @@ Support authentications:
     }
     ```
   - Use middleware for logging, error handling, and request ID.
+
+#### Must have
+- Need to have context that get passing down to DB calls, HTTP requests, etc via argument.
+- Integrate with Swagger for easier API documentation and manual testing when required.
 
 ## Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+

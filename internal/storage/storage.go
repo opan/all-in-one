@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/all-in-one/internal/config"
@@ -8,24 +9,19 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type storage struct {
+type Storage struct {
 	config config.Config
 	log    zerolog.Logger
 }
 
-type Storage interface {
-	// Define methods that the storage should implement
-	CreateService() (listing.Service, error)
-}
-
-func NewStorage(config config.Config, log zerolog.Logger) Storage {
-	return &storage{
+func NewStorage(config config.Config, log zerolog.Logger) *Storage {
+	return &Storage{
 		config: config,
 		log:    log,
 	}
 }
 
-func (s *storage) CreateService() (listing.Service, error) {
+func (s *Storage) CreateService(ctx context.Context) (listing.Service, error) {
 	var listingSvc *listing.Service
 	var err error
 
@@ -54,6 +50,6 @@ func (s *storage) CreateService() (listing.Service, error) {
 	return *listingSvc, err
 }
 
-func (s *storage) GetStorageType() string {
+func (s *Storage) GetStorageType() string {
 	return s.config.Storage.Type
 }

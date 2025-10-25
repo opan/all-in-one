@@ -1,11 +1,13 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
@@ -36,13 +38,27 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
+		// Create context with request ID and timeout
+		ctx := r.Context()
+		reqID := generateRequestID()
+		ctx = context.WithValue(ctx, "request_id", reqID)
+		// TODO: make timeout configurable in the config.yml
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		// Create logger with request_id
+		logger := h.log.With().Str("request_id", reqID).Logger()
+
+		// Store logger in the context for downstream
+		ctx = context.WithValue(ctx, "logger", &logger)
+
 		h.log.Info().
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Str("ip", r.RemoteAddr).
 			Msg("Request started")
 
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(ctx))
 
 		h.log.Info().
 			Str("method", r.Method).
@@ -72,4 +88,8 @@ func (h *HTTP) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func generateRequestID() string {
+	return uuid.NewString()
 }

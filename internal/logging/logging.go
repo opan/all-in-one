@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"os"
 
 	"github.com/all-in-one/internal/config"
@@ -18,4 +19,17 @@ func New(cfg config.LoggingConfig) (zerolog.Logger, error) {
 	zerolog.SetGlobalLevel(level)
 
 	return log, nil
+}
+
+type contextKey string
+
+const loggerKey contextKey = "logger"
+
+func GetLoggerFromContext(ctx context.Context) *zerolog.Logger {
+	if logger, ok := ctx.Value(loggerKey).(*zerolog.Logger); ok {
+		return logger
+	}
+	// Fallback to a default logger if not found
+	defaultLogger := zerolog.Nop()
+	return &defaultLogger
 }
