@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/all-in-one/internal/common"
+	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
 )
 
@@ -43,7 +43,7 @@ func (r *itemRepository) Get(id int) (model.Item, error) {
 
 	item, exists := r.items[id]
 	if !exists {
-		return model.Item{}, common.ErrNotFound
+		return model.Item{}, httpHelper.ErrNotFound
 	}
 
 	return item, nil
@@ -73,7 +73,7 @@ func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
 
 	existingItem, exists := r.items[id]
 	if !exists {
-		return model.Item{}, common.ErrNotFound
+		return model.Item{}, httpHelper.ErrNotFound
 	}
 
 	// Update item while preserving ID and CreatedAt
@@ -93,7 +93,7 @@ func (r *itemRepository) Delete(id int) error {
 
 	_, exists := r.items[id]
 	if !exists {
-		return common.ErrNotFound
+		return httpHelper.ErrNotFound
 	}
 
 	delete(r.items, id)

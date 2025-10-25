@@ -15,6 +15,7 @@ type storage struct {
 
 type Storage interface {
 	// Define methods that the storage should implement
+	CreateService() (listing.Service, error)
 }
 
 func NewStorage(config config.Config, log zerolog.Logger) Storage {
@@ -24,7 +25,7 @@ func NewStorage(config config.Config, log zerolog.Logger) Storage {
 	}
 }
 
-func (s *storage) SetupStorage() (listing.Service, error) {
+func (s *storage) CreateService() (listing.Service, error) {
 	var listingSvc *listing.Service
 	var err error
 

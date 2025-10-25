@@ -3,7 +3,7 @@ package command
 import (
 	"fmt"
 
-	listingServer "github.com/all-in-one/cmd/listing/server"
+	listingSvr "github.com/all-in-one/cmd/listing/server"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/logging"
 	"github.com/spf13/cobra"
@@ -37,11 +37,11 @@ func New() *cobra.Command {
 				return fmt.Errorf("failed to initialize logger: %w", err)
 			}
 
-			opts := listingServer.Opts{
+			opts := listingSvr.Opts{
 				Config: *cfg,
 				Logger: log,
 			}
-			server := listingServer.New(opts)
+			server := listingSvr.New(opts)
 
 			return server.Start()
 		},
