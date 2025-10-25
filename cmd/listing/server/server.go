@@ -15,6 +15,9 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+
+	_ "github.com/all-in-one/docs" // Import generated docs
 )
 
 type server struct {
@@ -70,6 +73,14 @@ func (s *server) Start() error {
 
 	// Health check
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
+
+	// Swagger documentation
+	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("list"),
+		httpSwagger.DomID("swagger-ui"),
+	)).Methods("GET")
 
 	// Setup CORS for frontend integration
 	c := cors.New(cors.Options{

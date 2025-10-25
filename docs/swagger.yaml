@@ -1,0 +1,209 @@
+basePath: /api/v1
+definitions:
+  github_com_all-in-one_internal_http.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  github_com_all-in-one_internal_listing_pkg_model.Item:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API for managing listing items
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Listing API
+  version: "1.0"
+paths:
+  /items:
+    get:
+      description: Retrieve a list of all listing items
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of items
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+                  type: array
+              type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Get all items
+      tags:
+      - items
+    post:
+      consumes:
+      - application/json
+      description: Create a new listing item
+      parameters:
+      - description: Item to create
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Item created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+              type: object
+        "400":
+          description: Invalid JSON data or missing required fields
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Create a new item
+      tags:
+      - items
+  /items/{id}:
+    delete:
+      description: Delete a listing item by ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Item deleted successfully
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Item not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Delete an item
+      tags:
+      - items
+    get:
+      description: Retrieve a single item by its ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Item details
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+              type: object
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Item not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Get item by ID
+      tags:
+      - items
+    put:
+      consumes:
+      - application/json
+      description: Update an existing listing item by ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated item data
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Item updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+              type: object
+        "400":
+          description: Invalid ID or JSON data
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Item not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Update an existing item
+      tags:
+      - items
+schemes:
+- http
+swagger: "2.0"
