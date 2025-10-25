@@ -54,7 +54,7 @@ func (s *server) Start() error {
 	s.log.Info().Msgf("Initialized %d sample data items", dataCount)
 
 	// Initialize HTTP helper
-	h := httpHelper.NewHTTP(s.log)
+	h := httpHelper.NewHTTP(s.log, s.config)
 
 	// Initialize router
 	r := mux.NewRouter()

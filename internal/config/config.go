@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -11,6 +12,7 @@ type Config struct {
 	Server  ServerConfig  `mapstructure:"server"`
 	Storage StorageConfig `mapstructure:"storage"`
 	Logging LoggingConfig `mapstructure:"log"`
+	Http    HTTPConfig    `mapstructure:"http"`
 }
 
 type ServerConfig struct {
@@ -31,6 +33,10 @@ type SQLiteConfig struct {
 
 type LoggingConfig struct {
 	Level string `mapstructure:"level"` // e.g., "info", "debug"
+}
+
+type HTTPConfig struct {
+	Timeout time.Duration `mapstructure:"timeout"`
 }
 
 func Load() (*Config, error) {

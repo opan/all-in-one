@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/all-in-one/internal/config"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -25,12 +26,18 @@ type Response struct {
 }
 
 type HTTP struct {
-	log zerolog.Logger
+	log    zerolog.Logger
+	config config.Config
 }
 
-func NewHTTP(log zerolog.Logger) *HTTP {
+type requestID string
+
+const requestIDKey requestID = "request_id"
+
+func NewHTTP(log zerolog.Logger, config config.Config) *HTTP {
 	return &HTTP{
-		log: log,
+		log:    log,
+		config: config,
 	}
 }
 
@@ -41,9 +48,10 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 		// Create context with request ID and timeout
 		ctx := r.Context()
 		reqID := generateRequestID()
-		ctx = context.WithValue(ctx, "request_id", reqID)
-		// TODO: make timeout configurable in the config.yml
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		ctx = context.WithValue(ctx, requestIDKey, reqID)
+
+		timeout := h.config.Http.Timeout
+		ctx, cancel := context.WithTimeout(ctx, timeout*time.Second)
 		defer cancel()
 
 		// Create logger with request_id

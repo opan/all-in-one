@@ -8,3 +8,6 @@ storage:
 
 log:
   level: "debug"  # Options: "debug", "info", "warn", "error"
+
+http:
+  timeout: 30 # in seconds
