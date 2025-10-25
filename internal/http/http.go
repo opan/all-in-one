@@ -31,8 +31,10 @@ type HTTP struct {
 }
 
 type requestID string
+type loggerID string
 
 const requestIDKey requestID = "request_id"
+const loggerKey loggerID = "logger"
 
 func NewHTTP(log zerolog.Logger, config config.Config) *HTTP {
 	return &HTTP{
@@ -58,7 +60,7 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 		logger := h.log.With().Str("request_id", reqID).Logger()
 
 		// Store logger in the context for downstream
-		ctx = context.WithValue(ctx, "logger", &logger)
+		ctx = context.WithValue(ctx, loggerKey, &logger)
 
 		h.log.Info().
 			Str("method", r.Method).
