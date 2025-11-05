@@ -10,7 +10,7 @@ import (
 
 	"github.com/all-in-one/internal/config"
 	httpHelper "github.com/all-in-one/internal/http"
-	"github.com/all-in-one/internal/storage"
+	"github.com/all-in-one/internal/listing/service"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog"
 
@@ -44,9 +44,7 @@ func (s *server) Start() error {
 
 	s.log.Info().Msg("Initiating server start...")
 
-	// Initialize storage with context
-	storage := storage.NewStorage(s.config, s.log)
-	svc, err := storage.CreateService(ctx)
+	svc, err := service.NewService(ctx, s.config)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
 		return err

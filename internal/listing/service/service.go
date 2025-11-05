@@ -1,6 +1,10 @@
-package listing
+package service
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/handler"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
@@ -12,22 +16,10 @@ type Service struct {
 	Storage repository.Storage
 }
 
-// NewMemoryService creates a new listing service with in-memory storage
-func NewMemoryService() *Service {
-	store, _ := repository.NewStorage("memory", "")
-	h := handler.NewHandler(store)
-
-	return &Service{
-		Handler: h,
-		Storage: store,
-	}
-}
-
-// NewSQLiteService creates a new listing service with SQLite storage
-func NewSQLiteService(dbPath string) (*Service, error) {
-	store, err := repository.NewStorage("sqlite", dbPath)
+func NewService(ctx context.Context, config config.Config) (*Service, error) {
+	store, err := repository.NewStorage(ctx, config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}
 
 	h := handler.NewHandler(store)
@@ -45,7 +37,7 @@ func (s *Service) RegisterRoutes(router *mux.Router) {
 
 // InitializeSampleData adds sample data to the storage
 func (s *Service) InitializeSampleData() int {
-	return s.Storage.Items().InitializeSampleData()
+	return s.Storage.ItemRepo().InitializeSampleData()
 }
 
 // Close closes any resources used by the service

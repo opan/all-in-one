@@ -25,8 +25,8 @@ type ItemRepository interface {
 
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
-	// Items returns the item repository
-	Items() ItemRepository
+	// ItemRepo returns the item repository
+	ItemRepo() ItemRepository
 
 	// Close closes the storage connection
 	Close() error

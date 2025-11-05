@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/listing/pkg/repository/memory"
 	"github.com/all-in-one/internal/listing/pkg/repository/sqlite"
@@ -15,16 +17,16 @@ type storageWrapper struct {
 	sqlStorage  sqlite.Storage
 }
 
-func (s *storageWrapper) Items() ItemRepository {
+func (s *storageWrapper) ItemRepo() ItemRepository {
 	if s.storageType == "memory" {
 		return &itemRepositoryWrapper{
 			storageType: "memory",
-			memRepo:     s.memStorage.Items(),
+			memRepo:     s.memStorage.ItemRepo(),
 		}
 	}
 	return &itemRepositoryWrapper{
 		storageType: "sqlite",
-		sqlRepo:     s.sqlStorage.Items(),
+		sqlRepo:     s.sqlStorage.ItemRepo(),
 	}
 }
 
@@ -85,8 +87,8 @@ func (r *itemRepositoryWrapper) InitializeSampleData() int {
 }
 
 // NewStorage creates a new storage instance based on the storage type
-func NewStorage(storageType, connectionString string) (Storage, error) {
-	switch storageType {
+func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
+	switch config.Storage.Type {
 	case "memory":
 		memStorage := memory.NewStorage()
 		return &storageWrapper{
@@ -94,7 +96,7 @@ func NewStorage(storageType, connectionString string) (Storage, error) {
 			memStorage:  memStorage,
 		}, nil
 	case "sqlite":
-		sqlStorage, err := sqlite.NewStorage(connectionString)
+		sqlStorage, err := sqlite.NewStorage(ctx, config)
 		if err != nil {
 			return nil, err
 		}
@@ -103,6 +105,6 @@ func NewStorage(storageType, connectionString string) (Storage, error) {
 			sqlStorage:  sqlStorage,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
+		return nil, fmt.Errorf("unsupported storage type: %s", config.Storage.Type)
 	}
 }

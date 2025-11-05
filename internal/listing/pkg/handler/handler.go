@@ -41,7 +41,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /items [get]
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
-	items, err := h.storage.Items().GetAll()
+	items, err := h.storage.ItemRepo().GetAll()
 	if err != nil {
 		sendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
@@ -73,7 +73,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.storage.Items().Get(id)
+	item, err := h.storage.ItemRepo().Get(id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -115,7 +115,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdItem, err := h.storage.Items().Create(newItem)
+	createdItem, err := h.storage.ItemRepo().Create(newItem)
 	if err != nil {
 		sendError(w, "Failed to create item", http.StatusInternalServerError)
 		return
@@ -162,7 +162,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.storage.Items().Update(id, updatedItem)
+	result, err := h.storage.ItemRepo().Update(id, updatedItem)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -199,7 +199,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.storage.Items().Delete(id)
+	err = h.storage.ItemRepo().Delete(id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
