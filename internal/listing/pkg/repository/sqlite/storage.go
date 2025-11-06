@@ -1,8 +1,10 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 
+	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/model"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -19,7 +21,7 @@ type ItemRepository interface {
 
 // Storage defines the main storage interface (local copy to avoid import cycle)
 type Storage interface {
-	Items() ItemRepository
+	ItemRepo() ItemRepository
 	Close() error
 }
 
@@ -30,8 +32,8 @@ type storage struct {
 }
 
 // NewStorage creates a new SQLite-based storage
-func NewStorage(dbPath string) (Storage, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
+	db, err := sql.Open("sqlite3", config.Storage.SQLite.DBPath)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +59,8 @@ func NewStorage(dbPath string) (Storage, error) {
 	}, nil
 }
 
-// Items returns the item repository
-func (s *storage) Items() ItemRepository {
+// ItemRepo returns the item repository
+func (s *storage) ItemRepo() ItemRepository {
 	return s.itemRepo
 }
 

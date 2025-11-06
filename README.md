@@ -52,6 +52,45 @@ all-in-one/
   - `PUT /api/v1/items/{id}` - Update item
   - `DELETE /api/v1/items/{id}` - Delete item
 
+## API Documentation (Swagger)
+
+The API includes interactive Swagger/OpenAPI documentation for easy testing and exploration.
+
+### Accessing Swagger UI
+
+Once the server is running, access the Swagger UI at:
+
+```
+http://localhost:8080/swagger/index.html
+```
+
+The Swagger UI provides:
+- Interactive API documentation
+- Try-it-out functionality for all endpoints
+- Request/response schemas
+- Example values and responses
+
+### Regenerating Documentation
+
+If you modify API endpoints or add new ones:
+
+1. Install swag CLI tool (if not already installed):
+   ```bash
+   go install github.com/swaggo/swag/cmd/swag@latest
+   ```
+
+2. Regenerate documentation:
+   ```bash
+   swag init -g cmd/listing/main.go -o docs --parseDependency --parseInternal
+   ```
+
+3. Rebuild and restart the server:
+   ```bash
+   go run main.go
+   ```
+
+See `docs/README.md` for more details about the Swagger integration.
+
 ## Configuration
 
 The application uses Viper for configuration management with the following priority order:

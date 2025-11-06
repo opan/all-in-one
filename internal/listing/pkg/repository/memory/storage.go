@@ -16,7 +16,7 @@ type ItemRepository interface {
 
 // Storage defines the main storage interface (local copy to avoid import cycle)
 type Storage interface {
-	Items() ItemRepository
+	ItemRepo() ItemRepository
 	Close() error
 }
 
@@ -32,8 +32,8 @@ func NewStorage() Storage {
 	}
 }
 
-// Items returns the item repository
-func (s *storage) Items() ItemRepository {
+// ItemRepo returns the item repository
+func (s *storage) ItemRepo() ItemRepository {
 	return s.itemRepo
 }
 
