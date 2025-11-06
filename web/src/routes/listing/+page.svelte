@@ -1,19 +1,10 @@
 <script lang="ts">
-  import { createSvelteTable } from "$lib/components/ui/data-table/data-table.svelte";
-  import { FlexRender } from "$lib/components/ui/data-table";
-  import * as Table from "$lib/components/ui/table/index";
+  import DataTable from "../../components/data-table.svelte";
   import { Button } from "$lib/components/ui/button/index";
   import * as Dialog from "$lib/components/ui/dialog/index";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
-  import { 
-    getCoreRowModel, 
-    getFilteredRowModel,
-    getPaginationRowModel,
-    type ColumnDef 
-  } from "@tanstack/table-core";
-  import { ChevronDown } from "@lucide/svelte";
+  import type { ColumnDef } from "@tanstack/table-core";
 
   interface Item {
     id: number;
@@ -39,8 +30,6 @@
   
   let loading = $state(false);
   let error = $state('');
-  let filtering = $state('');
-  let columnVisibility = $state<Record<string, boolean>>({});
 
   const columns: ColumnDef<Item>[] = [
     {
@@ -76,42 +65,16 @@
     {
       id: "actions",
       header: "Actions",
-      cell: () => null,
+      cell: (info) => {
+        const item = info.row.original;
+        return {
+          render: () => null,
+          data: item
+        };
+      },
       enableHiding: false,
     },
   ];
-
-  const table = createSvelteTable({
-    get data() {
-      return listings;
-    },
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onColumnVisibilityChange: (updater) => {
-      if (typeof updater === 'function') {
-        columnVisibility = updater(columnVisibility);
-      } else {
-        columnVisibility = updater;
-      }
-    },
-    onGlobalFilterChange: (updater) => {
-      if (typeof updater === 'function') {
-        filtering = updater(filtering);
-      } else {
-        filtering = updater;
-      }
-    },
-    state: {
-      get globalFilter() {
-        return filtering;
-      },
-      get columnVisibility() {
-        return columnVisibility;
-      },
-    },
-  });
 
   function openAddDialog() {
     editingItem = null;
@@ -218,121 +181,38 @@
       loading = false;
     }
   }
-  
+
   function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleString();
   }
 </script>
 
 <div class="container mx-auto p-6">
-  <div class="flex items-center justify-between gap-4 mb-4">
-    <Input
-      placeholder="Filter items..."
-      value={filtering}
-      oninput={(e) => filtering = e.currentTarget.value}
-      class="max-w-sm"
-    />
-    <div class="flex items-center gap-2">
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <Button variant="outline" class="ml-auto">
-            Columns <ChevronDown class="ml-2 h-4 w-4" />
-          </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="end">
-          {#each table.getAllLeafColumns() as column}
-            {#if column.getCanHide()}
-              <DropdownMenu.CheckboxItem
-                checked={column.getIsVisible()}
-                onCheckedChange={(value) => column.toggleVisibility(!!value)}
-              >
-                {column.id}
-              </DropdownMenu.CheckboxItem>
-            {/if}
-          {/each}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-      <Button onclick={openAddDialog}>Add New Item</Button>
-    </div>
-  </div>
-
-  <div class="rounded-md border">
-    <Table.Root>
-      <Table.Header>
-        {#each table.getHeaderGroups() as headerGroup}
-          <Table.Row>
-            {#each headerGroup.headers as header}
-              <Table.Head>
-                {#if !header.isPlaceholder}
-                  <FlexRender
-                    content={header.column.columnDef.header}
-                    context={header.getContext()}
-                  />
-                {/if}
-              </Table.Head>
-            {/each}
-          </Table.Row>
-        {/each}
-      </Table.Header>
-      <Table.Body>
-        {#if table.getRowModel().rows?.length}
-          {#each table.getRowModel().rows as row}
-            <Table.Row>
-              {#each row.getVisibleCells() as cell}
-                <Table.Cell>
-                  {#if cell.column.id === 'actions'}
-                    <div class="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onclick={() => openEditDialog(row.original)}>
-                        Edit
-                      </Button>
-                      <Button variant="destructive" size="sm" onclick={() => deleteItem(row.original.id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  {:else}
-                    <FlexRender
-                      content={cell.column.columnDef.cell}
-                      context={cell.getContext()}
-                    />
-                  {/if}
-                </Table.Cell>
-              {/each}
-            </Table.Row>
-          {/each}
-        {:else}
-          <Table.Row>
-            <Table.Cell colspan={columns.length} class="h-24 text-center">
-              No results.
-            </Table.Cell>
-          </Table.Row>
-        {/if}
-      </Table.Body>
-    </Table.Root>
-  </div>
-
-  <div class="flex items-center justify-between space-x-2 py-4">
-    <div class="text-sm text-muted-foreground">
-      {table.getFilteredRowModel().rows.length} row(s) total.
-    </div>
-    <div class="flex items-center space-x-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => table.previousPage()}
-        disabled={!table.getCanPreviousPage()}
-      >
-        Previous
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => table.nextPage()}
-        disabled={!table.getCanNextPage()}
-      >
-        Next
-      </Button>
-    </div>
-  </div>
+  <DataTable 
+    data={listings} 
+    {columns}
+    filterPlaceholder="Filter items..."
+    showFilter={true}
+    showColumnVisibility={true}
+    showPagination={true}
+    actions={[
+      {
+        label: "Add New Item",
+        onclick: openAddDialog
+      }
+    ]}
+  >
+    {#snippet actionsColumn({ row })}
+      <div class="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onclick={() => openEditDialog(row.original)}>
+          Edit
+        </Button>
+        <Button variant="destructive" size="sm" onclick={() => deleteItem(row.original.id)}>
+          Delete
+        </Button>
+      </div>
+    {/snippet}
+  </DataTable>
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>

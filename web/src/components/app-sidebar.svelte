@@ -11,8 +11,10 @@
     Bot,
     SquareUser,
     List,
+    Table,
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
+	import TableBody from '$lib/components/ui/table/table-body.svelte';
 
   interface Props {
     currentPath?: string;
@@ -20,12 +22,13 @@
 
   type NavItem = {
     title: string;
-    url: string;
+    url?: string;
     icon: Component<IconProps, {}, "">;
     isExpandable: boolean;
     subitems?: Array<{
       title: string;
       url: string;
+      icon: Component<IconProps, {}, "">;
     }>;
   };
 
@@ -33,25 +36,17 @@
   let playgroundOpen = $state(true);
 
   const platformItems: NavItem[] = [
-    // {
-    //   title: "Playground",
-    //   icon: SquareTerminal,
-    //   isExpandable: true,
-    //   subitems: [
-    //     { title: "History", url: "/playground/history", icon: History },
-    //     { title: "Starred", url: "/playground/starred", icon: Star },
-    //     { title: "Settings", url: "/playground/settings", icon: Settings },
-    //   ]
-    // },
     {
-      title: "Items",
-      url: "/listing",
-      icon: List,
-      isExpandable: false,
+      title: "Listing",
+      icon: Table,
+      isExpandable: true,
+      subitems: [
+        { title: "Category", url: "/listing", icon: List },
+      ]
     },
     {
       title: "Settings",
-      url: "/settings",
+      url: "#",
       icon: Settings,
       isExpandable: false,
     },
