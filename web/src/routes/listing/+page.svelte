@@ -3,13 +3,8 @@
   import { Button } from "$lib/components/ui/button/index"
   import * as Dialog from "$lib/components/ui/dialog/index"
   import * as Card from "$lib/components/ui/card/index"
-  import * as Sidebar from "$lib/components/ui/sidebar/index"
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index"
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
-  import { Separator } from "$lib/components/ui/separator/index";
-  import ThemeToggle from "$lib/components/theme-toggle.svelte";
-  import AppSidebar from "$lib/components/app-sidebar.svelte";
 
   interface Item {
     id: number;
@@ -19,7 +14,6 @@
     updated_at: string;
   }
 
-  // Dummy data for now
   let listings = $state<Item[]>([
     { id: 1, title: "First Item", description: "Description for first item", created_at: "2025-10-15T10:00:00Z", updated_at: "2025-10-15T10:00:00Z" },
     { id: 2, title: "Second Item", description: "Description for second item", created_at: "2025-10-16T11:30:00Z", updated_at: "2025-10-16T11:30:00Z" },
@@ -27,7 +21,6 @@
     { id: 4, title: "Fourth Item", description: "Description for fourth item", created_at: "2025-10-18T14:20:00Z", updated_at: "2025-10-18T14:20:00Z" },
   ]);
   
-  // Form state
   let dialogOpen = $state(false);
   let editingItem = $state<number | null>(null);
   let formData = $state({
@@ -35,7 +28,6 @@
     description: ''
   });
   
-  // Loading and error states
   let loading = $state(false);
   let error = $state('');
 
@@ -51,8 +43,6 @@
     dialogOpen = true;
   }
 
-  
-  // Add new item
   async function handleSubmit(e: Event) {
     e.preventDefault();
 
@@ -66,7 +56,6 @@
     
     try {
       if (editingItem) {
-        // Update existing item
         const response = await fetch(`/api/v1/items/${editingItem}`, {
           method: 'PUT',
           headers: {
@@ -89,7 +78,6 @@
           listings = listings;
         }
       } else {
-        // Create new item
         const response = await fetch('/api/v1/items', {
           method: 'POST',
           headers: {
@@ -110,7 +98,6 @@
         listings = listings;
       }
       
-      // Reset form
       formData = { title: '', description: '' };
       editingItem = null;
       dialogOpen = false;
@@ -121,7 +108,6 @@
     }
   }
   
-  // Delete item
   async function deleteItem(id: number) {
     if (!confirm('Are you sure you want to delete this item?')) {
       return;
@@ -156,83 +142,51 @@
   }
 </script>
 
-<Sidebar.Provider>
-  <AppSidebar />
-  
-  <Sidebar.Inset>
-    <!-- Top Navigation Bar -->
-    <header class="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-      <Sidebar.Trigger class="-ml-1" />
-      <Separator orientation="vertical" class="mr-2 h-4" />
-      
-      <Breadcrumb.Root>
-        <Breadcrumb.List>
-          <Breadcrumb.Item>
-            <Breadcrumb.Link href="/">Building Your Application</Breadcrumb.Link>
-          </Breadcrumb.Item>
-          <Breadcrumb.Separator />
-          <Breadcrumb.Item>
-            <Breadcrumb.Page>Data Fetching</Breadcrumb.Page>
-          </Breadcrumb.Item>
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
-      
-      <div class="ml-auto flex items-center gap-2">
-        <ThemeToggle />
+<div class="container mx-auto p-6">
+  <Card.Root class="min-h-[calc(100vh-8rem)]">
+    <Card.Header class="border-b">
+      <div class="flex items-center justify-between">
+        <Card.Title class="text-2xl">TABLE</Card.Title>
+        <Button onclick={openAddDialog}>Add New Item</Button>
       </div>
-    </header>
+    </Card.Header>
+    <Card.Content class="p-6">
+      <div class="rounded-md border">
+        <Table.Root>
+          <Table.Header>
+            <Table.Row>
+              <Table.Head class="w-[80px]">ID</Table.Head>
+              <Table.Head>Title</Table.Head>
+              <Table.Head>Description</Table.Head>
+              <Table.Head class="w-[180px]">Created</Table.Head>
+              <Table.Head class="w-[180px]">Updated</Table.Head>
+              <Table.Head class="w-[180px] text-right">Actions</Table.Head>
+            </Table.Row>
+          </Table.Header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 overflow-auto">
-      <div class="container mx-auto p-6">
-        <Card.Root class="min-h-[calc(100vh-8rem)]">
-          <Card.Header class="border-b">
-            <div class="flex items-center justify-between">
-              <Card.Title class="text-2xl">TABLE</Card.Title>
-              <Button onclick={openAddDialog}>Add New Item</Button>
-            </div>
-          </Card.Header>
-          <Card.Content class="p-6">
-            <div class="rounded-md border">
-              <Table.Root>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.Head class="w-[80px]">ID</Table.Head>
-                    <Table.Head>Title</Table.Head>
-                    <Table.Head>Description</Table.Head>
-                    <Table.Head class="w-[180px]">Created</Table.Head>
-                    <Table.Head class="w-[180px]">Updated</Table.Head>
-                    <Table.Head class="w-[180px] text-right">Actions</Table.Head>
-                  </Table.Row>
-                </Table.Header>
-
-                <Table.Body>
-                  {#each listings as item}
-                    <Table.Row>
-                      <Table.Cell class="font-medium">{item.id}</Table.Cell>
-                      <Table.Cell>{item.title}</Table.Cell>
-                      <Table.Cell>{item.description}</Table.Cell>
-                      <Table.Cell class="text-muted-foreground">{formatDate(item.created_at)}</Table.Cell>
-                      <Table.Cell class="text-muted-foreground">{formatDate(item.updated_at)}</Table.Cell>
-                      <Table.Cell class="text-right">
-                        <div class="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" onclick={() => openEditDialog(item)}>Edit</Button>
-                          <Button variant="destructive" size="sm" onclick={() => deleteItem(item.id)}>Delete</Button>
-                        </div>
-                      </Table.Cell>
-                    </Table.Row>
-                  {/each}
-                </Table.Body>
-              </Table.Root>
-            </div>
-          </Card.Content>
-        </Card.Root>
+          <Table.Body>
+            {#each listings as item}
+              <Table.Row>
+                <Table.Cell class="font-medium">{item.id}</Table.Cell>
+                <Table.Cell>{item.title}</Table.Cell>
+                <Table.Cell>{item.description}</Table.Cell>
+                <Table.Cell class="text-muted-foreground">{formatDate(item.created_at)}</Table.Cell>
+                <Table.Cell class="text-muted-foreground">{formatDate(item.updated_at)}</Table.Cell>
+                <Table.Cell class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onclick={() => openEditDialog(item)}>Edit</Button>
+                    <Button variant="destructive" size="sm" onclick={() => deleteItem(item.id)}>Delete</Button>
+                  </div>
+                </Table.Cell>
+              </Table.Row>
+            {/each}
+          </Table.Body>
+        </Table.Root>
       </div>
-    </main>
-  </Sidebar.Inset>
-</Sidebar.Provider>
+    </Card.Content>
+  </Card.Root>
+</div>
 
-<!-- Add/Edit Dialog -->
 <Dialog.Root bind:open={dialogOpen}>
   <Dialog.Content class="sm:max-w-[425px]">
     <Dialog.Header>
@@ -270,4 +224,3 @@
     </form>
   </Dialog.Content>
 </Dialog.Root>
-

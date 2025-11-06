@@ -54,7 +54,7 @@ Use middleware for common functionality:
 Support authentications:
   - Basic Auth (username/password)
   - Token-based (e.g., Bearer token in Authorization header)
-  - JWT (implement later)
+  - JWT (will be implemented later)
 
 - Database access should use `github.com/jmoiron/sqlx` with prepared statements and migrations (if applicable).
 - Use squirrel library to build SQL queries safely (where applicable).
@@ -75,23 +75,39 @@ Support authentications:
   - Use middleware for logging, error handling, and request ID.
 
 #### Must have
-- Need to have context that get passing down to DB calls, HTTP requests, etc via argument.
+- Need to have context that get passing down to DB calls, HTTP requests, and other as required via function parameter/argument.
 - Integrate with Swagger for easier API documentation and manual testing when required.
 
-## Frontend (Svelte + TypeScript) Guidelines
+### Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+
 - **TypeScript:** 5.9+
 - **node:**: 22.19+
 - **npm:** 10+
-- Frontend code located in the `web/` directory.
+
+#### Project structure
+- `web/src/rotes/` for SvelteKit routes.
+- `web/src/lib/` for shared libraries (e.g., API client, stores).
+- `web/src/components/` for reusable Svelte components.
+
+
+#### Coding guidelines
+- Follows Svelte and TypeScript best practices.
+- For authentication, refer to https://svelte.dev/docs/kit/auth.
+- For performance, refer to https://svelte.dev/docs/kit/performance
+- For SEO, refer to https://svelte.dev/docs/kit/seo
+- For icons , refer to https://svelte.dev/docs/kit/icons
+- For images, refer to https://svelte.dev/docs/kit/images
+- For accessibility, refer to https://svelte.dev/docs/kit/accessibility
+- Follow do's and don'ts for TypeScript here: https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html
+
 - Use `<script lang="ts">` in Svelte components.
 - Keep an API client wrapper (e.g., `web/src/lib/api.ts`) and define shared TS interfaces for request/response shapes.
 - Use Svelte stores for shared state.
 - Configure API base URL via environment variable (e.g. `VITE_API_BASE_URL` or preferred solution for your build tooling).
-- Minimal routing and components under `web/src/` (e.g., `components/`, `routes/` or `pages/` according to your router).
-- styling:
-  - Use tailwindcss.
-  - Use shadcn-svelte (https://shadcn-svelte.com/docs) for component. for example `npx shadcn-svelte@latest add dialog`
+
+#### Styling
+- Use tailwindcss.
+- Use shadcn-svelte (https://shadcn-svelte.com/docs) for component. for example `npx shadcn-svelte@latest add dialog`
 
 ## CLI & Commands
 - Use `cobra` to implement CLI entrypoints under `cmd/`.

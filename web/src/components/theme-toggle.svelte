@@ -6,7 +6,6 @@
   let theme = $state<string>("light");
 
   onMount(() => {
-    // Check for saved theme preference or default to 'light'
     const savedTheme = localStorage.getItem("theme") || "light";
     theme = savedTheme;
     applyTheme(savedTheme);

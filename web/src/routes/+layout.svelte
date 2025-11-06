@@ -1,8 +1,14 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import AppLayout from "../components/app-layout.svelte";
 
 	let { children } = $props();
+
+	const breadcrumbs = [
+		{ label: 'Building Your Application', href: '/' },
+		{ label: 'Data Fetching' }
+	];
 </script>
 
 <svelte:head>
@@ -10,5 +16,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-background text-foreground">
-	{@render children?.()}
+	<AppLayout {breadcrumbs}>
+		{@render children?.()}
+	</AppLayout>
 </div>
