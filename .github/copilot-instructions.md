@@ -26,12 +26,13 @@ All-in-one is an app that contains multiple application. User can start this app
 In general, organize code:
   - `bin/` for compiled binaries (if applicable).
   - `cmd/<app-name>/main.go` for CLI entrypoints.
+  - `config/<app-name>/config.yml` for default configuration files for each app.
   - `internal/config/` for configuration related code.
   - `internal/<app-name>` for code specific to an app. Each app can have its own sub-packages as needed
-  - `internal/<app-name>/handler/` for HTTP handlers
-  - `internal/<app-name>/service/` for business logic
-  - `internal/<app-name>/model/` for domain models
-  - `internal/<app-name>/repository/` for data access. 
+  - `internal/<app-name>/pkg/handler/` for HTTP handlers. Each domain can have its own file, e.g.: item.go, user.go
+  - `internal/<app-name>/pkg/service/` for business logic
+  - `internal/<app-name>/pkg/model/` for domain models
+  - `internal/<app-name>/pkg/repository/` for data access. 
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
   - `web/` for frontend source code.
 
