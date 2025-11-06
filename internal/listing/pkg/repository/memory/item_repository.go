@@ -99,34 +99,3 @@ func (r *itemRepository) Delete(id int) error {
 	delete(r.items, id)
 	return nil
 }
-
-// InitializeSampleData adds sample data to the storage
-func (r *itemRepository) InitializeSampleData() int {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	sampleItems := []model.Item{
-		{
-			Title:       "Sample Task 1",
-			Description: "This is a sample task for testing",
-		},
-		{
-			Title:       "Sample Task 2",
-			Description: "Another sample task with different content",
-		},
-		{
-			Title:       "Sample Task 3",
-			Description: "Third sample task for demonstration",
-		},
-	}
-
-	for _, item := range sampleItems {
-		r.lastID++
-		item.ID = r.lastID
-		item.CreatedAt = time.Now()
-		item.UpdatedAt = time.Now()
-		r.items[item.ID] = item
-	}
-
-	return len(sampleItems)
-}

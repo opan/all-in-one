@@ -16,13 +16,13 @@ type ItemRepository interface {
 	Create(item model.Item) (model.Item, error)
 	Update(id int, item model.Item) (model.Item, error)
 	Delete(id int) error
-	InitializeSampleData() int
 }
 
 // Storage defines the main storage interface (local copy to avoid import cycle)
 type Storage interface {
 	ItemRepo() ItemRepository
 	Close() error
+	InitializeSampleData() int
 }
 
 // storage implements Storage with SQLite storage
@@ -67,4 +67,36 @@ func (s *storage) ItemRepo() ItemRepository {
 // Close closes the database connection
 func (s *storage) Close() error {
 	return s.db.Close()
+}
+
+func (s *storage) InitializeSampleData() int {
+	// Check if there's already data
+	items, err := s.itemRepo.GetAll()
+	if err != nil || len(items) > 0 {
+		return 0 // Don't add sample data if there's an error or if data exists
+	}
+
+	sampleItems := []model.Item{
+		{
+			Title:       "Sample Task 1",
+			Description: "This is a sample task for testing",
+		},
+		{
+			Title:       "Sample Task 2",
+			Description: "Another sample task with different content",
+		},
+		{
+			Title:       "Sample Task 3",
+			Description: "Third sample task for demonstration",
+		},
+	}
+
+	for _, item := range sampleItems {
+		_, err := s.itemRepo.Create(item)
+		if err != nil {
+			return 0
+		}
+	}
+
+	return len(sampleItems)
 }

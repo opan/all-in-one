@@ -37,7 +37,7 @@ func (s *Service) RegisterRoutes(router *mux.Router) {
 
 // InitializeSampleData adds sample data to the storage
 func (s *Service) InitializeSampleData() int {
-	return s.Storage.ItemRepo().InitializeSampleData()
+	return s.Storage.InitializeSampleData()
 }
 
 // Close closes any resources used by the service

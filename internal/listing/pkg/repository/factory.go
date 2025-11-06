@@ -37,6 +37,13 @@ func (s *storageWrapper) Close() error {
 	return s.sqlStorage.Close()
 }
 
+func (s *storageWrapper) InitializeSampleData() int {
+	if s.storageType == "memory" {
+		return s.memStorage.InitializeSampleData()
+	}
+	return s.sqlStorage.InitializeSampleData()
+}
+
 // itemRepositoryWrapper wraps the different item repository implementations
 type itemRepositoryWrapper struct {
 	storageType string
@@ -77,13 +84,6 @@ func (r *itemRepositoryWrapper) Delete(id int) error {
 		return r.memRepo.Delete(id)
 	}
 	return r.sqlRepo.Delete(id)
-}
-
-func (r *itemRepositoryWrapper) InitializeSampleData() int {
-	if r.storageType == "memory" {
-		return r.memRepo.InitializeSampleData()
-	}
-	return r.sqlRepo.InitializeSampleData()
 }
 
 // NewStorage creates a new storage instance based on the storage type

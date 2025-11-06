@@ -18,9 +18,6 @@ type ItemRepository interface {
 
 	// Delete removes a listing item
 	Delete(id int) error
-
-	// InitializeSampleData adds sample data to the storage
-	InitializeSampleData() int
 }
 
 // Storage defines the main storage interface that aggregates all repositories
@@ -30,4 +27,6 @@ type Storage interface {
 
 	// Close closes the storage connection
 	Close() error
+
+	InitializeSampleData() int
 }
