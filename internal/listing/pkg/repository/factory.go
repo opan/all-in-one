@@ -12,9 +12,9 @@ import (
 
 // storageWrapper wraps the different storage implementations
 type storageWrapper struct {
-	storageType string
-	memStorage  memory.Storage
-	sqlStorage  sqlite.Storage
+	storageType   string
+	memStorage    memory.Storage
+	sqliteStorage sqlite.Storage
 }
 
 func (s *storageWrapper) ItemRepo() ItemRepository {
@@ -26,7 +26,20 @@ func (s *storageWrapper) ItemRepo() ItemRepository {
 	}
 	return &itemRepositoryWrapper{
 		storageType: "sqlite",
-		sqlRepo:     s.sqlStorage.ItemRepo(),
+		sqlRepo:     s.sqliteStorage.ItemRepo(),
+	}
+}
+
+func (s *storageWrapper) TopicRepo() TopicRepository {
+	if s.storageType == "memory" {
+		return &topicRepositoryWrapper{
+			storageType: "memory",
+			memRepo:     s.memStorage.TopicRepo(),
+		}
+	}
+	return &topicRepositoryWrapper{
+		storageType: "sqlite",
+		sqlRepo:     s.sqliteStorage.TopicRepo(),
 	}
 }
 
@@ -34,14 +47,8 @@ func (s *storageWrapper) Close() error {
 	if s.storageType == "memory" {
 		return s.memStorage.Close()
 	}
-	return s.sqlStorage.Close()
-}
+	return s.sqliteStorage.Close()
 
-func (s *storageWrapper) InitializeSampleData() int {
-	if s.storageType == "memory" {
-		return s.memStorage.InitializeSampleData()
-	}
-	return s.sqlStorage.InitializeSampleData()
 }
 
 // itemRepositoryWrapper wraps the different item repository implementations
@@ -96,13 +103,13 @@ func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
 			memStorage:  memStorage,
 		}, nil
 	case "sqlite":
-		sqlStorage, err := sqlite.NewStorage(ctx, config)
+		sqliteStorage, err := sqlite.NewStorage(ctx, config)
 		if err != nil {
 			return nil, err
 		}
 		return &storageWrapper{
-			storageType: "sqlite",
-			sqlStorage:  sqlStorage,
+			storageType:   "sqlite",
+			sqliteStorage: sqliteStorage,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", config.Storage.Type)

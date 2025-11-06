@@ -6,16 +6,17 @@ import (
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 // itemRepository implements the item repository with SQLite storage
 type itemRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // newItemRepository creates a new SQLite-based item repository
-func newItemRepository(db *sql.DB) *itemRepository {
+func newItemRepository(db *sqlx.DB) *itemRepository {
 	return &itemRepository{db: db}
 }
 

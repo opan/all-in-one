@@ -20,10 +20,19 @@ type ItemRepository interface {
 	Delete(id int) error
 }
 
+type TopicRepository interface {
+	GetAll() ([]model.Item, error)
+	Get(id int) (model.Item, error)
+	Create(item model.Item) (model.Item, error)
+	Update(id int, item model.Item) (model.Item, error)
+	Delete(id int) error
+}
+
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
 	// ItemRepo returns the item repository
 	ItemRepo() ItemRepository
+	TopicRepo() TopicRepository
 
 	// Close closes the storage connection
 	Close() error

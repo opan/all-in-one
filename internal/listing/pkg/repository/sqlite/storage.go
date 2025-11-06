@@ -2,10 +2,10 @@ package sqlite
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -18,22 +18,32 @@ type ItemRepository interface {
 	Delete(id int) error
 }
 
+type TopicRepository interface {
+	GetAll() ([]model.Topic, error)
+	Get(id int) (model.Topic, error)
+	Create(topic model.Topic) (model.Topic, error)
+	Update(id int, topic model.Topic) (model.Topic, error)
+	Delete(id int) error
+}
+
 // Storage defines the main storage interface (local copy to avoid import cycle)
 type Storage interface {
 	ItemRepo() ItemRepository
+	TopicRepo() TopicRepository
 	Close() error
 	InitializeSampleData() int
 }
 
 // storage implements Storage with SQLite storage
 type storage struct {
-	db       *sql.DB
-	itemRepo *itemRepository
+	db        *sqlx.DB
+	itemRepo  *itemRepository
+	topicRepo *topicRepository
 }
 
 // NewStorage creates a new SQLite-based storage
 func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
-	db, err := sql.Open("sqlite3", config.Storage.SQLite.DBPath)
+	db, err := sqlx.Open("sqlite3", config.Storage.SQLite.DBPath)
 	if err != nil {
 		return nil, err
 	}
@@ -54,14 +64,19 @@ func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
 	}
 
 	return &storage{
-		db:       db,
-		itemRepo: newItemRepository(db),
+		db:        db,
+		itemRepo:  newItemRepository(db),
+		topicRepo: newTopicRepository(db),
 	}, nil
 }
 
 // ItemRepo returns the item repository
 func (s *storage) ItemRepo() ItemRepository {
 	return s.itemRepo
+}
+
+func (s *storage) TopicRepo() TopicRepository {
+	return s.topicRepo
 }
 
 // Close closes the database connection
