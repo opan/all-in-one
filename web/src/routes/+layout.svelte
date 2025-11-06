@@ -3,7 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import AppLayout from "../components/app-layout.svelte";
 
-	let { children } = $props();
+	let { children, data } = $props();
 
 	const breadcrumbs = [
 		{ label: 'Building Your Application', href: '/' },
@@ -16,7 +16,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-background text-foreground">
-	<AppLayout {breadcrumbs}>
+	<AppLayout {breadcrumbs} currentPath={data.url}>
 		{@render children?.()}
 	</AppLayout>
 </div>

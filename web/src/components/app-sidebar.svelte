@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Component } from 'svelte';
   import * as Sidebar from "$lib/components/ui/sidebar/index";
   import { 
     SquareTerminal, 
@@ -8,33 +9,44 @@
     History,
     Star,
     Bot,
-    SquareUser
+    SquareUser,
+    List,
   } from "@lucide/svelte/icons";
-  import { page } from "$app/stores";
+  import type { IconProps } from '@lucide/svelte';
 
+  interface Props {
+    currentPath?: string;
+  }
+
+  type NavItem = {
+    title: string;
+    url: string;
+    icon: Component<IconProps, {}, "">;
+    isExpandable: boolean;
+    subitems?: Array<{
+      title: string;
+      url: string;
+    }>;
+  };
+
+  let { currentPath = "/" }: Props = $props();
   let playgroundOpen = $state(true);
 
-  const platformItems = [
+  const platformItems: NavItem[] = [
+    // {
+    //   title: "Playground",
+    //   icon: SquareTerminal,
+    //   isExpandable: true,
+    //   subitems: [
+    //     { title: "History", url: "/playground/history", icon: History },
+    //     { title: "Starred", url: "/playground/starred", icon: Star },
+    //     { title: "Settings", url: "/playground/settings", icon: Settings },
+    //   ]
+    // },
     {
-      title: "Playground",
-      icon: SquareTerminal,
-      isExpandable: true,
-      subitems: [
-        { title: "History", url: "/playground/history", icon: History },
-        { title: "Starred", url: "/playground/starred", icon: Star },
-        { title: "Settings", url: "/playground/settings", icon: Settings },
-      ]
-    },
-    {
-      title: "Models",
-      url: "/models",
-      icon: Bot,
-      isExpandable: false,
-    },
-    {
-      title: "Documentation",
-      url: "/documentation",
-      icon: BookOpen,
+      title: "Items",
+      url: "/listing",
+      icon: List,
       isExpandable: false,
     },
     {
@@ -91,7 +103,7 @@
                   <Sidebar.MenuSub>
                     {#each item.subitems as subitem}
                       <Sidebar.MenuSubItem>
-                        <Sidebar.MenuSubButton isActive={subitem.url === $page.url.pathname}>
+                        <Sidebar.MenuSubButton isActive={subitem.url === currentPath}>
                           {#snippet child({ props })}
                             <a href={subitem.url} {...props}>
                               <span>{subitem.title}</span>
@@ -104,7 +116,7 @@
                 {/if}
               {:else}
                 <Sidebar.MenuButton 
-                  isActive={item.url === $page.url.pathname}
+                  isActive={item.url === currentPath}
                   tooltipContent={item.title}
                 >
                   {#snippet child({ props })}

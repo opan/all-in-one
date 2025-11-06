@@ -8,13 +8,14 @@
 	interface Props {
 		children?: import('svelte').Snippet;
 		breadcrumbs?: Array<{ label: string; href?: string }>;
+		currentPath: string;
 	}
 
-	let { children, breadcrumbs = [{ label: 'Home', href: '/' }] }: Props = $props();
+	let { children, breadcrumbs = [{ label: 'Home', href: '/' }], currentPath }: Props = $props();
 </script>
 
 <Sidebar.Provider>
-	<AppSidebar />
+	<AppSidebar {currentPath} />
 	
 	<Sidebar.Inset>
 		<header class="flex h-14 shrink-0 items-center gap-2 border-b px-4">

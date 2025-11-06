@@ -107,7 +107,7 @@ Support authentications:
 
 #### Styling
 - Use tailwindcss.
-- Use shadcn-svelte (https://shadcn-svelte.com/docs) for component. for example `npx shadcn-svelte@latest add dialog`
+- Use shadcn-svelte (https://shadcn-svelte.com/docs) for component. To add new component library, e.g.: `npx shadcn-svelte@latest add dialog`
 
 ## CLI & Commands
 - Use `cobra` to implement CLI entrypoints under `cmd/`.
