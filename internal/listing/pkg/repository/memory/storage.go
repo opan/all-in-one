@@ -5,52 +5,30 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// ItemRepository defines the interface for item storage operations (local copy to avoid import cycle)
-type ItemRepository interface {
-	GetAll() ([]model.Item, error)
-	Get(id int) (model.Item, error)
-	Create(item model.Item) (model.Item, error)
-	Update(id int, item model.Item) (model.Item, error)
-	Delete(id int) error
-}
+const errTopicRepoNotImplemented = "TopicRepo not implemented in memory storage"
 
-type TopicRepository interface {
-	GetAll() ([]model.Item, error)
-	Get(id int) (model.Item, error)
-	Create(item model.Item) (model.Item, error)
-	Update(id int, item model.Item) (model.Item, error)
-	Delete(id int) error
-}
-
-// Storage defines the main storage interface (local copy to avoid import cycle)
-type Storage interface {
-	ItemRepo() ItemRepository
-	TopicRepo() TopicRepository
-	Close() error
-	InitializeSampleData() int
-}
-
-// storage implements Storage with in-memory storage
+// storage implements the Storage interface from repository package
 type storage struct {
-	itemRepo *itemRepository
-	log      zerolog.Logger
+	itemRepo  *itemRepository
+	topicRepo *topicRepository
+	log       zerolog.Logger
 }
 
 // NewStorage creates a new memory-based storage
-func NewStorage() Storage {
+func NewStorage() *storage {
 	return &storage{
-		itemRepo: newItemRepository(),
+		itemRepo:  newItemRepository(),
+		topicRepo: &topicRepository{},
 	}
 }
 
 // ItemRepo returns the item repository
-func (s *storage) ItemRepo() ItemRepository {
+func (s *storage) ItemRepo() *itemRepository {
 	return s.itemRepo
 }
 
-func (s *storage) TopicRepo() TopicRepository {
-	s.log.Warn().Msg("TopicRepo not implemented in memory storage")
-	return nil
+func (s *storage) TopicRepo() *topicRepository {
+	return s.topicRepo
 }
 
 // Close closes the storage connection (no-op for memory storage)
