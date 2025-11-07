@@ -15,52 +15,6 @@ type baseStorage interface {
 	InitializeSampleData() int
 }
 
-// memoryStorageAdapter adapts memory.storage to repository.Storage interface
-type memoryStorageAdapter struct {
-	itemRepo  ItemRepository
-	topicRepo TopicRepository
-	storage   baseStorage
-}
-
-func (m *memoryStorageAdapter) ItemRepo() ItemRepository {
-	return m.itemRepo
-}
-
-func (m *memoryStorageAdapter) TopicRepo() TopicRepository {
-	return m.topicRepo
-}
-
-func (m *memoryStorageAdapter) Close() error {
-	return m.storage.Close()
-}
-
-func (m *memoryStorageAdapter) InitializeSampleData() int {
-	return m.storage.InitializeSampleData()
-}
-
-// sqliteStorageAdapter adapts sqlite.storage to repository.Storage interface
-type sqliteStorageAdapter struct {
-	itemRepo  ItemRepository
-	topicRepo TopicRepository
-	storage   baseStorage
-}
-
-func (s *sqliteStorageAdapter) ItemRepo() ItemRepository {
-	return s.itemRepo
-}
-
-func (s *sqliteStorageAdapter) TopicRepo() TopicRepository {
-	return s.topicRepo
-}
-
-func (s *sqliteStorageAdapter) Close() error {
-	return s.storage.Close()
-}
-
-func (s *sqliteStorageAdapter) InitializeSampleData() int {
-	return s.storage.InitializeSampleData()
-}
-
 // NewStorage creates a new storage instance based on the storage type
 func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
 	switch config.Storage.Type {
