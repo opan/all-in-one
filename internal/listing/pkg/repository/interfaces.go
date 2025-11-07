@@ -21,10 +21,10 @@ type ItemRepository interface {
 }
 
 type TopicRepository interface {
-	GetAll() ([]model.Item, error)
-	Get(id int) (model.Item, error)
-	Create(item model.Item) (model.Item, error)
-	Update(id int, item model.Item) (model.Item, error)
+	GetAll() ([]model.Topic, error)
+	Get(id int) (model.Topic, error)
+	Create(item model.Topic) (model.Topic, error)
+	Update(id int, item model.Topic) (model.Topic, error)
 	Delete(id int) error
 }
 
