@@ -2,6 +2,7 @@ package memory
 
 import (
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/rs/zerolog"
 )
 
 // ItemRepository defines the interface for item storage operations (local copy to avoid import cycle)
@@ -13,9 +14,18 @@ type ItemRepository interface {
 	Delete(id int) error
 }
 
+type TopicRepository interface {
+	GetAll() ([]model.Item, error)
+	Get(id int) (model.Item, error)
+	Create(item model.Item) (model.Item, error)
+	Update(id int, item model.Item) (model.Item, error)
+	Delete(id int) error
+}
+
 // Storage defines the main storage interface (local copy to avoid import cycle)
 type Storage interface {
 	ItemRepo() ItemRepository
+	TopicRepo() TopicRepository
 	Close() error
 	InitializeSampleData() int
 }
@@ -23,6 +33,7 @@ type Storage interface {
 // storage implements Storage with in-memory storage
 type storage struct {
 	itemRepo *itemRepository
+	log      zerolog.Logger
 }
 
 // NewStorage creates a new memory-based storage
@@ -35,6 +46,11 @@ func NewStorage() Storage {
 // ItemRepo returns the item repository
 func (s *storage) ItemRepo() ItemRepository {
 	return s.itemRepo
+}
+
+func (s *storage) TopicRepo() TopicRepository {
+	s.log.Warn().Msg("TopicRepo not implemented in memory storage")
+	return nil
 }
 
 // Close closes the storage connection (no-op for memory storage)
