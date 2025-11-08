@@ -13,7 +13,7 @@
     type ColumnDef,
     type Row
   } from "@tanstack/table-core";
-  import { ChevronDown } from "@lucide/svelte";
+  import { ChevronDown, RotateCw } from "@lucide/svelte";
 
   interface Props {
     data: TData[];
@@ -22,6 +22,7 @@
     showFilter?: boolean;
     showColumnVisibility?: boolean;
     showPagination?: boolean;
+    onReload?: () => void;
     actions?: {
       label: string;
       variant?: "default" | "outline" | "destructive" | "secondary" | "ghost" | "link";
@@ -37,6 +38,7 @@
     showFilter = true,
     showColumnVisibility = true,
     showPagination = true,
+    onReload,
     actions = [],
     actionsColumn
   }: Props = $props();
@@ -90,6 +92,12 @@
       {/if}
       
       <div class="flex items-center gap-2 ml-auto">
+        {#if onReload}
+          <Button variant="outline" size="icon" onclick={onReload} title="Reload">
+            <RotateCw class="h-4 w-4" />
+          </Button>
+        {/if}
+        
         {#if showColumnVisibility}
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>

@@ -41,7 +41,7 @@
       icon: Table,
       isExpandable: true,
       subitems: [
-        { title: "Category", url: "/listing", icon: List },
+        { title: "Topics", url: "/listing/topics", icon: List },
       ]
     },
     {
