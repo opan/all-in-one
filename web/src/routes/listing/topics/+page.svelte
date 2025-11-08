@@ -2,6 +2,7 @@
   import DataTable from "../../../components/data-table.svelte";
   import { Button } from "$lib/components/ui/button/index";
   import * as Dialog from "$lib/components/ui/dialog/index";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
   import type { ColumnDef } from "@tanstack/table-core";
@@ -25,6 +26,8 @@
   let topics = $state<Topic[]>(data.topics || []);
   
   let dialogOpen = $state(false);
+  let deleteDialogOpen = $state(false);
+  let topicToDelete = $state<Topic | null>(null);
   let editingTopic = $state<number | null>(null);
   let formData = $state({
     name: '',
@@ -62,7 +65,13 @@
     {
       accessorKey: "name",
       header: "Name",
-      cell: (info) => info.getValue(),
+      cell: (info) => {
+        const topic = info.row.original;
+        return {
+          render: () => null,
+          data: topic
+        };
+      },
       enableHiding: true,
     },
     {
@@ -174,16 +183,19 @@
     }
   }
   
-  async function deleteTopic(id: number) {
-    if (!confirm('Are you sure you want to delete this topic?')) {
-      return;
-    }
+  function openDeleteDialog(topic: Topic) {
+    topicToDelete = topic;
+    deleteDialogOpen = true;
+  }
+
+  async function confirmDelete() {
+    if (!topicToDelete) return;
     
     loading = true;
     error = '';
     
     try {
-      const response = await fetch(`/api/v1/topics/${id}`, {
+      const response = await fetch(`/api/v1/topics/${topicToDelete.id}`, {
         method: 'DELETE',
       });
       
@@ -191,11 +203,14 @@
         throw new Error('Failed to delete topic');
       }
       
-      const topicIndex = topics.findIndex(topic => topic.id === id);
+      const topicIndex = topics.findIndex(topic => topic.id === topicToDelete!.id);
       if (topicIndex !== -1) {
         topics.splice(topicIndex, 1);
         topics = topics;
       }
+      
+      deleteDialogOpen = false;
+      topicToDelete = null;
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
     } finally {
@@ -224,12 +239,17 @@
       }
     ]}
   >
+    {#snippet nameColumn({ row })}
+      <a href="/listing/topics/{row.original.id}" class="text-blue-600 hover:underline cursor-pointer">
+        {row.original.name}
+      </a>
+    {/snippet}
     {#snippet actionsColumn({ row })}
       <div class="flex justify-end gap-2">
         <Button variant="outline" size="sm" onclick={() => openEditDialog(row.original)}>
           Edit
         </Button>
-        <Button variant="destructive" size="sm" onclick={() => deleteTopic(row.original.id)}>
+        <Button variant="destructive" size="sm" onclick={() => openDeleteDialog(row.original)}>
           Delete
         </Button>
       </div>
@@ -274,3 +294,43 @@
     </form>
   </Dialog.Content>
 </Dialog.Root>
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Delete Topic</AlertDialog.Title>
+      <AlertDialog.Description>
+        {#if topicToDelete}
+          <div class="space-y-3">
+            <p>Are you sure you want to delete <span class="font-semibold">"{topicToDelete.name}"</span>?</p>
+            <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive border border-destructive/20">
+              <p class="font-semibold mb-1">⚠️ Warning</p>
+              <p>This action will delete the topic and all related items associated with it. This cannot be undone.</p>
+            </div>
+          </div>
+        {/if}
+        
+        {#if error}
+          <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive mt-3">
+            {error}
+          </div>
+        {/if}
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel 
+        onclick={() => { deleteDialogOpen = false; topicToDelete = null; error = ''; }} 
+        disabled={loading}
+      >
+        Cancel
+      </AlertDialog.Cancel>
+      <AlertDialog.Action 
+        onclick={confirmDelete} 
+        disabled={loading}
+        class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      >
+        {loading ? 'Deleting...' : 'Delete'}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

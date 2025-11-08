@@ -100,24 +100,24 @@ func (s *storage) InitializeSampleData() int {
 	var sampleItems []model.Item
 
 	for _, topic := range sampleTopics {
-		_, err := s.topicRepo.Create(topic)
+		createdTopic, err := s.topicRepo.Create(topic)
 		if err != nil {
 			return 0
 		}
 
 		sampleItems = []model.Item{
 			{
-				TopicID:     topic.ID,
+				TopicID:     createdTopic.ID,
 				Title:       "Sample Item 1",
 				Description: "This is a sample item for testing",
 			},
 			{
-				TopicID:     topic.ID,
+				TopicID:     createdTopic.ID,
 				Title:       "Sample Item 2",
 				Description: "Another sample item with different content",
 			},
 			{
-				TopicID:     topic.ID,
+				TopicID:     createdTopic.ID,
 				Title:       "Sample Item 3",
 				Description: "Third sample item for demonstration",
 			},

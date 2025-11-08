@@ -81,6 +81,7 @@ Support authentications:
 ### Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+
 - **TypeScript:** 5.9+
+- **Vite** 7+
 - **node:**: 22.19+
 - **npm:** 10+
 

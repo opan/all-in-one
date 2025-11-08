@@ -29,6 +29,7 @@
       onclick: () => void;
     }[];
     actionsColumn?: Snippet<[{ row: Row<TData> }]>;
+    nameColumn?: Snippet<[{ row: Row<TData> }]>;
   }
 
   let {
@@ -40,7 +41,8 @@
     showPagination = true,
     onReload,
     actions = [],
-    actionsColumn
+    actionsColumn,
+    nameColumn
   }: Props = $props();
 
   let filtering = $state('');
@@ -158,6 +160,8 @@
                 <Table.Cell>
                   {#if cell.column.id === 'actions' && actionsColumn}
                     {@render actionsColumn({ row })}
+                  {:else if cell.column.id === 'name' && nameColumn}
+                    {@render nameColumn({ row })}
                   {:else}
                     <FlexRender
                       content={cell.column.columnDef.cell}
