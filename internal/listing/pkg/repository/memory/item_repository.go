@@ -36,6 +36,21 @@ func (r *itemRepository) GetAll() ([]model.Item, error) {
 	return items, nil
 }
 
+// GetByTopicID returns all items for a specific topic
+func (r *itemRepository) GetByTopicID(topicID int) ([]model.Item, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	items := make([]model.Item, 0)
+	for _, item := range r.items {
+		if item.TopicID == topicID {
+			items = append(items, item)
+		}
+	}
+
+	return items, nil
+}
+
 // Get returns an item by ID
 func (r *itemRepository) Get(id int) (model.Item, error) {
 	r.mutex.RLock()

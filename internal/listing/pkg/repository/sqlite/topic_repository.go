@@ -21,7 +21,7 @@ func newTopicRepository(db *sqlx.DB) *topicRepository {
 func (r *topicRepository) GetAll() ([]model.Topic, error) {
 	rows, err := r.db.Query(`
 		SELECT id, name, description, created_at, updated_at 
-		FROM listing_topics
+		FROM topics
 		ORDER BY id
 	`)
 
@@ -57,7 +57,7 @@ func (r *topicRepository) Get(id int) (model.Topic, error) {
 
 	err := r.db.QueryRow(`
 		SELECT id, name, description, created_at, updated_at 
-		FROM listing_topics
+		FROM topics
 		WHERE id = ?
 	`, id).Scan(&topic.ID, &topic.Name, &topic.Description, &createdAt, &updatedAt)
 
@@ -79,7 +79,7 @@ func (r *topicRepository) Create(topic model.Topic) (model.Topic, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	result, err := r.db.Exec(`
-		INSERT INTO listing_topics (name, description, created_at, updated_at) 
+		INSERT INTO topics (name, description, created_at, updated_at) 
 		VALUES (?, ?, ?, ?)
 	`, topic.Name, topic.Description, now, now)
 
@@ -103,7 +103,7 @@ func (r *topicRepository) Update(id int, topic model.Topic) (model.Topic, error)
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	_, err := r.db.Exec(`
-		UPDATE listing_topics 
+		UPDATE topics 
 		SET name = ?, description = ?, updated_at = ? 
 		WHERE id = ?
 	`, topic.Name, topic.Description, now, id)
@@ -120,7 +120,7 @@ func (r *topicRepository) Update(id int, topic model.Topic) (model.Topic, error)
 
 func (r *topicRepository) Delete(id int) error {
 	_, err := r.db.Exec(`
-		DELETE FROM listing_topics 
+		DELETE FROM topics 
 		WHERE id = ?
 	`, id)
 

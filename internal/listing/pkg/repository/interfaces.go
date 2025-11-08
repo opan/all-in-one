@@ -7,6 +7,9 @@ type ItemRepository interface {
 	// GetAll returns all listing items
 	GetAll() ([]model.Item, error)
 
+	// GetByTopicID returns all items for a specific topic
+	GetByTopicID(topicID int) ([]model.Item, error)
+
 	// Get returns a listing item by ID
 	Get(id int) (model.Item, error)
 

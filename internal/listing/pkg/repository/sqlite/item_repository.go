@@ -23,8 +23,8 @@ func newItemRepository(db *sqlx.DB) *itemRepository {
 // GetAll returns all items
 func (r *itemRepository) GetAll() ([]model.Item, error) {
 	rows, err := r.db.Query(`
-		SELECT id, title, description, created_at, updated_at 
-		FROM listing_items
+		SELECT id, topic_id, title, description, created_at, updated_at 
+		FROM items
 		ORDER BY id
 	`)
 	if err != nil {
@@ -37,7 +37,40 @@ func (r *itemRepository) GetAll() ([]model.Item, error) {
 		var item model.Item
 		var createdAt, updatedAt string
 
-		err := rows.Scan(&item.ID, &item.Title, &item.Description, &createdAt, &updatedAt)
+		err := rows.Scan(&item.ID, &item.TopicID, &item.Title, &item.Description, &createdAt, &updatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse timestamps
+		item.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		item.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// GetByTopicID returns all items for a specific topic
+func (r *itemRepository) GetByTopicID(topicID int) ([]model.Item, error) {
+	rows, err := r.db.Query(`
+		SELECT id, topic_id, title, description, created_at, updated_at 
+		FROM items
+		WHERE topic_id = ?
+		ORDER BY id
+	`, topicID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []model.Item
+	for rows.Next() {
+		var item model.Item
+		var createdAt, updatedAt string
+
+		err := rows.Scan(&item.ID, &item.TopicID, &item.Title, &item.Description, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -58,10 +91,10 @@ func (r *itemRepository) Get(id int) (model.Item, error) {
 	var createdAt, updatedAt string
 
 	err := r.db.QueryRow(`
-		SELECT id, title, description, created_at, updated_at 
-		FROM listing_items 
+		SELECT id, topic_id, title, description, created_at, updated_at 
+		FROM items 
 		WHERE id = ?
-	`, id).Scan(&item.ID, &item.Title, &item.Description, &createdAt, &updatedAt)
+	`, id).Scan(&item.ID, &item.TopicID, &item.Title, &item.Description, &createdAt, &updatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -82,9 +115,9 @@ func (r *itemRepository) Create(item model.Item) (model.Item, error) {
 	now := time.Now().Format(time.RFC3339)
 
 	result, err := r.db.Exec(`
-		INSERT INTO listing_items (title, description, created_at, updated_at) 
-		VALUES (?, ?, ?, ?)
-	`, item.Title, item.Description, now, now)
+		INSERT INTO items (topic_id, title, description, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?)
+	`, item.TopicID, item.Title, item.Description, now, now)
 
 	if err != nil {
 		return model.Item{}, err
@@ -114,10 +147,10 @@ func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
 	now := time.Now().Format(time.RFC3339)
 
 	_, err = r.db.Exec(`
-		UPDATE listing_items 
-		SET title = ?, description = ?, updated_at = ? 
+		UPDATE items 
+		SET topic_id = ?, title = ?, description = ?, updated_at = ? 
 		WHERE id = ?
-	`, item.Title, item.Description, now, id)
+	`, item.TopicID, item.Title, item.Description, now, id)
 
 	if err != nil {
 		return model.Item{}, err
@@ -139,7 +172,7 @@ func (r *itemRepository) Delete(id int) error {
 		return err
 	}
 
-	_, err = r.db.Exec("DELETE FROM listing_items WHERE id = ?", id)
+	_, err = r.db.Exec("DELETE FROM items WHERE id = ?", id)
 	return err
 }
 
@@ -147,7 +180,7 @@ func (r *itemRepository) Delete(id int) error {
 func (r *itemRepository) InitializeSampleData() int {
 	// Check if there's already data
 	var count int
-	err := r.db.QueryRow("SELECT COUNT(*) FROM listing_items").Scan(&count)
+	err := r.db.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
 	if err != nil || count > 0 {
 		return 0 // Don't add sample data if there's an error or if data exists
 	}
