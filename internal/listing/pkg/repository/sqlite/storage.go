@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/model"
@@ -23,19 +24,10 @@ func NewStorage(ctx context.Context, config config.Config) (*storage, error) {
 		return nil, err
 	}
 
-	// Create table if it doesn't exist
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS listing_items (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			title TEXT NOT NULL,
-			description TEXT,
-			created_at TIMESTAMP,
-			updated_at TIMESTAMP
-		)
-	`)
+	err = dbMigrate(db)
 	if err != nil {
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to execute db migration: %w", err)
 	}
 
 	return &storage{
@@ -43,6 +35,29 @@ func NewStorage(ctx context.Context, config config.Config) (*storage, error) {
 		itemRepo:  newItemRepository(db),
 		topicRepo: newTopicRepository(db),
 	}, nil
+}
+
+func dbMigrate(db *sqlx.DB) error {
+	migration := `CREATE TABLE IF NOT EXISTS topics (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			description TEXT,
+			created_at TIMESTAMP,
+			updated_at TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS items (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			topic_id INTEGER,
+			title TEXT NOT NULL,
+			description TEXT,
+			created_at TIMESTAMP,
+			updated_at TIMESTAMP,
+			FOREIGN KEY (topic_id) REFERENCES topics(id)
+		);`
+	_, err := db.Exec(migration)
+
+	return err
 }
 
 // ItemRepo returns the item repository
@@ -60,33 +75,62 @@ func (s *storage) Close() error {
 }
 
 func (s *storage) InitializeSampleData() int {
+	topics, err := s.topicRepo.GetAll()
+	if err != nil || len(topics) > 0 {
+		return 0 // Don't add sample data if there's an error or if data exists
+	}
+
 	// Check if there's already data
 	items, err := s.itemRepo.GetAll()
 	if err != nil || len(items) > 0 {
 		return 0 // Don't add sample data if there's an error or if data exists
 	}
 
-	sampleItems := []model.Item{
+	sampleTopics := []model.Topic{
 		{
-			Title:       "Sample Task 1",
-			Description: "This is a sample task for testing",
+			Name:        "Books to Read",
+			Description: "A list of must-read books",
 		},
 		{
-			Title:       "Sample Task 2",
-			Description: "Another sample task with different content",
-		},
-		{
-			Title:       "Sample Task 3",
-			Description: "Third sample task for demonstration",
+			Name:        "Movies to Watch",
+			Description: "A collection of classic and modern movies",
 		},
 	}
 
-	for _, item := range sampleItems {
-		_, err := s.itemRepo.Create(item)
+	var sampleItems []model.Item
+
+	for _, topic := range sampleTopics {
+		_, err := s.topicRepo.Create(topic)
 		if err != nil {
 			return 0
 		}
+
+		sampleItems = []model.Item{
+			{
+				TopicID:     topic.ID,
+				Title:       "Sample Item 1",
+				Description: "This is a sample item for testing",
+			},
+			{
+				TopicID:     topic.ID,
+				Title:       "Sample Item 2",
+				Description: "Another sample item with different content",
+			},
+			{
+				TopicID:     topic.ID,
+				Title:       "Sample Item 3",
+				Description: "Third sample item for demonstration",
+			},
+		}
+
+		for _, item := range sampleItems {
+			_, err := s.itemRepo.Create(item)
+			if err != nil {
+				return 0
+			}
+		}
+
 	}
 
-	return len(sampleItems)
+	return len(sampleTopics)
 }
