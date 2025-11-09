@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	httpHelper "github.com/all-in-one/internal/http"
@@ -175,13 +176,20 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: add transaction
+	err = h.storage.ItemRepo().DeleteByTopicID(id)
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to delete topic items: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	err = h.storage.TopicRepo().Delete(id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to delete topic", http.StatusInternalServerError)
+		sendError(w, fmt.Sprintf("Failed to delete topic: %v", err), http.StatusInternalServerError)
 		return
 	}
 

@@ -22,6 +22,24 @@ func NewStorage() *storage {
 	}
 }
 
+type QueryOption func(*QueryOptions)
+
+type QueryOptions struct {
+	tx string
+}
+
+func (s *storage) WithTx(tx string) QueryOption {
+	return func(opts *QueryOptions) {
+		// dummy implementation
+		opts.tx = tx
+	}
+}
+
+func (s *storage) Tx() (string, error) {
+	// dummy implementation
+	return "memory-tx", nil
+}
+
 // ItemRepo returns the item repository
 func (s *storage) ItemRepo() *itemRepository {
 	return s.itemRepo

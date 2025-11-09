@@ -114,3 +114,16 @@ func (r *itemRepository) Delete(id int) error {
 	delete(r.items, id)
 	return nil
 }
+
+func (r *itemRepository) DeleteByTopicID(topicID int) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for id, item := range r.items {
+		if item.TopicID == topicID {
+			delete(r.items, id)
+		}
+	}
+
+	return nil
+}
