@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/query"
 )
 
 // ItemRepository defines the interface for item storage operations
@@ -23,15 +26,17 @@ type ItemRepository interface {
 
 	// Delete removes a listing item
 	Delete(id int) error
-	DeleteByTopicID(topicID int) error
+	DeleteByTopicID(ctx context.Context, topicID int, opts ...query.QueryOptions) error
 }
 
 type TopicRepository interface {
+	CreateTrx(ctx context.Context) (query.QueryOptions, error)
+
 	GetAll() ([]model.Topic, error)
 	Get(id int) (model.Topic, error)
 	Create(item model.Topic) (model.Topic, error)
 	Update(id int, item model.Topic) (model.Topic, error)
-	Delete(id int) error
+	Delete(ctx context.Context, id int, opts ...query.QueryOptions) error
 }
 
 // Storage defines the main storage interface that aggregates all repositories

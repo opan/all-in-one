@@ -1,14 +1,35 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/query"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+type queryOptions struct {
+	trx *sqlx.Tx
+	db  *sqlx.DB
+}
+
+func (q *queryOptions) Commit() error {
+	if q.trx != nil {
+		return q.trx.Commit()
+	}
+	return nil
+}
+
+func (q *queryOptions) Rollback() error {
+	if q.trx != nil {
+		return q.trx.Rollback()
+	}
+	return nil
+}
 
 type topicRepository struct {
 	db *sqlx.DB
@@ -16,6 +37,25 @@ type topicRepository struct {
 
 func newTopicRepository(db *sqlx.DB) *topicRepository {
 	return &topicRepository{db: db}
+}
+
+// getExecutor returns the appropriate executor (transaction or database) from options
+func getExecCtx(db *sqlx.DB, opts ...query.QueryOptions) sqlx.ExecerContext {
+	for _, opt := range opts {
+		if qo, ok := opt.(*queryOptions); ok && qo.trx != nil {
+			return qo.trx
+		}
+	}
+	return db
+}
+
+func (r *topicRepository) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
+	trx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to begin transaction: %w", err)
+	}
+
+	return &queryOptions{trx: trx, db: r.db}, nil
 }
 
 func (r *topicRepository) GetAll() ([]model.Topic, error) {
@@ -118,8 +158,10 @@ func (r *topicRepository) Update(id int, topic model.Topic) (model.Topic, error)
 	return topic, nil
 }
 
-func (r *topicRepository) Delete(id int) error {
-	_, err := r.db.Exec(`
+func (r *topicRepository) Delete(ctx context.Context, id int, opts ...query.QueryOptions) error {
+	exec := getExecCtx(r.db, opts...)
+
+	_, err := exec.ExecContext(ctx, `
 		DELETE FROM topics 
 		WHERE id = ?
 	`, id)

@@ -176,20 +176,35 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: add transaction
-	err = h.storage.ItemRepo().DeleteByTopicID(id)
+	ctx := r.Context()
+
+	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to create transaction: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	defer trx.Rollback()
+
+	err = h.storage.ItemRepo().DeleteByTopicID(ctx, id, trx)
 	if err != nil {
 		sendError(w, fmt.Sprintf("Failed to delete topic items: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	err = h.storage.TopicRepo().Delete(id)
+	err = h.storage.TopicRepo().Delete(ctx, id, trx)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
 		sendError(w, fmt.Sprintf("Failed to delete topic: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	err = trx.Commit()
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to commit transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
 

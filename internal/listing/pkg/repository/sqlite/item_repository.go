@@ -1,11 +1,14 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/query"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -176,7 +179,13 @@ func (r *itemRepository) Delete(id int) error {
 	return err
 }
 
-func (r *itemRepository) DeleteByTopicID(topicID int) error {
-	_, err := r.db.Exec("DELETE FROM items WHERE topic_id = ?", topicID)
-	return err
+func (r *itemRepository) DeleteByTopicID(ctx context.Context, topicID int, opts ...query.QueryOptions) error {
+	exec := getExecCtx(r.db, opts...)
+	_, err := exec.ExecContext(ctx, "DELETE FROM items WHERE topic_id = ?", topicID)
+
+	if err != nil {
+		return fmt.Errorf("unable to delete items by topic ID: %w", err)
+	}
+
+	return nil
 }
