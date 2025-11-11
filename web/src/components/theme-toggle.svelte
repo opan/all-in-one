@@ -2,13 +2,16 @@
   import { Button } from "$lib/components/ui/button/index";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
   import { onMount } from "svelte";
+  import { browser } from "$app/environment";
 
-  let theme = $state<string>("light");
+  let theme = $state<string | null>(null);
+  let mounted = $state(false);
 
   onMount(() => {
     const savedTheme = localStorage.getItem("theme") || "light";
     theme = savedTheme;
     applyTheme(savedTheme);
+    mounted = true;
   });
 
   function applyTheme(newTheme: string) {
@@ -30,7 +33,7 @@
 <DropdownMenu.Root>
   <DropdownMenu.Trigger>
     <Button variant="ghost" size="icon">
-      {#if theme === "light"}
+      {#if !mounted || theme === "light"}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"

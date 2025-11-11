@@ -36,13 +36,19 @@
   let playgroundOpen = $state(true);
 
   const platformItems: NavItem[] = [
+    // {
+    //   title: "Listing",
+    //   icon: Table,
+    //   isExpandable: true,
+    //   subitems: [
+    //     { title: "Topics", url: "/listing/topics", icon: List },
+    //   ]
+    // },
     {
-      title: "Listing",
+      title: "Topics",
+      url: "/listing/topics",
       icon: Table,
-      isExpandable: true,
-      subitems: [
-        { title: "Topics", url: "/listing/topics", icon: List },
-      ]
+      isExpandable: false,
     },
     {
       title: "Settings",
@@ -57,15 +63,15 @@
   <Sidebar.Header>
     <Sidebar.Menu>
       <Sidebar.MenuItem>
-        <Sidebar.MenuButton size="lg" tooltipContent="Acme Inc">
+        <Sidebar.MenuButton size="lg" tooltipContent="All-in-one platform">
           {#snippet child({ props })}
             <a href="/" {...props}>
               <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <SquareTerminal class="size-4" />
               </div>
               <div class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-semibold">Acme Inc</span>
-                <span class="truncate text-xs text-muted-foreground">Enterprise</span>
+                <span class="truncate font-semibold">All-in-one</span>
+                <span class="truncate text-xs text-muted-foreground">Platform</span>
               </div>
             </a>
           {/snippet}
