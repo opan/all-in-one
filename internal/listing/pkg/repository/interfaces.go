@@ -1,6 +1,8 @@
 package repository
 
-import "github.com/all-in-one/internal/listing/pkg/model"
+import (
+	"github.com/all-in-one/internal/listing/pkg/model"
+)
 
 // ItemRepository defines the interface for item storage operations
 type ItemRepository interface {
@@ -21,6 +23,7 @@ type ItemRepository interface {
 
 	// Delete removes a listing item
 	Delete(id int) error
+	DeleteByTopicID(topicID int) error
 }
 
 type TopicRepository interface {
@@ -33,6 +36,7 @@ type TopicRepository interface {
 
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
+
 	// ItemRepo returns the item repository
 	ItemRepo() ItemRepository
 	TopicRepo() TopicRepository

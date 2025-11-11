@@ -176,36 +176,7 @@ func (r *itemRepository) Delete(id int) error {
 	return err
 }
 
-// InitializeSampleData adds sample data to the storage
-func (r *itemRepository) InitializeSampleData() int {
-	// Check if there's already data
-	var count int
-	err := r.db.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
-	if err != nil || count > 0 {
-		return 0 // Don't add sample data if there's an error or if data exists
-	}
-
-	sampleItems := []model.Item{
-		{
-			Title:       "Sample Task 1",
-			Description: "This is a sample task for testing",
-		},
-		{
-			Title:       "Sample Task 2",
-			Description: "Another sample task with different content",
-		},
-		{
-			Title:       "Sample Task 3",
-			Description: "Third sample task for demonstration",
-		},
-	}
-
-	for _, item := range sampleItems {
-		_, err := r.Create(item)
-		if err != nil {
-			return 0
-		}
-	}
-
-	return len(sampleItems)
+func (r *itemRepository) DeleteByTopicID(topicID int) error {
+	_, err := r.db.Exec("DELETE FROM items WHERE topic_id = ?", topicID)
+	return err
 }
