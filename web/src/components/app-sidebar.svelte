@@ -52,7 +52,7 @@
     },
     {
       title: "Settings",
-      url: "#",
+      url: "/listing/settings",
       icon: Settings,
       isExpandable: false,
     },
