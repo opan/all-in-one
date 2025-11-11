@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/all-in-one/internal/config"
@@ -10,10 +9,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-// Storage implements the storage interface with SQLite backend
-// Exported so that the repository adapter can reference it
-type Storage = storage
 
 // storage implements the Storage interface from repository package
 type storage struct {
@@ -63,50 +58,6 @@ func dbMigrate(db *sqlx.DB) error {
 	_, err := db.Exec(migration)
 
 	return err
-}
-
-// type QueryOption func(*QueryOptions)
-
-// type QueryOptions struct {
-// 	tx *sqlx.Tx
-// }
-
-// func (s *storage) WithTx(tx *sqlx.Tx) QueryOption {
-// 	return func(opts *QueryOptions) {
-// 		opts.tx = tx
-// 	}
-// }
-
-// func (s *storage) Tx(ctx context.Context) (*sqlx.Tx, error) {
-// 	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{})
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unable to begin transaction: %w", err)
-// 	}
-
-// 	return tx, nil
-// }
-
-type queryOptions struct {
-	tx *sqlx.Tx
-}
-
-func (q *queryOptions) TxCommit() error {
-	return q.tx.Commit()
-}
-
-func (q *queryOptions) TxRollback() error {
-	return q.tx.Rollback()
-}
-
-func (s *storage) CreateTx(ctx context.Context) (*queryOptions, error) {
-	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("unable to begin transaction: %w", err)
-	}
-
-	return &queryOptions{
-		tx: tx,
-	}, nil
 }
 
 // ItemRepo returns the item repository

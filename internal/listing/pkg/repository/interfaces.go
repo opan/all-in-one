@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"context"
-
 	"github.com/all-in-one/internal/listing/pkg/model"
 )
 
@@ -38,8 +36,6 @@ type TopicRepository interface {
 
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
-	// Create transaction
-	CreateTx(ctx context.Context) (QueryOptions, error)
 
 	// ItemRepo returns the item repository
 	ItemRepo() ItemRepository
@@ -49,9 +45,4 @@ type Storage interface {
 	Close() error
 
 	InitializeSampleData() int
-}
-
-type QueryOptions interface {
-	TxCommit() error
-	TxRollback() error
 }
