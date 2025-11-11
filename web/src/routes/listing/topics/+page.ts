@@ -7,6 +7,7 @@ export const load = async ({ fetch }) => {
   }
   const data = await res.json();
   return {
-    topics: data.data || []
+    topics: data.data || [],
+    breadcrumb: { label: 'Topics', href: '/listing/topics' }
   };
 };

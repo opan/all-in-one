@@ -1,6 +1,6 @@
 // SvelteKit load function to fetch topic details and items from backend API
 
-export const load = async ({ params, fetch }) => {
+export const load = async ({ params, fetch, parent }) => {
   const topicId = params.id;
   
   // Fetch topic details
@@ -17,8 +17,11 @@ export const load = async ({ params, fetch }) => {
   }
   const itemsData = await itemsRes.json();
   
+  const topic = topicData.data || {};
+  
   return {
-    topic: topicData.data || {},
-    items: itemsData.data || []
+    topic,
+    items: itemsData.data || [],
+    breadcrumb: { label: topic.name }
   };
 };

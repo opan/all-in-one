@@ -1,5 +1,6 @@
-export function load({ url }) {
+export function load({ url, data }) {
 	return {
-		url: url.pathname
+		url: url.pathname,
+		pageData: data
 	};
 }

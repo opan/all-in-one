@@ -7,6 +7,7 @@ export const load = async ({ fetch }) => {
   }
   const data = await res.json();
   return {
-    listings: data.data || []
+    listings: data.data || [],
+    breadcrumb: { label: 'Listing' }
   };
 };
