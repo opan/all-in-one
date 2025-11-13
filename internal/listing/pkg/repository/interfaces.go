@@ -32,10 +32,10 @@ type ItemRepository interface {
 type TopicRepository interface {
 	CreateTrx(ctx context.Context) (query.QueryOptions, error)
 
-	GetAll() ([]model.Topic, error)
-	Get(id int) (model.Topic, error)
-	Create(item model.Topic) (model.Topic, error)
-	Update(id int, item model.Topic) (model.Topic, error)
+	GetAll(ctx context.Context) ([]model.Topic, error)
+	Get(ctx context.Context, id int) (model.Topic, error)
+	Create(ctx context.Context, item model.Topic) (model.Topic, error)
+	Update(ctx context.Context, id int, item model.Topic) (model.Topic, error)
 	Delete(ctx context.Context, id int, opts ...query.QueryOptions) error
 }
 

@@ -58,8 +58,8 @@ func (r *topicRepository) CreateTrx(ctx context.Context) (query.QueryOptions, er
 	return &queryOptions{trx: trx, db: r.db}, nil
 }
 
-func (r *topicRepository) GetAll() ([]model.Topic, error) {
-	rows, err := r.db.Query(`
+func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, name, description, created_at, updated_at 
 		FROM topics
 		ORDER BY id
@@ -91,11 +91,11 @@ func (r *topicRepository) GetAll() ([]model.Topic, error) {
 	return topics, nil
 }
 
-func (r *topicRepository) Get(id int) (model.Topic, error) {
+func (r *topicRepository) Get(ctx context.Context, id int) (model.Topic, error) {
 	var topic model.Topic
 	var createdAt, updatedAt string
 
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(ctx, `
 		SELECT id, name, description, created_at, updated_at 
 		FROM topics
 		WHERE id = ?
@@ -115,10 +115,10 @@ func (r *topicRepository) Get(id int) (model.Topic, error) {
 	return topic, nil
 }
 
-func (r *topicRepository) Create(topic model.Topic) (model.Topic, error) {
+func (r *topicRepository) Create(ctx context.Context, topic model.Topic) (model.Topic, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	result, err := r.db.Exec(`
+	result, err := r.db.ExecContext(ctx, `
 		INSERT INTO topics (name, description, created_at, updated_at) 
 		VALUES (?, ?, ?, ?)
 	`, topic.Name, topic.Description, now, now)
@@ -139,10 +139,10 @@ func (r *topicRepository) Create(topic model.Topic) (model.Topic, error) {
 	return topic, nil
 }
 
-func (r *topicRepository) Update(id int, topic model.Topic) (model.Topic, error) {
+func (r *topicRepository) Update(ctx context.Context, id int, topic model.Topic) (model.Topic, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	_, err := r.db.Exec(`
+	_, err := r.db.ExecContext(ctx, `
 		UPDATE topics 
 		SET name = ?, description = ?, updated_at = ? 
 		WHERE id = ?

@@ -18,7 +18,8 @@ import (
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics [get]
 func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
-	topics, err := h.storage.TopicRepo().GetAll()
+	ctx := r.Context()
+	topics, err := h.storage.TopicRepo().GetAll(ctx)
 	if err != nil {
 		sendError(w, "Failed to retrieve topics", http.StatusInternalServerError)
 		return
@@ -44,13 +45,14 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{id} [get]
 func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id, err := getIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	topic, err := h.storage.TopicRepo().Get(id)
+	topic, err := h.storage.TopicRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
@@ -80,6 +82,7 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics [post]
 func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var newTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&newTopic); err != nil {
 		sendError(w, "Invalid JSON data", http.StatusBadRequest)
@@ -92,7 +95,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdTopic, err := h.storage.TopicRepo().Create(newTopic)
+	createdTopic, err := h.storage.TopicRepo().Create(ctx, newTopic)
 	if err != nil {
 		sendError(w, "Failed to create topic", http.StatusInternalServerError)
 		return
@@ -121,6 +124,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{id} [put]
 func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id, err := getIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid ID", http.StatusBadRequest)
@@ -139,7 +143,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.storage.TopicRepo().Update(id, updatedTopic)
+	result, err := h.storage.TopicRepo().Update(ctx, id, updatedTopic)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)

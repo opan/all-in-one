@@ -27,7 +27,7 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(topicID)
+	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
@@ -78,7 +78,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(topicID)
+	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
@@ -134,7 +134,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(topicID)
+	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
@@ -203,7 +203,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(topicID)
+	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)
@@ -290,7 +290,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(topicID)
+	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Topic not found", http.StatusNotFound)

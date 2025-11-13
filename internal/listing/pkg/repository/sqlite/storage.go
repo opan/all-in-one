@@ -75,9 +75,9 @@ func (s *storage) Close() error {
 }
 
 func (s *storage) InitializeSampleData(ctx context.Context) int {
-	topics, err := s.topicRepo.GetAll()
+	topics, err := s.topicRepo.GetAll(ctx)
 	if err != nil || len(topics) > 0 {
-		return 0 // Don't add sample data if there's an error or if data exists
+		return 0
 	}
 
 	// Check if there's already data
@@ -100,7 +100,7 @@ func (s *storage) InitializeSampleData(ctx context.Context) int {
 	var sampleItems []model.Item
 
 	for _, topic := range sampleTopics {
-		createdTopic, err := s.topicRepo.Create(topic)
+		createdTopic, err := s.topicRepo.Create(ctx, topic)
 		if err != nil {
 			return 0
 		}
