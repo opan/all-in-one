@@ -89,7 +89,7 @@ Support authentications:
 - `web/src/rotes/` for SvelteKit routes.
 - `web/src/lib/` for shared libraries (e.g., API client, stores).
 - `web/src/components/` for reusable Svelte components.
-
+- `web/src/lib/components/ui/` for shadcn-svelte components.
 
 #### Coding guidelines
 - Follows Svelte and TypeScript best practices.

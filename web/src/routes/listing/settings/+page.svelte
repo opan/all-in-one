@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
+	import * as Field from '$lib/components/ui/field';
 	import SettingsNav from "../../../components/settings-nav.svelte";
 	
 	let username = $state('');
@@ -57,8 +57,8 @@
 						</div>
 
 						<form onsubmit={handleAccountSubmit} class="space-y-6">
-							<div class="space-y-2">
-								<Label for="username">Username</Label>
+							<Field.Field>
+								<Field.Label for="username">Username</Field.Label>
 								<Input 
 									id="username" 
 									type="text" 
@@ -66,13 +66,13 @@
 									bind:value={username}
 									class="max-w-xl"
 								/>
-								<p class="text-xs text-muted-foreground">
+								<Field.Description>
 									This is your public display name.
-								</p>
-							</div>
+								</Field.Description>
+							</Field.Field>
 
-							<div class="space-y-2">
-								<Label for="password">Password</Label>
+							<Field.Field>
+								<Field.Label for="password">Password</Field.Label>
 								<Input 
 									id="password" 
 									type="password" 
@@ -80,10 +80,10 @@
 									bind:value={password}
 									class="max-w-xl"
 								/>
-							</div>
+							</Field.Field>
 
-							<div class="space-y-2">
-								<Label for="password-confirmation">Password Confirmation</Label>
+							<Field.Field>
+								<Field.Label for="password-confirmation">Password Confirmation</Field.Label>
 								<Input 
 									id="password-confirmation" 
 									type="password" 
@@ -91,7 +91,7 @@
 									bind:value={passwordConfirmation}
 									class="max-w-xl"
 								/>
-							</div>
+							</Field.Field>
 
 							<Button type="submit">Save Changes</Button>
 						</form>
