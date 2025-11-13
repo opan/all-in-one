@@ -1,28 +1,25 @@
 package memory
 
 import (
+	"context"
+
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/rs/zerolog"
 )
 
-const errTopicRepoNotImplemented = "TopicRepo not implemented in memory storage"
-
-// storage implements the Storage interface from repository package
 type storage struct {
 	itemRepo  *itemRepository
 	topicRepo *topicRepository
 	log       zerolog.Logger
 }
 
-// NewStorage creates a new memory-based storage
 func NewStorage() *storage {
 	return &storage{
 		itemRepo:  newItemRepository(),
-		topicRepo: &topicRepository{},
+		topicRepo: newTopicRepository(),
 	}
 }
 
-// ItemRepo returns the item repository
 func (s *storage) ItemRepo() *itemRepository {
 	return s.itemRepo
 }
@@ -31,14 +28,11 @@ func (s *storage) TopicRepo() *topicRepository {
 	return s.topicRepo
 }
 
-// Close closes the storage connection (no-op for memory storage)
 func (s *storage) Close() error {
 	return nil
 }
 
-// InitializeSampleData adds sample data to the storage
-func (s *storage) InitializeSampleData() int {
-
+func (s *storage) InitializeSampleData(ctx context.Context) int {
 	sampleItems := []model.Item{
 		{
 			Title:       "Sample Task 1",
@@ -55,7 +49,7 @@ func (s *storage) InitializeSampleData() int {
 	}
 
 	for _, item := range sampleItems {
-		_, _ = s.itemRepo.Create(item)
+		_, _ = s.itemRepo.Create(ctx, item)
 	}
 
 	return len(sampleItems)

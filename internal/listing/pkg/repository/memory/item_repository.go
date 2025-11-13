@@ -1,21 +1,21 @@
 package memory
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/query"
 )
 
-// itemRepository implements the item repository with in-memory storage
 type itemRepository struct {
 	items  map[int]model.Item
 	lastID int
 	mutex  sync.RWMutex
 }
 
-// newItemRepository creates a new memory-based item repository
 func newItemRepository() *itemRepository {
 	return &itemRepository{
 		items:  make(map[int]model.Item),
@@ -23,8 +23,7 @@ func newItemRepository() *itemRepository {
 	}
 }
 
-// GetAll returns all items
-func (r *itemRepository) GetAll() ([]model.Item, error) {
+func (r *itemRepository) GetAll(ctx context.Context) ([]model.Item, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -36,8 +35,7 @@ func (r *itemRepository) GetAll() ([]model.Item, error) {
 	return items, nil
 }
 
-// GetByTopicID returns all items for a specific topic
-func (r *itemRepository) GetByTopicID(topicID int) ([]model.Item, error) {
+func (r *itemRepository) GetByTopicID(ctx context.Context, topicID int) ([]model.Item, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -51,8 +49,7 @@ func (r *itemRepository) GetByTopicID(topicID int) ([]model.Item, error) {
 	return items, nil
 }
 
-// Get returns an item by ID
-func (r *itemRepository) Get(id int) (model.Item, error) {
+func (r *itemRepository) Get(ctx context.Context, id int) (model.Item, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -64,25 +61,21 @@ func (r *itemRepository) Get(id int) (model.Item, error) {
 	return item, nil
 }
 
-// Create adds a new item
-func (r *itemRepository) Create(item model.Item) (model.Item, error) {
+func (r *itemRepository) Create(ctx context.Context, item model.Item) (model.Item, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	// Assign ID and timestamps
 	r.lastID++
 	item.ID = r.lastID
 	item.CreatedAt = time.Now()
 	item.UpdatedAt = time.Now()
 
-	// Store the item
 	r.items[item.ID] = item
 
 	return item, nil
 }
 
-// Update modifies an existing item
-func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
+func (r *itemRepository) Update(ctx context.Context, id int, item model.Item) (model.Item, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -91,7 +84,6 @@ func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
 		return model.Item{}, httpHelper.ErrNotFound
 	}
 
-	// Update item while preserving ID and CreatedAt
 	item.ID = id
 	item.CreatedAt = existingItem.CreatedAt
 	item.UpdatedAt = time.Now()
@@ -101,8 +93,7 @@ func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
 	return item, nil
 }
 
-// Delete removes an item
-func (r *itemRepository) Delete(id int) error {
+func (r *itemRepository) Delete(ctx context.Context, id int) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -115,7 +106,7 @@ func (r *itemRepository) Delete(id int) error {
 	return nil
 }
 
-func (r *itemRepository) DeleteByTopicID(topicID int) error {
+func (r *itemRepository) DeleteByTopicID(ctx context.Context, topicID int, opts ...query.QueryOptions) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
