@@ -19,6 +19,7 @@ import (
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{topic_id}/items [get]
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -36,7 +37,7 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.storage.ItemRepo().GetByTopicID(topicID)
+	items, err := h.storage.ItemRepo().GetByTopicID(ctx, topicID)
 	if err != nil {
 		sendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
@@ -63,6 +64,7 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{topic_id}/items/{id} [get]
 func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -86,7 +88,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.storage.ItemRepo().Get(id)
+	item, err := h.storage.ItemRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -124,6 +126,7 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{topic_id}/items [post]
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -156,7 +159,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	// Set the topic ID from the URL
 	newItem.TopicID = topicID
 
-	createdItem, err := h.storage.ItemRepo().Create(newItem)
+	createdItem, err := h.storage.ItemRepo().Create(ctx, newItem)
 	if err != nil {
 		sendError(w, "Failed to create item", http.StatusInternalServerError)
 		return
@@ -186,6 +189,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{topic_id}/items/{id} [put]
 func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -210,7 +214,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify item exists and belongs to topic
-	existingItem, err := h.storage.ItemRepo().Get(id)
+	existingItem, err := h.storage.ItemRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -240,7 +244,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	// Ensure topic ID remains the same
 	updatedItem.TopicID = topicID
 
-	result, err := h.storage.ItemRepo().Update(id, updatedItem)
+	result, err := h.storage.ItemRepo().Update(ctx, id, updatedItem)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -272,6 +276,7 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} httpHelper.Response "Internal server error"
 // @Router /topics/{topic_id}/items/{id} [delete]
 func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		sendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -296,7 +301,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify item exists and belongs to topic
-	existingItem, err := h.storage.ItemRepo().Get(id)
+	existingItem, err := h.storage.ItemRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)
@@ -311,7 +316,7 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.storage.ItemRepo().Delete(id)
+	err = h.storage.ItemRepo().Delete(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
 			sendError(w, "Item not found", http.StatusNotFound)

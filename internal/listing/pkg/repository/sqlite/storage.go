@@ -74,14 +74,14 @@ func (s *storage) Close() error {
 	return s.db.Close()
 }
 
-func (s *storage) InitializeSampleData() int {
+func (s *storage) InitializeSampleData(ctx context.Context) int {
 	topics, err := s.topicRepo.GetAll()
 	if err != nil || len(topics) > 0 {
 		return 0 // Don't add sample data if there's an error or if data exists
 	}
 
 	// Check if there's already data
-	items, err := s.itemRepo.GetAll()
+	items, err := s.itemRepo.GetAll(ctx)
 	if err != nil || len(items) > 0 {
 		return 0 // Don't add sample data if there's an error or if data exists
 	}
@@ -124,7 +124,7 @@ func (s *storage) InitializeSampleData() int {
 		}
 
 		for _, item := range sampleItems {
-			_, err := s.itemRepo.Create(item)
+			_, err := s.itemRepo.Create(ctx, item)
 			if err != nil {
 				return 0
 			}

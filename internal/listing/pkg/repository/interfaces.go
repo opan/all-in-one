@@ -10,22 +10,22 @@ import (
 // ItemRepository defines the interface for item storage operations
 type ItemRepository interface {
 	// GetAll returns all listing items
-	GetAll() ([]model.Item, error)
+	GetAll(ctx context.Context) ([]model.Item, error)
 
 	// GetByTopicID returns all items for a specific topic
-	GetByTopicID(topicID int) ([]model.Item, error)
+	GetByTopicID(ctx context.Context, topicID int) ([]model.Item, error)
 
 	// Get returns a listing item by ID
-	Get(id int) (model.Item, error)
+	Get(ctx context.Context, id int) (model.Item, error)
 
 	// Create adds a new listing item
-	Create(item model.Item) (model.Item, error)
+	Create(ctx context.Context, item model.Item) (model.Item, error)
 
 	// Update modifies an existing listing item
-	Update(id int, item model.Item) (model.Item, error)
+	Update(ctx context.Context, id int, item model.Item) (model.Item, error)
 
 	// Delete removes a listing item
-	Delete(id int) error
+	Delete(ctx context.Context, id int) error
 	DeleteByTopicID(ctx context.Context, topicID int, opts ...query.QueryOptions) error
 }
 
@@ -49,5 +49,5 @@ type Storage interface {
 	// Close closes the storage connection
 	Close() error
 
-	InitializeSampleData() int
+	InitializeSampleData(ctx context.Context) int
 }

@@ -11,7 +11,7 @@ import (
 // baseStorage defines the common interface for underlying storage implementations
 type baseStorage interface {
 	Close() error
-	InitializeSampleData() int
+	InitializeSampleData(ctx context.Context) int
 }
 
 // NewStorage creates a new storage instance based on the storage type

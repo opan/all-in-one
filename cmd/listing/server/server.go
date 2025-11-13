@@ -51,7 +51,7 @@ func (s *server) Start() error {
 	}
 
 	s.log.Info().Msg("Initializing sample data...")
-	dataCount := svc.InitializeSampleData()
+	dataCount := svc.InitializeSampleData(ctx)
 	s.log.Info().Msgf("Initialized %d sample data items", dataCount)
 
 	// Initialize HTTP helper

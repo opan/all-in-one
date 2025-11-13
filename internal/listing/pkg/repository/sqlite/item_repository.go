@@ -24,8 +24,8 @@ func newItemRepository(db *sqlx.DB) *itemRepository {
 }
 
 // GetAll returns all items
-func (r *itemRepository) GetAll() ([]model.Item, error) {
-	rows, err := r.db.Query(`
+func (r *itemRepository) GetAll(ctx context.Context) ([]model.Item, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, topic_id, title, description, created_at, updated_at 
 		FROM items
 		ORDER BY id
@@ -56,8 +56,8 @@ func (r *itemRepository) GetAll() ([]model.Item, error) {
 }
 
 // GetByTopicID returns all items for a specific topic
-func (r *itemRepository) GetByTopicID(topicID int) ([]model.Item, error) {
-	rows, err := r.db.Query(`
+func (r *itemRepository) GetByTopicID(ctx context.Context, topicID int) ([]model.Item, error) {
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, topic_id, title, description, created_at, updated_at 
 		FROM items
 		WHERE topic_id = ?
@@ -89,11 +89,11 @@ func (r *itemRepository) GetByTopicID(topicID int) ([]model.Item, error) {
 }
 
 // Get returns an item by ID
-func (r *itemRepository) Get(id int) (model.Item, error) {
+func (r *itemRepository) Get(ctx context.Context, id int) (model.Item, error) {
 	var item model.Item
 	var createdAt, updatedAt string
 
-	err := r.db.QueryRow(`
+	err := r.db.QueryRowContext(ctx, `
 		SELECT id, topic_id, title, description, created_at, updated_at 
 		FROM items 
 		WHERE id = ?
@@ -114,10 +114,10 @@ func (r *itemRepository) Get(id int) (model.Item, error) {
 }
 
 // Create adds a new item
-func (r *itemRepository) Create(item model.Item) (model.Item, error) {
+func (r *itemRepository) Create(ctx context.Context, item model.Item) (model.Item, error) {
 	now := time.Now().Format(time.RFC3339)
 
-	result, err := r.db.Exec(`
+	result, err := r.db.ExecContext(ctx, `
 		INSERT INTO items (topic_id, title, description, created_at, updated_at) 
 		VALUES (?, ?, ?, ?, ?)
 	`, item.TopicID, item.Title, item.Description, now, now)
@@ -140,9 +140,9 @@ func (r *itemRepository) Create(item model.Item) (model.Item, error) {
 }
 
 // Update modifies an existing item
-func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
+func (r *itemRepository) Update(ctx context.Context, id int, item model.Item) (model.Item, error) {
 	// First check if the item exists
-	existingItem, err := r.Get(id)
+	existingItem, err := r.Get(ctx, id)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -168,9 +168,9 @@ func (r *itemRepository) Update(id int, item model.Item) (model.Item, error) {
 }
 
 // Delete removes an item
-func (r *itemRepository) Delete(id int) error {
+func (r *itemRepository) Delete(ctx context.Context, id int) error {
 	// First check if the item exists
-	_, err := r.Get(id)
+	_, err := r.Get(ctx, id)
 	if err != nil {
 		return err
 	}
