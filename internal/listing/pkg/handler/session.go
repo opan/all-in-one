@@ -8,13 +8,12 @@ import (
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
 func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
-	fmt.Println(ctx)
 
 	var rl model.LoginRequest
 
@@ -47,6 +46,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
 	if err != nil {
 		sendError(w, fmt.Sprintf("failed to create transaction: %v", err), http.StatusInternalServerError)
+		return
 	}
 	defer trx.Rollback()
 
@@ -56,11 +56,35 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims := jwt.MapClaims{
+		"sub":   sid.String(),
+		"email": u.Email,
+		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte("your-secret-key"))
+	if err != nil {
+		sendError(w, fmt.Sprintf("failed signing token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	err = trx.Commit()
 	if err != nil {
 		sendError(w, fmt.Sprintf("failed to commit session to db: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt_token",
+		Value:    signedToken,
+		HttpOnly: true,
+		Secure:   true,
+		MaxAge:   86400, // 24 hours in second,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	h.log.Info().Ctx(ctx).Str("session_id", sid.String()).Msg("session successfully created")
 
 	response := httpHelper.Response{
 		Success: true,

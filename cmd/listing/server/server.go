@@ -44,7 +44,7 @@ func (s *server) Start() error {
 
 	s.log.Info().Msg("Initiating server start...")
 
-	svc, err := service.NewService(ctx, s.config)
+	svc, err := service.NewService(ctx, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
 		return err

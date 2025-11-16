@@ -8,6 +8,8 @@ import (
 	"github.com/all-in-one/internal/listing/pkg/handler"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
+
+	"github.com/rs/zerolog"
 )
 
 // Service represents the listing service
@@ -16,13 +18,13 @@ type Service struct {
 	Storage repository.Storage
 }
 
-func NewService(ctx context.Context, config config.Config) (*Service, error) {
+func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (*Service, error) {
 	store, err := repository.NewStorage(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}
 
-	h := handler.NewHandler(store)
+	h := handler.NewHandler(store, log)
 
 	return &Service{
 		Handler: h,

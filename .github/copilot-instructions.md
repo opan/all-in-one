@@ -52,9 +52,7 @@ Use middleware for common functionality:
 
 #### Authentication
 Support authentications:
-  - Basic Auth (username/password)
-  - Token-based (e.g., Bearer token in Authorization header)
-  - JWT (will be implemented later)
+  - JWT (combined with common auth username/password)
 
 - Database access should use `github.com/jmoiron/sqlx` with prepared statements and migrations (if applicable).
 - Use squirrel library to build SQL queries safely (where applicable).

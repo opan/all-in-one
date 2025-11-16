@@ -8,17 +8,20 @@ import (
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 )
 
 // Handler manages HTTP requests for the listing service
 type Handler struct {
 	storage repository.Storage
+	log     zerolog.Logger
 }
 
 // NewHandler creates a new listing handler
-func NewHandler(storage repository.Storage) *Handler {
+func NewHandler(storage repository.Storage, log zerolog.Logger) *Handler {
 	return &Handler{
 		storage: storage,
+		log:     log,
 	}
 }
 
