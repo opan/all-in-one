@@ -39,8 +39,13 @@ func newTopicRepository(db *sqlx.DB) *topicRepository {
 	return &topicRepository{db: db}
 }
 
+type Execer interface {
+	sqlx.ExtContext
+	NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error)
+}
+
 // getExecutor returns the appropriate executor (transaction or database) from options
-func getExecCtx(db *sqlx.DB, opts ...query.QueryOptions) sqlx.ExecerContext {
+func getExecCtx(db *sqlx.DB, opts ...query.QueryOptions) Execer {
 	for _, opt := range opts {
 		if qo, ok := opt.(*queryOptions); ok && qo.trx != nil {
 			return qo.trx

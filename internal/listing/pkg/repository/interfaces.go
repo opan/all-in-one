@@ -39,12 +39,23 @@ type TopicRepository interface {
 	Delete(ctx context.Context, id int, opts ...query.QueryOptions) error
 }
 
+type SessionRepository interface {
+	Create(ctx context.Context, session model.Session, opts ...query.QueryOptions) error
+	Delete(ctx context.Context, id int) error
+}
+
+type UserRepository interface {
+	FindByUsername(ctx context.Context, username string) (*model.User, error)
+}
+
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
 
 	// ItemRepo returns the item repository
 	ItemRepo() ItemRepository
 	TopicRepo() TopicRepository
+	SessionRepo() SessionRepository
+	UserRepo() UserRepository
 
 	// Close closes the storage connection
 	Close() error

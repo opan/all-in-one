@@ -12,9 +12,11 @@ import (
 
 // storage implements the Storage interface from repository package
 type storage struct {
-	db        *sqlx.DB
-	itemRepo  *itemRepository
-	topicRepo *topicRepository
+	db          *sqlx.DB
+	itemRepo    *itemRepository
+	topicRepo   *topicRepository
+	sessionRepo *sessionRepository
+	userRepo    *userRepository
 }
 
 // NewStorage creates a new SQLite-based storage
@@ -31,9 +33,11 @@ func NewStorage(ctx context.Context, config config.Config) (*storage, error) {
 	}
 
 	return &storage{
-		db:        db,
-		itemRepo:  newItemRepository(db),
-		topicRepo: newTopicRepository(db),
+		db:          db,
+		itemRepo:    newItemRepository(db),
+		topicRepo:   newTopicRepository(db),
+		sessionRepo: newSessionRepository(db),
+		userRepo:    newUserRepository(db),
 	}, nil
 }
 
@@ -67,6 +71,10 @@ func (s *storage) ItemRepo() *itemRepository {
 
 func (s *storage) TopicRepo() *topicRepository {
 	return s.topicRepo
+}
+
+func (s *storage) SessionRepo() *sessionRepository {
+	return s.sessionRepo
 }
 
 // Close closes the database connection
