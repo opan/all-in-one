@@ -103,3 +103,27 @@ func (h *HTTP) HealthCheck(w http.ResponseWriter, r *http.Request) {
 func generateRequestID() string {
 	return uuid.NewString()
 }
+
+// sendJSON sends a JSON response
+func SendJSON(w http.ResponseWriter, data interface{}, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
+}
+
+// sendError sends an error response
+func SendError(w http.ResponseWriter, message string, statusCode int) {
+	response := Response{
+		Success: false,
+		Error:   message,
+	}
+	SendJSON(w, response, statusCode)
+}
+
+func SendUnauthorized(w http.ResponseWriter, message string) {
+	response := Response{
+		Success: false,
+		Error:   message,
+	}
+	SendJSON(w, response, http.StatusUnauthorized)
+}
