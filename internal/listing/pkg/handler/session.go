@@ -18,7 +18,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	var rl model.LoginRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&rl); err != nil {
-		sendError(w, "Invalid request payload", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -26,13 +26,13 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.storage.UserRepo().FindByUsername(ctx, rl.Username)
 	if err != nil {
-		sendError(w, fmt.Sprintf("username or password not found: %v", err), http.StatusNotFound)
+		httpHelper.SendError(w, fmt.Sprintf("username or password not found: %v", err), http.StatusNotFound)
 		return
 	}
 
 	sid, err := uuid.NewUUID()
 	if err != nil {
-		sendError(w, fmt.Sprintf("failed to generate session id: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("failed to generate session id: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -45,42 +45,56 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
 	if err != nil {
-		sendError(w, fmt.Sprintf("failed to create transaction: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("failed to create transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer trx.Rollback()
 
 	err = h.storage.SessionRepo().Create(ctx, s, trx)
 	if err != nil {
-		sendError(w, fmt.Sprintf("failed to create user session: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	claims := jwt.MapClaims{
-		"sub":   sid.String(),
-		"email": u.Email,
-		"exp":   time.Now().Add(time.Hour * 24).Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte("your-secret-key"))
-	if err != nil {
-		sendError(w, fmt.Sprintf("failed signing token: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("failed to create user session: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	err = trx.Commit()
 	if err != nil {
-		sendError(w, fmt.Sprintf("failed to commit session to db: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("failed to commit session to db: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	at, err := h.createAccessToken(sid, u.Email)
+	if err != nil {
+		h.log.Error().Ctx(ctx).Err(err).Msg("failed to create access token")
+		httpHelper.SendError(w, fmt.Sprintf("failed to create access token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	rt, err := h.createRefreshToken(sid)
+	if err != nil {
+		h.log.Error().Ctx(ctx).Err(err).Msg("failed to create refresh token")
+		httpHelper.SendError(w, fmt.Sprintf("failed to create refresh token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Set access token cookie (short expiry)
 	http.SetCookie(w, &http.Cookie{
-		Name:     "jwt_token",
-		Value:    signedToken,
+		Name:     "access_token",
+		Value:    at,
 		HttpOnly: true,
 		Secure:   true,
-		MaxAge:   86400, // 24 hours in second,
+		Path:     "/",
+		MaxAge:   900, // 15 minutes
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// Set refresh token cookie (longer expiry)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    rt,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/api/v1/auth/refresh", // Only sent to refresh endpoint
+		MaxAge:   604800,                 // 7 days
 		SameSite: http.SameSiteStrictMode,
 	})
 
@@ -91,5 +105,102 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		Data:    u,
 	}
 
-	sendJSON(w, response, http.StatusCreated)
+	httpHelper.SendJSON(w, response, http.StatusCreated)
+}
+
+func (h *Handler) createAccessToken(sessionID uuid.UUID, email string) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":   sessionID.String(),
+		"email": email,
+		"type":  "access",
+		"exp":   time.Now().Add(15 * time.Minute).Unix(), // 15 min
+		"iat":   time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte("replace-this-later"))
+}
+
+func (h *Handler) createRefreshToken(sessionID uuid.UUID) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":  sessionID.String(),
+		"type": "refresh",
+		"exp":  time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
+		"iat":  time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte("replace-this-later"))
+}
+
+func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get refresh token from cookie
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		h.log.Warn().Ctx(ctx).Err(err).Msg("Refresh token missing in request")
+		httpHelper.SendError(w, "Refresh token required", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate refresh token
+	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte("replace-this-later"), nil
+	})
+
+	if err != nil || !token.Valid {
+		h.log.Warn().Ctx(ctx).Err(err).Msg("Invalid refresh token")
+		httpHelper.SendError(w, "Invalid refresh token, please login again", http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["type"] != "refresh" {
+		h.log.Error().Ctx(ctx).Msg("Invalid token type")
+		httpHelper.SendError(w, "Invalid token type", http.StatusUnauthorized)
+		return
+	}
+
+	sessionID := claims["sub"].(uuid.UUID)
+
+	// Verify session still exists in DB
+	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
+	if err != nil {
+		h.log.Warn().Ctx(ctx).Err(err).Str("session_id", sessionID.String()).Msg("Session not found")
+		httpHelper.SendError(w, "Session expired, please login again", http.StatusUnauthorized)
+		return
+	}
+
+	// Get user details
+	user, err := h.storage.UserRepo().Find(ctx, session.UserID)
+	if err != nil {
+		h.log.Error().Ctx(ctx).Err(err).Str("user_id", session.UserID).Msg("User not found")
+		httpHelper.SendError(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Create new access token
+	accessToken, err := h.createAccessToken(sessionID, user.Email)
+	if err != nil {
+		h.log.Error().Ctx(ctx).Err(err).Msg("Failed to create access token")
+		httpHelper.SendError(w, "Failed to refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Set new access token
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   900, // 15 minutes
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	httpHelper.SendJSON(w, "token refreshed successfully", http.StatusOK)
 }
