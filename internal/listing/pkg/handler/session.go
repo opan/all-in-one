@@ -8,12 +8,14 @@ import (
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/logging"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
 func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
 
 	var rl model.LoginRequest
 
@@ -71,7 +73,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	rt, err := h.createRefreshToken(sid)
 	if err != nil {
-		h.log.Error().Ctx(ctx).Err(err).Msg("failed to create refresh token")
+		log.Error().Err(err).Msg("failed to create refresh token")
 		httpHelper.SendError(w, fmt.Sprintf("failed to create refresh token: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -135,11 +137,12 @@ func (h *Handler) createRefreshToken(sessionID uuid.UUID) (string, error) {
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
 
 	// Get refresh token from cookie
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
-		h.log.Warn().Ctx(ctx).Err(err).Msg("Refresh token missing in request")
+		log.Warn().Err(err).Msg("Refresh token missing in request")
 		httpHelper.SendError(w, "Refresh token required", http.StatusUnauthorized)
 		return
 	}
@@ -153,14 +156,14 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil || !token.Valid {
-		h.log.Warn().Ctx(ctx).Err(err).Msg("Invalid refresh token")
+		log.Warn().Err(err).Msg("Invalid refresh token")
 		httpHelper.SendError(w, "Invalid refresh token, please login again", http.StatusUnauthorized)
 		return
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || claims["type"] != "refresh" {
-		h.log.Error().Ctx(ctx).Msg("Invalid token type")
+		log.Error().Msg("Invalid token type")
 		httpHelper.SendError(w, "Invalid token type", http.StatusUnauthorized)
 		return
 	}
@@ -170,7 +173,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Verify session still exists in DB
 	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
 	if err != nil {
-		h.log.Warn().Ctx(ctx).Err(err).Str("session_id", sessionID.String()).Msg("Session not found")
+		log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("Session not found")
 		httpHelper.SendError(w, "Session expired, please login again", http.StatusUnauthorized)
 		return
 	}
@@ -178,7 +181,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Get user details
 	user, err := h.storage.UserRepo().Find(ctx, session.UserID)
 	if err != nil {
-		h.log.Error().Ctx(ctx).Err(err).Str("user_id", session.UserID).Msg("User not found")
+		log.Error().Err(err).Str("user_id", session.UserID).Msg("User not found")
 		httpHelper.SendError(w, "User not found", http.StatusUnauthorized)
 		return
 	}
@@ -186,7 +189,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Create new access token
 	accessToken, err := h.createAccessToken(sessionID, user.Email)
 	if err != nil {
-		h.log.Error().Ctx(ctx).Err(err).Msg("Failed to create access token")
+		log.Error().Err(err).Msg("Failed to create access token")
 		httpHelper.SendError(w, "Failed to refresh token", http.StatusInternalServerError)
 		return
 	}

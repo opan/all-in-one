@@ -49,7 +49,7 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 
 		// Create context with request ID and timeout
 		ctx := r.Context()
-		reqID := generateRequestID()
+		reqID := uuid.NewString()
 		ctx = context.WithValue(ctx, requestIDKey, reqID)
 
 		timeout := h.config.Http.Timeout
@@ -100,18 +100,14 @@ func (h *HTTP) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func generateRequestID() string {
-	return uuid.NewString()
-}
-
-// sendJSON sends a JSON response
+// SendJSON sends a JSON response
 func SendJSON(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)
 }
 
-// sendError sends an error response
+// SendError sends an error response
 func SendError(w http.ResponseWriter, message string, statusCode int) {
 	response := Response{
 		Success: false,
