@@ -21,7 +21,7 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topics, err := h.storage.TopicRepo().GetAll(ctx)
 	if err != nil {
-		sendError(w, "Failed to retrieve topics", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to retrieve topics", http.StatusInternalServerError)
 		return
 	}
 
@@ -30,7 +30,7 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 		Data:    topics,
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
 // GetTopic godoc
@@ -48,17 +48,17 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id, err := getIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
 	topic, err := h.storage.TopicRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to retrieve topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to retrieve topic", http.StatusInternalServerError)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 		Data:    topic,
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
 // CreateTopic godoc
@@ -85,19 +85,19 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var newTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&newTopic); err != nil {
-		sendError(w, "Invalid JSON data", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
 	if newTopic.Name == "" {
-		sendError(w, "Name is required", http.StatusBadRequest)
+		httpHelper.SendError(w, "Name is required", http.StatusBadRequest)
 		return
 	}
 
 	createdTopic, err := h.storage.TopicRepo().Create(ctx, newTopic)
 	if err != nil {
-		sendError(w, "Failed to create topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to create topic", http.StatusInternalServerError)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		Data:    createdTopic,
 	}
 
-	sendJSON(w, response, http.StatusCreated)
+	httpHelper.SendJSON(w, response, http.StatusCreated)
 }
 
 // UpdateTopic godoc
@@ -127,29 +127,29 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id, err := getIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
 	var updatedTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&updatedTopic); err != nil {
-		sendError(w, "Invalid JSON data", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
 	if updatedTopic.Name == "" {
-		sendError(w, "Name is required", http.StatusBadRequest)
+		httpHelper.SendError(w, "Name is required", http.StatusBadRequest)
 		return
 	}
 
 	result, err := h.storage.TopicRepo().Update(ctx, id, updatedTopic)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to update topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to update topic", http.StatusInternalServerError)
 		return
 	}
 
@@ -159,7 +159,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 		Data:    result,
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
 // DeleteTopic godoc
@@ -176,7 +176,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 	id, err := getIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
@@ -184,7 +184,7 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 
 	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
 	if err != nil {
-		sendError(w, fmt.Sprintf("Failed to create transaction: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("Failed to create transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -192,23 +192,23 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 
 	err = h.storage.ItemRepo().DeleteByTopicID(ctx, id, trx)
 	if err != nil {
-		sendError(w, fmt.Sprintf("Failed to delete topic items: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("Failed to delete topic items: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	err = h.storage.TopicRepo().Delete(ctx, id, trx)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, fmt.Sprintf("Failed to delete topic: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("Failed to delete topic: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	err = trx.Commit()
 	if err != nil {
-		sendError(w, fmt.Sprintf("Failed to commit transaction: %v", err), http.StatusInternalServerError)
+		httpHelper.SendError(w, fmt.Sprintf("Failed to commit transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -217,5 +217,5 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 		Message: "Topic deleted successfully",
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/all-in-one/internal/logging"
+
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/listing/query"
 	"github.com/google/uuid"
@@ -22,6 +24,9 @@ func newSessionRepository(db *sqlx.DB) *sessionRepository {
 }
 
 func (s *sessionRepository) Create(ctx context.Context, session model.Session, opts ...query.QueryOptions) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("store", "SessionRepository").Str("action", "Create").Msg("create session")
+
 	exec := getExecCtx(s.db, opts...)
 
 	_, err := exec.NamedExecContext(ctx,
@@ -35,11 +40,24 @@ func (s *sessionRepository) Create(ctx context.Context, session model.Session, o
 	return nil
 }
 
-func (s *sessionRepository) Delete(ctx context.Context, id int) error {
+func (s *sessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("store", "SessionRepository").Str("action", "Delete").Msg("delete session")
+
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM sessions WHERE id = ?`, id.String())
+
+	if err != nil {
+		return fmt.Errorf("unable to delete session by id %s: %w", id, err)
+	}
+
 	return nil
 }
 
 func (s *sessionRepository) Get(ctx context.Context, id uuid.UUID) (*model.Session, error) {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("store", "SessionRepository").Str("action", "Get").Msg("get session")
+
 	var session model.Session
 
 	err := s.db.QueryRowContext(ctx,

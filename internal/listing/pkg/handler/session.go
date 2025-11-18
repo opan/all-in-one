@@ -66,7 +66,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	at, err := h.createAccessToken(sid, u.Email)
 	if err != nil {
-		h.log.Error().Ctx(ctx).Err(err).Msg("failed to create access token")
+		log.Error().Err(err).Msg("failed to create access token")
 		httpHelper.SendError(w, fmt.Sprintf("failed to create access token: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -95,12 +95,12 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		Value:    rt,
 		HttpOnly: true,
 		Secure:   true,
-		Path:     "/api/v1/auth/refresh", // Only sent to refresh endpoint
-		MaxAge:   604800,                 // 7 days
+		Path:     "/api/v1/sessions/refresh", // Only sent to refresh endpoint
+		MaxAge:   604800,                     // 7 days
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	h.log.Info().Ctx(ctx).Str("session_id", sid.String()).Msg("session successfully created")
+	log.Info().Str("session_id", sid.String()).Msg("session successfully created")
 
 	response := httpHelper.Response{
 		Success: true,
@@ -108,6 +108,88 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpHelper.SendJSON(w, response, http.StatusCreated)
+}
+
+func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	cookie, err := r.Cookie("access_token")
+	if err != nil {
+		log.Warn().Err(err).Msg("Access token missing in request")
+		httpHelper.SendError(w, "Access token required", http.StatusUnauthorized)
+		return
+	}
+
+	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(h.config.Auth.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		log.Warn().Err(err).Msg("Invalid access token")
+		httpHelper.SendError(w, "Invalid access token", http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		log.Error().Msg("Invalid token claims")
+		httpHelper.SendError(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	sidStr, ok := claims["sub"].(string)
+	if !ok {
+		log.Error().Msg("Session ID not found in token")
+		httpHelper.SendError(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	sid, err := uuid.Parse(sidStr)
+	if err != nil {
+		log.Error().Err(err).Msg("Invalid session ID format")
+		httpHelper.SendError(w, "Invalid session ID", http.StatusUnauthorized)
+		return
+	}
+
+	err = h.storage.SessionRepo().Delete(ctx, sid)
+	if err != nil {
+		log.Error().Err(err).Str("session_id", sid.String()).Msg("Failed to delete session")
+		httpHelper.SendError(w, "Failed to delete session", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   -1,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/api/v1/sessions/refresh",
+		MaxAge:   -1,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	log.Info().Str("session_id", sid.String()).Msg("Session deleted successfully")
+
+	res := httpHelper.Response{
+		Success: true,
+		Message: "Session deleted successfully",
+	}
+
+	httpHelper.SendJSON(w, res, http.StatusOK)
 }
 
 func (h *Handler) createAccessToken(sessionID uuid.UUID, email string) (string, error) {
@@ -120,7 +202,7 @@ func (h *Handler) createAccessToken(sessionID uuid.UUID, email string) (string, 
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte("replace-this-later"))
+	return token.SignedString([]byte(h.config.Auth.JWTSecret))
 }
 
 func (h *Handler) createRefreshToken(sessionID uuid.UUID) (string, error) {
@@ -132,7 +214,7 @@ func (h *Handler) createRefreshToken(sessionID uuid.UUID) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte("replace-this-later"))
+	return token.SignedString([]byte(h.config.Auth.JWTSecret))
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {

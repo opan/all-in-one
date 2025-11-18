@@ -42,7 +42,7 @@ type TopicRepository interface {
 
 type SessionRepository interface {
 	Create(ctx context.Context, session model.Session, opts ...query.QueryOptions) error
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, id uuid.UUID) error
 	Get(ctx context.Context, id uuid.UUID) (*model.Session, error)
 }
 

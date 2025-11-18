@@ -1,27 +1,25 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	httpHelper "github.com/all-in-one/internal/http"
+	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
-	"github.com/rs/zerolog"
 )
 
 // Handler manages HTTP requests for the listing service
 type Handler struct {
 	storage repository.Storage
-	log     zerolog.Logger
+	config  config.Config
 }
 
 // NewHandler creates a new listing handler
-func NewHandler(storage repository.Storage, log zerolog.Logger) *Handler {
+func NewHandler(storage repository.Storage, config config.Config) *Handler {
 	return &Handler{
 		storage: storage,
-		log:     log,
+		config:  config,
 	}
 }
 
@@ -40,9 +38,12 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.GetItem).Methods("GET")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.UpdateItem).Methods("PUT")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.DeleteItem).Methods("DELETE")
-}
 
-// Helper Functions
+	// Session routes
+	router.HandleFunc("/sessions", h.CreateSession).Methods("POST")
+	router.HandleFunc("/sessions/refresh", h.RefreshToken).Methods("POST")
+	router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
+}
 
 // getIDFromRequest extracts the ID from the request URL
 func getIDFromRequest(r *http.Request) (int, error) {
@@ -54,20 +55,4 @@ func getIDFromRequest(r *http.Request) (int, error) {
 func getTopicIDFromRequest(r *http.Request) (int, error) {
 	vars := mux.Vars(r)
 	return strconv.Atoi(vars["topic_id"])
-}
-
-// sendJSON sends a JSON response
-func sendJSON(w http.ResponseWriter, data interface{}, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
-}
-
-// sendError sends an error response
-func sendError(w http.ResponseWriter, message string, statusCode int) {
-	response := httpHelper.Response{
-		Success: false,
-		Error:   message,
-	}
-	sendJSON(w, response, statusCode)
 }

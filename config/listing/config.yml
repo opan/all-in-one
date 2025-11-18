@@ -11,3 +11,6 @@ log:
 
 http:
   timeout: 30 # in seconds
+
+auth:
+  jwt_secret: "replace-this-on-production"

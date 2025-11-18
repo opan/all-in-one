@@ -24,7 +24,7 @@ func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}
 
-	h := handler.NewHandler(store, log)
+	h := handler.NewHandler(store, config)
 
 	return &Service{
 		Handler: h,
