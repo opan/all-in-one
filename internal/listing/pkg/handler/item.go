@@ -9,15 +9,15 @@ import (
 )
 
 // GetItems godoc
-// @Summary Get all items for a topic
-// @Description Retrieve a list of all items for a specific topic
-// @Tags items
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Success 200 {object} httpHelper.Response{data=[]model.Item} "List of items"
-// @Failure 400 {object} httpHelper.Response "Invalid topic ID"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items [get]
+// @Summary      Get all items for a topic
+// @Description  Retrieve a list of all items for a specific topic
+// @Tags         items
+// @Produce      json
+// @Param        topic_id  path      int                                     true  "Topic ID"
+// @Success      200       {object}  httpHelper.Response{data=[]model.Item}  "List of items"
+// @Failure      400       {object}  httpHelper.Response                     "Invalid topic ID"
+// @Failure      500       {object}  httpHelper.Response                     "Internal server error"
+// @Router       /topics/{topic_id}/items [get]
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
@@ -52,17 +52,17 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetItem godoc
-// @Summary Get item by ID
-// @Description Retrieve a single item by its ID within a topic
-// @Tags items
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param id path int true "Item ID"
-// @Success 200 {object} httpHelper.Response{data=model.Item} "Item details"
-// @Failure 400 {object} httpHelper.Response "Invalid ID"
-// @Failure 404 {object} httpHelper.Response "Item not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items/{id} [get]
+// @Summary      Get item by ID
+// @Description  Retrieve a single item by its ID within a topic
+// @Tags         items
+// @Produce      json
+// @Param        topic_id  path      int                                   true  "Topic ID"
+// @Param        id        path      int                                   true  "Item ID"
+// @Success      200       {object}  httpHelper.Response{data=model.Item}  "Item details"
+// @Failure      400       {object}  httpHelper.Response                   "Invalid ID"
+// @Failure      404       {object}  httpHelper.Response                   "Item not found"
+// @Failure      500       {object}  httpHelper.Response                   "Internal server error"
+// @Router       /topics/{topic_id}/items/{id} [get]
 func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
@@ -113,18 +113,18 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateItem godoc
-// @Summary Create a new item
-// @Description Create a new item within a topic
-// @Tags items
-// @Accept json
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param item body model.Item true "Item to create"
-// @Success 201 {object} httpHelper.Response{data=model.Item} "Item created successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid JSON data or missing required fields"
-// @Failure 404 {object} httpHelper.Response "Topic not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items [post]
+// @Summary      Create a new item
+// @Description  Create a new item within a topic
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        topic_id  path      int                                   true  "Topic ID"
+// @Param        item      body      model.Item                            true  "Item to create"
+// @Success      201       {object}  httpHelper.Response{data=model.Item}  "Item created successfully"
+// @Failure      400       {object}  httpHelper.Response                   "Invalid JSON data or missing required fields"
+// @Failure      404       {object}  httpHelper.Response                   "Topic not found"
+// @Failure      500       {object}  httpHelper.Response                   "Internal server error"
+// @Router       /topics/{topic_id}/items [post]
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
@@ -175,19 +175,19 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateItem godoc
-// @Summary Update an existing item
-// @Description Update an existing item by ID within a topic
-// @Tags items
-// @Accept json
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param id path int true "Item ID"
-// @Param item body model.Item true "Updated item data"
-// @Success 200 {object} httpHelper.Response{data=model.Item} "Item updated successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid ID or JSON data"
-// @Failure 404 {object} httpHelper.Response "Item not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items/{id} [put]
+// @Summary      Update an existing item
+// @Description  Update an existing item by ID within a topic
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        topic_id  path      int                                   true  "Topic ID"
+// @Param        id        path      int                                   true  "Item ID"
+// @Param        item      body      model.Item                            true  "Updated item data"
+// @Success      200       {object}  httpHelper.Response{data=model.Item}  "Item updated successfully"
+// @Failure      400       {object}  httpHelper.Response                   "Invalid ID or JSON data"
+// @Failure      404       {object}  httpHelper.Response                   "Item not found"
+// @Failure      500       {object}  httpHelper.Response                   "Internal server error"
+// @Router       /topics/{topic_id}/items/{id} [put]
 func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
@@ -264,17 +264,17 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteItem godoc
-// @Summary Delete an item
-// @Description Delete an item by ID within a topic
-// @Tags items
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param id path int true "Item ID"
-// @Success 200 {object} httpHelper.Response "Item deleted successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid ID"
-// @Failure 404 {object} httpHelper.Response "Item not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items/{id} [delete]
+// @Summary      Delete an item
+// @Description  Delete an item by ID within a topic
+// @Tags         items
+// @Produce      json
+// @Param        topic_id  path      int                  true  "Topic ID"
+// @Param        id        path      int                  true  "Item ID"
+// @Success      200       {object}  httpHelper.Response  "Item deleted successfully"
+// @Failure      400       {object}  httpHelper.Response  "Invalid ID"
+// @Failure      404       {object}  httpHelper.Response  "Item not found"
+// @Failure      500       {object}  httpHelper.Response  "Internal server error"
+// @Router       /topics/{topic_id}/items/{id} [delete]
 func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)

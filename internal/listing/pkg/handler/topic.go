@@ -10,13 +10,13 @@ import (
 )
 
 // GetTopics godoc
-// @Summary Get all topics
-// @Description Retrieve a list of all topics
-// @Tags topics
-// @Produce json
-// @Success 200 {object} httpHelper.Response{data=[]model.Topic} "List of topics"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics [get]
+// @Summary      Get all topics
+// @Description  Retrieve a list of all topics
+// @Tags         topics
+// @Produce      json
+// @Success      200  {object}  httpHelper.Response{data=[]model.Topic}  "List of topics"
+// @Failure      500  {object}  httpHelper.Response                      "Internal server error"
+// @Router       /topics [get]
 func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topics, err := h.storage.TopicRepo().GetAll(ctx)
@@ -34,16 +34,16 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTopic godoc
-// @Summary Get topic by ID
-// @Description Retrieve a single topic by its ID
-// @Tags topics
-// @Produce json
-// @Param id path int true "Topic ID"
-// @Success 200 {object} httpHelper.Response{data=model.Topic} "Topic details"
-// @Failure 400 {object} httpHelper.Response "Invalid ID"
-// @Failure 404 {object} httpHelper.Response "Topic not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{id} [get]
+// @Summary      Get topic by ID
+// @Description  Retrieve a single topic by its ID
+// @Tags         topics
+// @Produce      json
+// @Param        id   path      int                                    true  "Topic ID"
+// @Success      200  {object}  httpHelper.Response{data=model.Topic}  "Topic details"
+// @Failure      400  {object}  httpHelper.Response                    "Invalid ID"
+// @Failure      404  {object}  httpHelper.Response                    "Topic not found"
+// @Failure      500  {object}  httpHelper.Response                    "Internal server error"
+// @Router       /topics/{id} [get]
 func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id, err := getIDFromRequest(r)
@@ -71,16 +71,16 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateTopic godoc
-// @Summary Create a new topic
-// @Description Create a new topic
-// @Tags topics
-// @Accept json
-// @Produce json
-// @Param topic body model.Topic true "Topic to create"
-// @Success 201 {object} httpHelper.Response{data=model.Topic} "Topic created successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid JSON data or missing required fields"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics [post]
+// @Summary      Create a new topic
+// @Description  Create a new topic
+// @Tags         topics
+// @Accept       json
+// @Produce      json
+// @Param        topic  body      model.Topic                            true  "Topic to create"
+// @Success      201    {object}  httpHelper.Response{data=model.Topic}  "Topic created successfully"
+// @Failure      400    {object}  httpHelper.Response                    "Invalid JSON data or missing required fields"
+// @Failure      500    {object}  httpHelper.Response                    "Internal server error"
+// @Router       /topics [post]
 func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var newTopic model.Topic
@@ -111,18 +111,18 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateTopic godoc
-// @Summary Update an existing topic
-// @Description Update an existing topic by ID
-// @Tags topics
-// @Accept json
-// @Produce json
-// @Param id path int true "Topic ID"
-// @Param topic body model.Topic true "Updated topic data"
-// @Success 200 {object} httpHelper.Response{data=model.Topic} "Topic updated successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid ID or JSON data"
-// @Failure 404 {object} httpHelper.Response "Topic not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{id} [put]
+// @Summary      Update an existing topic
+// @Description  Update an existing topic by ID
+// @Tags         topics
+// @Accept       json
+// @Produce      json
+// @Param        id     path      int                                    true  "Topic ID"
+// @Param        topic  body      model.Topic                            true  "Updated topic data"
+// @Success      200    {object}  httpHelper.Response{data=model.Topic}  "Topic updated successfully"
+// @Failure      400    {object}  httpHelper.Response                    "Invalid ID or JSON data"
+// @Failure      404    {object}  httpHelper.Response                    "Topic not found"
+// @Failure      500    {object}  httpHelper.Response                    "Internal server error"
+// @Router       /topics/{id} [put]
 func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id, err := getIDFromRequest(r)
@@ -163,16 +163,16 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteTopic godoc
-// @Summary Delete a topic
-// @Description Delete a topic by ID
-// @Tags topics
-// @Produce json
-// @Param id path int true "Topic ID"
-// @Success 200 {object} httpHelper.Response "Topic deleted successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid ID"
-// @Failure 404 {object} httpHelper.Response "Topic not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{id} [delete]
+// @Summary      Delete a topic
+// @Description  Delete a topic by ID
+// @Tags         topics
+// @Produce      json
+// @Param        id   path      int                  true  "Topic ID"
+// @Success      200  {object}  httpHelper.Response  "Topic deleted successfully"
+// @Failure      400  {object}  httpHelper.Response  "Invalid ID"
+// @Failure      404  {object}  httpHelper.Response  "Topic not found"
+// @Failure      500  {object}  httpHelper.Response  "Internal server error"
+// @Router       /topics/{id} [delete]
 func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 	id, err := getIDFromRequest(r)
 	if err != nil {

@@ -37,7 +37,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -45,7 +45,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic"
+                                                "$ref": "#/definitions/model.Topic"
                                             }
                                         }
                                     }
@@ -56,7 +56,7 @@
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -80,7 +80,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic"
+                            "$ref": "#/definitions/model.Topic"
                         }
                     }
                 ],
@@ -90,13 +90,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic"
+                                            "$ref": "#/definitions/model.Topic"
                                         }
                                     }
                                 }
@@ -106,13 +106,13 @@
                     "400": {
                         "description": "Invalid JSON data or missing required fields",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -143,13 +143,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic"
+                                            "$ref": "#/definitions/model.Topic"
                                         }
                                     }
                                 }
@@ -159,19 +159,19 @@
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -202,7 +202,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic"
+                            "$ref": "#/definitions/model.Topic"
                         }
                     }
                 ],
@@ -212,13 +212,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic"
+                                            "$ref": "#/definitions/model.Topic"
                                         }
                                     }
                                 }
@@ -228,19 +228,19 @@
                     "400": {
                         "description": "Invalid ID or JSON data",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -267,25 +267,25 @@
                     "200": {
                         "description": "Topic deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -316,7 +316,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -324,7 +324,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item"
+                                                "$ref": "#/definitions/model.Item"
                                             }
                                         }
                                     }
@@ -335,13 +335,13 @@
                     "400": {
                         "description": "Invalid topic ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -372,7 +372,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item"
+                            "$ref": "#/definitions/model.Item"
                         }
                     }
                 ],
@@ -382,13 +382,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item"
+                                            "$ref": "#/definitions/model.Item"
                                         }
                                     }
                                 }
@@ -398,19 +398,19 @@
                     "400": {
                         "description": "Invalid JSON data or missing required fields",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -448,13 +448,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item"
+                                            "$ref": "#/definitions/model.Item"
                                         }
                                     }
                                 }
@@ -464,19 +464,19 @@
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Item not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -514,7 +514,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item"
+                            "$ref": "#/definitions/model.Item"
                         }
                     }
                 ],
@@ -524,13 +524,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                    "$ref": "#/definitions/http.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item"
+                                            "$ref": "#/definitions/model.Item"
                                         }
                                     }
                                 }
@@ -540,19 +540,19 @@
                     "400": {
                         "description": "Invalid ID or JSON data",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Item not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -586,25 +586,25 @@
                     "200": {
                         "description": "Item deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "404": {
                         "description": "Item not found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     }
                 }
@@ -612,7 +612,7 @@
         }
     },
     "definitions": {
-        "github_com_all-in-one_internal_http.Response": {
+        "http.Response": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -627,7 +627,7 @@
                 }
             }
         },
-        "github_com_all-in-one_internal_listing_pkg_model.Item": {
+        "model.Item": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -650,7 +650,7 @@
                 }
             }
         },
-        "github_com_all-in-one_internal_listing_pkg_model.Topic": {
+        "model.Topic": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -662,7 +662,7 @@
                 "id": {
                     "type": "integer"
                 },
-                "title": {
+                "name": {
                     "type": "string"
                 },
                 "updated_at": {
