@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/all-in-one/internal/auth"
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/logging"
@@ -40,7 +41,13 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.storage.UserRepo().FindByUsername(ctx, rl.Username)
 	if err != nil {
-		httpHelper.SendError(w, fmt.Sprintf("username or password not found: %v", err), http.StatusNotFound)
+		httpHelper.SendError(w, "invalid username or password", http.StatusNotFound)
+		return
+	}
+
+	ok, err := auth.CheckPassword(rl.Password, u.PasswordHash)
+	if err != nil || !ok {
+		httpHelper.SendError(w, "invalid username or password", http.StatusUnauthorized)
 		return
 	}
 
@@ -70,12 +77,6 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = trx.Commit()
-	if err != nil {
-		httpHelper.SendError(w, fmt.Sprintf("failed to commit session to db: %v", err), http.StatusInternalServerError)
-		return
-	}
-
 	at, err := h.createAccessToken(sid, u.Email)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create access token")
@@ -87,6 +88,12 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create refresh token")
 		httpHelper.SendError(w, fmt.Sprintf("failed to create refresh token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	err = trx.Commit()
+	if err != nil {
+		httpHelper.SendError(w, fmt.Sprintf("failed to commit session to db: %v", err), http.StatusInternalServerError)
 		return
 	}
 

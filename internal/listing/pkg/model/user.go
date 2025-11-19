@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	ID        string    `json:"id"`
@@ -10,7 +12,6 @@ type User struct {
 	LastLogin time.Time `json:"last_login"`
 
 	PasswordHash string    `json:"-" db:"password_hash"`
-	Salt         string    `json:"-" db:"salt"`
 	CreateAt     time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
