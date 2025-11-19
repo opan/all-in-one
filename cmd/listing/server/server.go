@@ -73,6 +73,7 @@ func (s *server) Start() error {
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
 
 	// Swagger documentation
+	s.log.Info().Msg("Register swagger...")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 		httpSwagger.DeepLinking(true),

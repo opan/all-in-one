@@ -13,6 +13,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// CreateSession godoc
+// @Summary      Create a new session (login)
+// @Description  Authenticate user and create a new session with access and refresh tokens
+// @Tags         sessions
+// @Accept       json
+// @Produce      json
+// @Param        credentials  body      model.LoginRequest                  true  "Login credentials"
+// @Success      201          {object}  httpHelper.Response{data=model.User}  "Session created successfully"
+// @Failure      400          {object}  httpHelper.Response                   "Invalid request payload"
+// @Failure      404          {object}  httpHelper.Response                   "Username or password not found"
+// @Failure      500          {object}  httpHelper.Response                   "Internal server error"
+// @Router       /sessions [post]
 func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
@@ -110,6 +122,16 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, response, http.StatusCreated)
 }
 
+// DeleteSession godoc
+// @Summary      Delete session (logout)
+// @Description  Invalidate the current session and clear authentication cookies
+// @Tags         sessions
+// @Produce      json
+// @Success      200  {object}  httpHelper.Response  "Session deleted successfully"
+// @Failure      401  {object}  httpHelper.Response  "Unauthorized - invalid or missing token"
+// @Failure      500  {object}  httpHelper.Response  "Internal server error"
+// @Router       /sessions [delete]
+// @Security     ApiKeyAuth
 func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
@@ -217,6 +239,16 @@ func (h *Handler) createRefreshToken(sessionID uuid.UUID) (string, error) {
 	return token.SignedString([]byte(h.config.Auth.JWTSecret))
 }
 
+// RefreshToken godoc
+// @Summary      Refresh access token
+// @Description  Generate a new access token using a valid refresh token
+// @Tags         sessions
+// @Produce      json
+// @Success      200  {object}  httpHelper.Response  "Token refreshed successfully"
+// @Failure      401  {object}  httpHelper.Response  "Unauthorized - invalid or missing refresh token"
+// @Failure      500  {object}  httpHelper.Response  "Internal server error"
+// @Router       /sessions/refresh [post]
+// @Security     ApiKeyAuth
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
