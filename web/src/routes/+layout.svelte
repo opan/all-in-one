@@ -6,6 +6,9 @@
 
 	let { children, data } = $props();
 
+	// Check if current route should use simple layout (auth pages)
+	const isAuthPage = $derived($page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/register'));
+
 	// Build breadcrumbs from page data breadcrumb metadata
 	const breadcrumbs = $derived(() => {
 		const pageData = $page.data;
@@ -38,8 +41,14 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen bg-background text-foreground">
-	<AppLayout breadcrumbs={breadcrumbs()} currentPath={data.url}>
-		{@render children?.()}
-	</AppLayout>
-</div>
+{#if isAuthPage}
+	<!-- Simple layout for auth pages without sidebar -->
+	{@render children?.()}
+{:else}
+	<!-- Full layout with sidebar for app pages -->
+	<div class="min-h-screen bg-background text-foreground">
+		<AppLayout breadcrumbs={breadcrumbs()} currentPath={data.url}>
+			{@render children?.()}
+		</AppLayout>
+	</div>
+{/if}

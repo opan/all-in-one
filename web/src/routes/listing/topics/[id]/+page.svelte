@@ -7,6 +7,7 @@
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
   import type { ColumnDef } from "@tanstack/table-core";
+  import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
 
   interface Item {
     id: number;
@@ -60,7 +61,7 @@
     error = '';
     
     try {
-      const response = await fetch(`/api/v1/topics/${topic.id}/items`);
+      const response = await apiClient(`/api/v1/topics/${topic.id}/items`);
       if (!response.ok) {
         throw new Error('Failed to reload items');
       }
@@ -143,16 +144,10 @@
     
     try {
       if (editingItem) {
-        const response = await fetch(`/api/v1/items/${editingItem}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: formData.title.trim(),
-            description: formData.description.trim(),
-            topic_id: topic.id
-          }),
+        const response = await apiPut(`/api/v1/items/${editingItem}`, {
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          topic_id: topic.id
         });
         
         if (!response.ok) {
@@ -166,16 +161,10 @@
           items = items;
         }
       } else {
-        const response = await fetch('/api/v1/items', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: formData.title.trim(),
-            description: formData.description.trim(),
-            topic_id: topic.id
-          }),
+        const response = await apiPost('/api/v1/items', {
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          topic_id: topic.id
         });
         
         if (!response.ok) {
@@ -206,9 +195,7 @@
     error = '';
     
     try {
-      const response = await fetch(`/api/v1/items/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`/api/v1/items/${id}`);
       
       if (!response.ok) {
         throw new Error('Failed to delete item');
@@ -247,15 +234,9 @@
     error = '';
     
     try {
-      const response = await fetch(`/api/v1/topics/${topic.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: topicFormData.name.trim(),
-          description: topicFormData.description.trim()
-        }),
+      const response = await apiPut(`/api/v1/topics/${topic.id}`, {
+        name: topicFormData.name.trim(),
+        description: topicFormData.description.trim()
       });
       
       if (!response.ok) {
@@ -278,9 +259,7 @@
     error = '';
     
     try {
-      const response = await fetch(`/api/v1/topics/${topic.id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`/api/v1/topics/${topic.id}`);
       
       if (!response.ok) {
         throw new Error('Failed to delete topic');
