@@ -77,7 +77,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	at, err := h.createAccessToken(sid, u.Email)
+	at, err := h.createAccessToken(sid, u)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create access token")
 		httpHelper.SendError(w, fmt.Sprintf("failed to create access token: %v", err), http.StatusInternalServerError)
@@ -221,13 +221,15 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, res, http.StatusOK)
 }
 
-func (h *Handler) createAccessToken(sessionID uuid.UUID, email string) (string, error) {
+func (h *Handler) createAccessToken(sessionID uuid.UUID, user *model.User) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":   sessionID.String(),
-		"email": email,
-		"type":  "access",
-		"exp":   time.Now().Add(15 * time.Minute).Unix(), // 15 min
-		"iat":   time.Now().Unix(),
+		"sub":      sessionID.String(),
+		"userID":   user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"type":     "access",
+		"exp":      time.Now().Add(15 * time.Minute).Unix(), // 15 min
+		"iat":      time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -308,7 +310,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create new access token
-	accessToken, err := h.createAccessToken(sessionID, user.Email)
+	accessToken, err := h.createAccessToken(sessionID, user)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create access token")
 		httpHelper.SendError(w, "Failed to refresh token", http.StatusInternalServerError)
