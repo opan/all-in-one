@@ -25,24 +25,31 @@ func NewHandler(storage repository.Storage, config config.Config) *Handler {
 
 // RegisterRoutes registers the listing routes to the given router
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	// Topic routes
+	h.registerPublicRoutes(router)
+}
+
+// RegisterAuthenticatedRoutes registers routes that require JWT authentication
+func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/topics", h.GetTopics).Methods("GET")
 	router.HandleFunc("/topics", h.CreateTopic).Methods("POST")
 	router.HandleFunc("/topics/{id}", h.GetTopic).Methods("GET")
 	router.HandleFunc("/topics/{id}", h.UpdateTopic).Methods("PUT")
 	router.HandleFunc("/topics/{id}", h.DeleteTopic).Methods("DELETE")
 
-	// Item routes (nested under topics)
 	router.HandleFunc("/topics/{topic_id}/items", h.GetItems).Methods("GET")
 	router.HandleFunc("/topics/{topic_id}/items", h.CreateItem).Methods("POST")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.GetItem).Methods("GET")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.UpdateItem).Methods("PUT")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.DeleteItem).Methods("DELETE")
 
-	// Session routes
+	router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
+}
+
+// registerPublicRoutes registers routes that don't require authentication
+func (h *Handler) registerPublicRoutes(router *mux.Router) {
+	router.HandleFunc("/users", h.RegisterUser).Methods("POST")
 	router.HandleFunc("/sessions", h.CreateSession).Methods("POST")
 	router.HandleFunc("/sessions/refresh", h.RefreshToken).Methods("POST")
-	router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
 }
 
 // getIDFromRequest extracts the ID from the request URL

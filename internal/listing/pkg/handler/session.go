@@ -273,7 +273,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return []byte("replace-this-later"), nil
+		return []byte(h.config.Auth.JWTSecret), nil
 	})
 
 	if err != nil || !token.Valid {

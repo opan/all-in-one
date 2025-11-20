@@ -41,7 +41,8 @@ type HTTPConfig struct {
 }
 
 type Auth struct {
-	JWTSecret string `mapstructure:"jwt_secret"`
+	JWTSecret         string `mapstructure:"jwt_secret"`
+	DirectAuthEnabled bool   `mapstructure:"direct_auth_enabled"`
 }
 
 func Load() (*Config, error) {

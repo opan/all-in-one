@@ -32,9 +32,14 @@ func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (
 	}, nil
 }
 
-// RegisterRoutes registers the listing routes to the given router
+// RegisterRoutes registers the public listing routes to the given router
 func (s *Service) RegisterRoutes(router *mux.Router) {
 	s.Handler.RegisterRoutes(router)
+}
+
+// RegisterAuthenticatedRoutes registers authenticated routes to the given router
+func (s *Service) RegisterAuthenticatedRoutes(router *mux.Router) {
+	s.Handler.RegisterAuthenticatedRoutes(router)
 }
 
 // InitializeSampleData adds sample data to the storage
