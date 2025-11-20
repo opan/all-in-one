@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/query"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -31,8 +32,10 @@ func (u *userRepository) Find(ctx context.Context, id string) (*model.User, erro
 	return &user, nil
 }
 
-func (u *userRepository) Create(ctx context.Context, user model.User) error {
-	_, err := u.db.NamedExecContext(ctx, "INSERT INTO users (id, username, email, name, last_login, password_hash, salt) VALUES (:id, :username, :email, :name, :last_login, :password_hash, :salt)", user)
+func (u *userRepository) Create(ctx context.Context, user model.User, opts ...query.QueryOptions) error {
+	exec := getExecCtx(u.db, opts...)
+
+	_, err := exec.NamedExecContext(ctx, "INSERT INTO users (id, username, email, name, last_login, password_hash, salt) VALUES (:id, :username, :email, :name, :last_login, :password_hash, :salt)", user)
 	if err != nil {
 		return err
 	}
