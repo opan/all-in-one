@@ -224,7 +224,7 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createAccessToken(sessionID uuid.UUID, user *model.User) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":      sessionID.String(),
-		"userID":   user.ID,
+		"user_id":  user.ID,
 		"username": user.Username,
 		"email":    user.Email,
 		"type":     "access",

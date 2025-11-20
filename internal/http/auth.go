@@ -17,6 +17,8 @@ const (
 type UserClaims struct {
 	SessionID string `json:"sub"`
 	Email     string `json:"email"`
+	Username  string `json:"username"`
+	UserID    string `json:"user_id"`
 }
 
 func (h *HTTP) JWTAuth(next http.Handler) http.Handler {
@@ -95,9 +97,4 @@ func (h *HTTP) validateJWT(ctx context.Context, r *http.Request) (UserClaims, er
 		SessionID: claims["sub"].(string),
 		Email:     claims["email"].(string),
 	}, nil
-}
-
-func GetUserClaims(ctx context.Context) (UserClaims, bool) {
-	uc, ok := ctx.Value(UserContextKey).(UserClaims)
-	return uc, ok
 }
