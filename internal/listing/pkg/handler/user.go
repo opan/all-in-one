@@ -26,43 +26,27 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var req RegisterUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Error().Err(err).Msg("failed to decode request body")
-		res := httpHelper.Response{
-			Success: false,
-			Error:   "invalid request body",
-		}
-		httpHelper.SendJSON(w, res, http.StatusBadRequest)
+		httpHelper.SendError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.Username == "" || req.Password == "" {
 		log.Error().Msg("username or password is empty")
-		res := httpHelper.Response{
-			Success: false,
-			Error:   "username and password are required",
-		}
-		httpHelper.SendJSON(w, res, http.StatusBadRequest)
+		httpHelper.SendError(w, "username and password are required", http.StatusBadRequest)
 		return
 	}
 
 	existingUser, err := h.storage.UserRepo().FindByUsername(ctx, req.Username)
 	if err == nil && existingUser != nil {
 		log.Error().Str("username", req.Username).Msg("user already exists")
-		res := httpHelper.Response{
-			Success: false,
-			Error:   "user already exists",
-		}
-		httpHelper.SendJSON(w, res, http.StatusConflict)
+		httpHelper.SendError(w, "user already exists", http.StatusConflict)
 		return
 	}
 
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to hash password")
-		res := httpHelper.Response{
-			Success: false,
-			Error:   "failed to create user",
-		}
-		httpHelper.SendJSON(w, res, http.StatusInternalServerError)
+		httpHelper.SendError(w, "failed to register user", http.StatusInternalServerError)
 		return
 	}
 
@@ -77,11 +61,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.storage.UserRepo().Create(ctx, user); err != nil {
 		log.Error().Err(err).Msg("failed to create user")
-		res := httpHelper.Response{
-			Success: false,
-			Error:   "failed to create user",
-		}
-		httpHelper.SendJSON(w, res, http.StatusInternalServerError)
+		httpHelper.SendError(w, "failed to create user", http.StatusInternalServerError)
 		return
 	}
 
