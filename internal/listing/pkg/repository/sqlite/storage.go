@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/all-in-one/internal/auth"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog"
 )
 
 // storage implements the Storage interface from repository package
 type storage struct {
 	db          *sqlx.DB
+	log         zerolog.Logger
 	itemRepo    *itemRepository
 	topicRepo   *topicRepository
 	sessionRepo *sessionRepository
@@ -20,12 +24,13 @@ type storage struct {
 }
 
 // NewStorage creates a new SQLite-based storage
-func NewStorage(ctx context.Context, config config.Config) (*storage, error) {
+func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (*storage, error) {
 	db, err := sqlx.Open("sqlite3", config.Storage.SQLite.DBPath)
 	if err != nil {
 		return nil, err
 	}
 
+	log.Info().Msg("Starting database migration")
 	err = dbMigrate(db)
 	if err != nil {
 		db.Close()
@@ -34,6 +39,7 @@ func NewStorage(ctx context.Context, config config.Config) (*storage, error) {
 
 	return &storage{
 		db:          db,
+		log:         log,
 		itemRepo:    newItemRepository(db),
 		topicRepo:   newTopicRepository(db),
 		sessionRepo: newSessionRepository(db),
@@ -64,7 +70,7 @@ func dbMigrate(db *sqlx.DB) error {
 			id TEXT PRIMARY KEY,
 			username TEXT NOT NULL UNIQUE,
 			email TEXT NOT NULL UNIQUE,
-			name TEXT,
+			name TEXT UNIQUE,
 			password_hash TEXT NOT NULL,
 			last_login TIMESTAMP,
 			created_at TIMESTAMP,
@@ -98,14 +104,40 @@ func (s *storage) SessionRepo() *sessionRepository {
 	return s.sessionRepo
 }
 
+func (s *storage) UserRepo() *userRepository {
+	return s.userRepo
+}
+
 // Close closes the database connection
 func (s *storage) Close() error {
 	return s.db.Close()
 }
 
 func (s *storage) InitializeSampleData(ctx context.Context) int {
-	topics, err := s.topicRepo.GetAll(ctx)
-	if err != nil || len(topics) > 0 {
+	users, err := s.userRepo.GetAll(ctx)
+	if err != nil || len(users) > 0 {
+		s.log.Error().Err(err).Msg("failed to fetch users or users already exist")
+		return 0
+	}
+
+	uid, err := uuid.NewUUID()
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to generate admin user ID")
+		return 0
+	}
+
+	pwd, _ := auth.HashPassword("randompass")
+
+	admin := model.User{
+		ID:           uid,
+		Username:     "admin",
+		Name:         "admin",
+		PasswordHash: pwd,
+	}
+
+	err = s.userRepo.Create(ctx, admin)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to create admin user")
 		return 0
 	}
 

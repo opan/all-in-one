@@ -50,13 +50,14 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now().UTC()
 	user := model.User{
-		ID:           uuid.New().String(),
+		ID:           uuid.New(),
 		Username:     req.Username,
 		Email:        req.Email,
 		Name:         req.Name,
 		PasswordHash: hashedPassword,
-		LastLogin:    time.Now(),
+		LastLogin:    &now,
 	}
 
 	if err := h.storage.UserRepo().Create(ctx, user); err != nil {
@@ -70,7 +71,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "user created successfully",
 		Data: map[string]string{
-			"id":       user.ID,
+			"id":       user.ID.String(),
 			"username": user.Username,
 		},
 	}

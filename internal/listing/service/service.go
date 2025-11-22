@@ -19,7 +19,7 @@ type Service struct {
 }
 
 func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (*Service, error) {
-	store, err := repository.NewStorage(ctx, config)
+	store, err := repository.NewStorage(ctx, config, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}

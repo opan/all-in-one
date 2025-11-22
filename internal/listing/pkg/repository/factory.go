@@ -6,6 +6,7 @@ import (
 
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/repository/sqlite"
+	"github.com/rs/zerolog"
 )
 
 type baseStorage interface {
@@ -13,7 +14,7 @@ type baseStorage interface {
 	InitializeSampleData(ctx context.Context) int
 }
 
-func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
+func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (Storage, error) {
 	switch config.Storage.Type {
 	// case "memory":
 	// 	memStorage := memory.NewStorage()
@@ -23,7 +24,7 @@ func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
 	// 		storage:   memStorage,
 	// 	}, nil
 	case "sqlite":
-		sqliteStorage, err := sqlite.NewStorage(ctx, config)
+		sqliteStorage, err := sqlite.NewStorage(ctx, config, log)
 		if err != nil {
 			return nil, err
 		}
@@ -31,6 +32,7 @@ func NewStorage(ctx context.Context, config config.Config) (Storage, error) {
 			itemRepo:    sqliteStorage.ItemRepo(),
 			topicRepo:   sqliteStorage.TopicRepo(),
 			sessionRepo: sqliteStorage.SessionRepo(),
+			userRepo:    sqliteStorage.UserRepo(),
 			storage:     sqliteStorage,
 		}, nil
 	default:

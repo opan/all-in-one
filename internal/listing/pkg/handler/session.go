@@ -57,16 +57,9 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uid, err := uuid.Parse(u.ID)
-	if err != nil {
-		log.Error().Err(err).Str("user_id", u.ID).Msg("failed to parse user ID to UUID")
-		httpHelper.SendError(w, "failed to parse user ID", http.StatusInternalServerError)
-		return
-	}
-
 	s := model.Session{
 		ID:        sid,
-		UserID:    uid,
+		UserID:    u.ID,
 		CreatedAt: time.Now(),
 		UserAgent: r.UserAgent(),
 	}
