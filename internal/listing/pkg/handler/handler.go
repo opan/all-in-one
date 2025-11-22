@@ -50,6 +50,7 @@ func (h *Handler) registerPublicRoutes(router *mux.Router) {
 	router.HandleFunc("/users", h.RegisterUser).Methods("POST")
 	router.HandleFunc("/sessions", h.CreateSession).Methods("POST")
 	router.HandleFunc("/sessions/refresh", h.RefreshToken).Methods("POST")
+	router.HandleFunc("/sessions/verify", h.VerifySession).Methods("GET")
 }
 
 // getIDFromRequest extracts the ID from the request URL

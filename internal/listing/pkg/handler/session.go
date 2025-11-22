@@ -330,3 +330,36 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	httpHelper.SendJSON(w, "token refreshed successfully", http.StatusOK)
 }
+
+func (h *Handler) VerifySession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	cookie, err := r.Cookie("access_token")
+	if err != nil {
+		log.Error().Err(err).Msg("cannot find JWT token")
+		httpHelper.SendUnauthorized(w, "cannot find JWT token")
+		return
+	}
+
+	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(h.config.Auth.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		log.Error().Err(err).Msg("invalid JWT token")
+		httpHelper.SendUnauthorized(w, "invalid jwt token")
+		return
+	}
+
+	log.Info().Msg("session verified successfully")
+
+	res := httpHelper.Response{
+		Success: true,
+		Message: "session verified successfully",
+	}
+	httpHelper.SendJSON(w, res, http.StatusOK)
+}

@@ -98,3 +98,54 @@ export async function apiPut(url: string, data?: unknown): Promise<Response> {
 export async function apiDelete(url: string): Promise<Response> {
 	return apiClient(url, { method: 'DELETE' });
 }
+
+/**
+ * Check if user is currently logged in by verifying the session
+ * Returns true if session is valid, false otherwise
+ * If access token is expired, attempts to refresh it using the refresh token
+ */
+export async function isLoggedIn(): Promise<boolean> {
+	try {
+		// First, try to verify the current session
+		const verifyResponse = await fetch('/api/v1/sessions/verify', {
+			method: 'GET',
+			credentials: 'include',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		});
+
+		// If verification succeeds, user is logged in
+		if (verifyResponse.ok) {
+			return true;
+		}
+
+		// If verification fails with 401, try to refresh the access token
+		if (verifyResponse.status === 401) {
+			const refreshResponse = await fetch('/api/v1/sessions/refresh', {
+				method: 'POST',
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+
+			// If refresh succeeds, user is logged in
+			if (refreshResponse.ok) {
+				return true;
+			}
+
+			// If refresh fails, redirect to login page
+			if (browser) {
+				await goto('/login', { replaceState: true });
+			}
+			return false;
+		}
+
+		// For other errors, user is not logged in
+		return false;
+	} catch (error) {
+		// On any error, user is not logged in
+		return false;
+	}
+}

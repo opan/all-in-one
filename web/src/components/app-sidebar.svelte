@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Component } from 'svelte';
   import * as Sidebar from "$lib/components/ui/sidebar/index";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
   import { 
     SquareTerminal, 
     BookOpen, 
@@ -12,9 +13,13 @@
     SquareUser,
     List,
     Table,
+    LogOut,
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
+  import { apiDelete, isLoggedIn } from '$lib/api';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
 
   interface Props {
     currentPath?: string;
@@ -34,6 +39,34 @@
 
   let { currentPath = "/" }: Props = $props();
   let playgroundOpen = $state(true);
+  let userLoggedIn = $state(false);
+  let isSigningOut = $state(false);
+
+  onMount(async () => {
+    userLoggedIn = await isLoggedIn();
+  });
+
+  async function handleSignOut() {
+    try {
+      isSigningOut = true;
+      const response = await apiDelete('/api/v1/sessions');
+      
+      if (response.ok) {
+        // Redirect to login page after successful sign out
+        await goto('/login', { replaceState: true });
+      } else {
+        console.error('Sign out failed');
+        // Still redirect to login even if the API call fails
+        await goto('/login', { replaceState: true });
+      }
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Still redirect to login even if there's an error
+      await goto('/login', { replaceState: true });
+    } finally {
+      isSigningOut = false;
+    }
+  }
 
   const platformItems: NavItem[] = [
     // {
@@ -136,23 +169,40 @@
   </Sidebar.Content>
   
   <Sidebar.Footer>
-    <Sidebar.Menu>
-      <Sidebar.MenuItem>
-        <Sidebar.MenuButton size="lg" tooltipContent="shadcn (m@example.com)">
-          {#snippet child({ props })}
-            <button {...props}>
-              <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted">
-                <SquareUser class="size-4" />
-              </div>
-              <div class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-semibold">shadcn</span>
-                <span class="truncate text-xs text-muted-foreground">m@example.com</span>
-              </div>
-            </button>
-          {/snippet}
-        </Sidebar.MenuButton>
-      </Sidebar.MenuItem>
-    </Sidebar.Menu>
+    {#if userLoggedIn}
+      <Sidebar.Menu>
+        <Sidebar.MenuItem>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              {#snippet child({ props })}
+                <button 
+                  {...props}
+                  class="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0"
+                >
+                  <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted">
+                    <SquareUser class="size-4" />
+                  </div>
+                  <div class="grid flex-1 text-left text-sm leading-tight">
+                    <span class="truncate font-semibold">shadcn</span>
+                    <span class="truncate text-xs text-muted-foreground">m@example.com</span>
+                  </div>
+                </button>
+              {/snippet}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content class="w-56" side="top" align="end" sideOffset={4}>
+              <DropdownMenu.Item 
+                onclick={handleSignOut}
+                disabled={isSigningOut}
+                class="cursor-pointer"
+              >
+                <LogOut class="mr-2 h-4 w-4" />
+                <span>{isSigningOut ? 'Logging out...' : 'Log out'}</span>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </Sidebar.MenuItem>
+      </Sidebar.Menu>
+    {/if}
   </Sidebar.Footer>
   
   <Sidebar.Rail />
