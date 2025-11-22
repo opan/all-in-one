@@ -57,9 +57,16 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uid, err := uuid.Parse(u.ID)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", u.ID).Msg("failed to parse user ID to UUID")
+		httpHelper.SendError(w, "failed to parse user ID", http.StatusInternalServerError)
+		return
+	}
+
 	s := model.Session{
 		ID:        sid,
-		UserID:    u.ID,
+		UserID:    uid,
 		CreatedAt: time.Now(),
 		UserAgent: r.UserAgent(),
 	}
@@ -304,7 +311,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Get user details
 	user, err := h.storage.UserRepo().Find(ctx, session.UserID)
 	if err != nil {
-		log.Error().Err(err).Str("user_id", session.UserID).Msg("User not found")
+		log.Error().Err(err).Str("user_id", session.UserID.String()).Msg("User not found")
 		httpHelper.SendError(w, "User not found", http.StatusUnauthorized)
 		return
 	}

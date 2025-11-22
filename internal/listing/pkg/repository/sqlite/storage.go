@@ -58,7 +58,28 @@ func dbMigrate(db *sqlx.DB) error {
 			created_at TIMESTAMP,
 			updated_at TIMESTAMP,
 			FOREIGN KEY (topic_id) REFERENCES topics(id)
-		);`
+		);
+		
+		CREATE TABLE IF NOT EXISTS users (
+			id TEXT PRIMARY KEY,
+			username TEXT NOT NULL UNIQUE,
+			email TEXT NOT NULL UNIQUE,
+			name TEXT,
+			password_hash TEXT NOT NULL,
+			last_login TIMESTAMP,
+			created_at TIMESTAMP,
+			updated_at TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS sessions (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			created_at TIMESTAMP,
+			user_agent TEXT,
+			FOREIGN KEY (user_id) REFERENCES users(id)
+		);
+		`
+
 	_, err := db.Exec(migration)
 
 	return err

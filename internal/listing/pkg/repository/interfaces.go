@@ -48,7 +48,7 @@ type SessionRepository interface {
 
 type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
-	Find(ctx context.Context, id string) (*model.User, error)
+	Find(ctx context.Context, id uuid.UUID) (*model.User, error)
 	Create(ctx context.Context, user model.User, opts ...query.QueryOptions) error
 }
 

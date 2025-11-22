@@ -8,7 +8,7 @@ import (
 
 type Session struct {
 	ID        uuid.UUID `json:"id"`
-	UserID    string    `json:"user_id" db:"user_id"`
+	UserID    uuid.UUID `json:"user_id" db:"user_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UserAgent string    `json:"user_agent" db:"user_agent"`
 }
