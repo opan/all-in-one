@@ -292,9 +292,15 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionID := claims["sub"].(uuid.UUID)
+	sid, err := uuid.Parse(claims["sub"].(string))
+	if err != nil {
+		log.Error().Err(err).Msg("Invalid session ID format in token")
+		httpHelper.SendError(w, "Invalid session ID", http.StatusUnauthorized)
+		return
+	}
 
 	// Verify session still exists in DB
-	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
+	session, err := h.storage.SessionRepo().Get(ctx, sid)
 	if err != nil {
 		log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("Session not found")
 		httpHelper.SendError(w, "Session expired, please login again", http.StatusUnauthorized)
@@ -310,7 +316,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create new access token
-	accessToken, err := h.createAccessToken(sessionID, user)
+	accessToken, err := h.createAccessToken(sid, user)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create access token")
 		httpHelper.SendError(w, "Failed to refresh token", http.StatusInternalServerError)

@@ -7,6 +7,7 @@ import (
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/logging"
 )
 
 // GetTopics godoc
@@ -19,8 +20,11 @@ import (
 // @Router       /topics [get]
 func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	topics, err := h.storage.TopicRepo().GetAll(ctx)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to get topics from db")
 		httpHelper.SendError(w, "Failed to retrieve topics", http.StatusInternalServerError)
 		return
 	}
@@ -46,8 +50,11 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics/{id} [get]
 func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	id, err := getIDFromRequest(r)
 	if err != nil {
+		log.Error().Err(err).Msg("invalid topic ID in request")
 		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
@@ -83,8 +90,11 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics [post]
 func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	var newTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&newTopic); err != nil {
+		log.Error().Err(err).Msg("invalid JSON data")
 		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
@@ -97,6 +107,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 
 	createdTopic, err := h.storage.TopicRepo().Create(ctx, newTopic)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to create topic in db")
 		httpHelper.SendError(w, "Failed to create topic", http.StatusInternalServerError)
 		return
 	}
@@ -125,14 +136,18 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics/{id} [put]
 func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	id, err := getIDFromRequest(r)
 	if err != nil {
+		log.Error().Err(err).Msg("invalid topic ID in request")
 		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
 	var updatedTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&updatedTopic); err != nil {
+		log.Error().Err(err).Msg("invalid JSON data")
 		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
@@ -149,6 +164,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
+		log.Error().Err(err).Msg("failed to update topic in db")
 		httpHelper.SendError(w, "Failed to update topic", http.StatusInternalServerError)
 		return
 	}
@@ -174,16 +190,18 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 // @Failure      500  {object}  httpHelper.Response  "Internal server error"
 // @Router       /topics/{id} [delete]
 func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	id, err := getIDFromRequest(r)
 	if err != nil {
 		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
-	ctx := r.Context()
-
 	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to begin transaction")
 		httpHelper.SendError(w, fmt.Sprintf("Failed to create transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -192,6 +210,7 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 
 	err = h.storage.ItemRepo().DeleteByTopicID(ctx, id, trx)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to delete topic items in db")
 		httpHelper.SendError(w, fmt.Sprintf("Failed to delete topic items: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -202,12 +221,14 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
+		log.Error().Err(err).Msg("failed to delete topic in db")
 		httpHelper.SendError(w, fmt.Sprintf("Failed to delete topic: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	err = trx.Commit()
 	if err != nil {
+		log.Error().Err(err).Msg("failed to commit transaction")
 		httpHelper.SendError(w, fmt.Sprintf("Failed to commit transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
