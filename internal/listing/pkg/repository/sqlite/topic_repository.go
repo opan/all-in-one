@@ -8,6 +8,7 @@ import (
 
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/listing/query"
+	"github.com/all-in-one/internal/logging"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -64,58 +65,26 @@ func (r *topicRepository) CreateTrx(ctx context.Context) (query.QueryOptions, er
 }
 
 func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, description, created_at, updated_at 
-		FROM topics
-		ORDER BY id
-	`)
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch topics from db: %w", err)
-	}
-
-	defer rows.Close()
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("entity", "TopicRepo").Str("action", "GetAll").Msg("fetching all topics from database")
 
 	var topics []model.Topic
-	for rows.Next() {
-		var topic model.Topic
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&topic.ID, &topic.Name, &topic.Description, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("unable to scan topic row: %w", err)
-		}
-
-		// Parse timestamps
-		topic.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		topic.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		topics = append(topics, topic)
+	if err := r.db.SelectContext(ctx, &topics, "SELECT * FROM topics"); err != nil {
+		return nil, err
 	}
 
 	return topics, nil
 }
 
 func (r *topicRepository) Get(ctx context.Context, id int) (model.Topic, error) {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("entity", "TopicRepo").Str("action", "Get").Int("topic_id", id).Msg("fetching topic from database")
+
 	var topic model.Topic
-	var createdAt, updatedAt string
 
-	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, description, created_at, updated_at 
-		FROM topics
-		WHERE id = ?
-	`, id).Scan(&topic.ID, &topic.Name, &topic.Description, &createdAt, &updatedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return topic, fmt.Errorf("topic with id %d not found", id)
-		}
-		return topic, fmt.Errorf("unable to fetch topic from db: %w", err)
+	if err := r.db.GetContext(ctx, &topic, "SELECT * FROM topics where id = ?", id); err != nil {
+		return model.Topic{}, fmt.Errorf("unable to get topic from db: %w", err)
 	}
-
-	// Parse timestamps
-	topic.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	topic.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 
 	return topic, nil
 }
