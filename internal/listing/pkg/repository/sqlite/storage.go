@@ -52,6 +52,7 @@ func dbMigrate(db *sqlx.DB) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
 			description TEXT,
+			form_schema TEXT,
 			created_at TIMESTAMP,
 			updated_at TIMESTAMP
 		);
@@ -67,7 +68,7 @@ func dbMigrate(db *sqlx.DB) error {
 		);
 		
 		CREATE TABLE IF NOT EXISTS users (
-			id TEXT PRIMARY KEY,
+			id TEXT PRIMARY KEY UNIQUE,
 			username TEXT NOT NULL UNIQUE,
 			email TEXT NOT NULL UNIQUE,
 			name TEXT UNIQUE,
@@ -78,7 +79,7 @@ func dbMigrate(db *sqlx.DB) error {
 		);
 
 		CREATE TABLE IF NOT EXISTS sessions (
-			id TEXT PRIMARY KEY,
+			id TEXT PRIMARY KEY UNIQUE,
 			user_id TEXT NOT NULL,
 			created_at TIMESTAMP,
 			user_agent TEXT,

@@ -23,11 +23,26 @@ export async function apiClient(
 	try {
 		const response = await fetch(url, config);
 
-		// Handle 401 Unauthorized - redirect to login
+		// Handle 401 Unauthorized - try to refresh token first
 		if (response.status === 401 && browser) {
-			// Clear any local state if needed
+			// Attempt to refresh the access token
+			const refreshResponse = await fetch('/api/v1/sessions/refresh', {
+				method: 'POST',
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+
+			// If refresh succeeds, retry the original request
+			if (refreshResponse.ok) {
+				const retryResponse = await fetch(url, config);
+				return retryResponse;
+			}
+
+			// If refresh fails, redirect to login
 			await goto('/login', { replaceState: true });
-			throw new Error('Unauthorized - redirecting to login');
+			throw new Error('Session expired - redirecting to login');
 		}
 
 		return response;
@@ -57,8 +72,24 @@ export async function apiLoad(
 
 	const response = await fetchFn(url, config);
 
-	// Handle 401 Unauthorized - use SvelteKit redirect
+	// Handle 401 Unauthorized - try to refresh token first
 	if (response.status === 401) {
+		// Attempt to refresh the access token
+		const refreshResponse = await fetchFn('/api/v1/sessions/refresh', {
+			method: 'POST',
+			credentials: 'include',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		});
+
+		// If refresh succeeds, retry the original request
+		if (refreshResponse.ok) {
+			const retryResponse = await fetchFn(url, config);
+			return retryResponse;
+		}
+
+		// If refresh fails, use SvelteKit redirect
 		throw redirect(302, '/login');
 	}
 
