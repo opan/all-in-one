@@ -11,7 +11,9 @@
 	let loading = $state(false);
 	let error = $state('');
 
-	async function handleLogin() {
+	async function handleLogin(event?: Event) {
+		event?.preventDefault();
+		
 		if (!username || !password) {
 			error = 'Username and password are required';
 			return;
@@ -68,35 +70,38 @@
 				</div>
 			{/if}
 			
-			<div class="space-y-2">
-				<Label for="username">Username</Label>
-				<Input
-					id="username"
-					type="text"
-					placeholder="Enter your username"
-					bind:value={username}
-					disabled={loading}
-					required
-				/>
-			</div>
-			<div class="space-y-2">
-				<div class="flex justify-between items-center">
-					<Label for="password">Password</Label>
-					<a href="/forgot-password" class="text-sm text-muted-foreground hover:underline">
-						Forgot your password?
-					</a>
+			<form onsubmit={handleLogin} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="username">Username</Label>
+					<Input
+						id="username"
+						type="text"
+						placeholder="Enter your username"
+						bind:value={username}
+						disabled={loading}
+						required
+					/>
 				</div>
-				<Input
-					id="password"
-					type="password"
-					bind:value={password}
-					disabled={loading}
-					required
-				/>
-			</div>
-			<Button class="w-full" onclick={() => handleLogin()} disabled={loading}>
-				{loading ? 'Logging in...' : 'Login'}
-			</Button>
+				<div class="space-y-2">
+					<div class="flex justify-between items-center">
+						<Label for="password">Password</Label>
+						<a href="/forgot-password" class="text-sm text-muted-foreground hover:underline">
+							Forgot your password?
+						</a>
+					</div>
+					<Input
+						id="password"
+						type="password"
+						bind:value={password}
+						disabled={loading}
+						required
+						placeholder={"Your password"}
+					/>
+				</div>
+				<Button type="submit" class="w-full" disabled={loading}>
+					{loading ? 'Logging in...' : 'Login'}
+				</Button>
+			</form>
 			<Button variant="outline" class="w-full" onclick={() => handleGoogleLogin()} disabled={loading}>
 				Login with Google
 			</Button>
