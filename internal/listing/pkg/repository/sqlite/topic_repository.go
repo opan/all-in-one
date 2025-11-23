@@ -87,11 +87,14 @@ func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
 			return nil, fmt.Errorf("unable to scan topic row: %w", err)
 		}
 
-		// Parse form schema
+		// Parse form schema - always initialize it, even if NULL
 		if formSchemaJSON.Valid {
 			if err := topic.FormSchema.Scan(formSchemaJSON.String); err != nil {
 				return nil, fmt.Errorf("unable to parse form_schema: %w", err)
 			}
+		} else {
+			// Initialize with empty schema when NULL
+			topic.FormSchema.Scan(nil)
 		}
 
 		// Parse timestamps
@@ -122,11 +125,14 @@ func (r *topicRepository) Get(ctx context.Context, id int) (model.Topic, error) 
 		return topic, fmt.Errorf("unable to fetch topic from db: %w", err)
 	}
 
-	// Parse form schema
+	// Parse form schema - always initialize it, even if NULL
 	if formSchemaJSON.Valid {
 		if err := topic.FormSchema.Scan(formSchemaJSON.String); err != nil {
 			return topic, fmt.Errorf("unable to parse form_schema: %w", err)
 		}
+	} else {
+		// Initialize with empty schema when NULL
+		topic.FormSchema.Scan(nil)
 	}
 
 	// Parse timestamps

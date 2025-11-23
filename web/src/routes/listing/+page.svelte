@@ -15,12 +15,7 @@
     updated_at: string;
   }
 
-  let listings = $state<Item[]>([
-    { id: 1, title: "First Item", description: "Description for first item", created_at: "2025-10-15T10:00:00Z", updated_at: "2025-10-15T10:00:00Z" },
-    { id: 2, title: "Second Item", description: "Description for second item", created_at: "2025-10-16T11:30:00Z", updated_at: "2025-10-16T11:30:00Z" },
-    { id: 3, title: "Third Item", description: "Description for third item", created_at: "2025-10-17T09:15:00Z", updated_at: "2025-10-17T09:15:00Z" },
-    { id: 4, title: "Fourth Item", description: "Description for fourth item", created_at: "2025-10-18T14:20:00Z", updated_at: "2025-10-18T14:20:00Z" },
-  ]);
+  let listings = $state<Item[]>([]);
   
   let dialogOpen = $state(false);
   let editingItem = $state<number | null>(null);

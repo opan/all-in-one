@@ -7,6 +7,7 @@ import (
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/logging"
 )
 
 // GetTopics godoc
@@ -19,9 +20,12 @@ import (
 // @Router       /topics [get]
 func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	topics, err := h.storage.TopicRepo().GetAll(ctx)
 	if err != nil {
-		httpHelper.SendError(w, "Failed to retrieve topics", http.StatusInternalServerError)
+		log.Error().Err(err).Msg("failed to get topics from db")
+		httpHelper.SendError(w, fmt.Sprintf("Failed to retrieve topics: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -46,8 +50,11 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics/{id} [get]
 func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	id, err := getIDFromRequest(r)
 	if err != nil {
+		log.Error().Err(err).Msg("invalid topic id in request")
 		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
@@ -58,6 +65,7 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
+		log.Error().Err(err).Msg("failed to get topic from db")
 		httpHelper.SendError(w, "Failed to retrieve topic", http.StatusInternalServerError)
 		return
 	}
