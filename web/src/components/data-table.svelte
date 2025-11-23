@@ -102,8 +102,8 @@
         
         {#if showColumnVisibility}
           <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Button variant="outline">
+            <DropdownMenu.Trigger asChild let:builder>
+              <Button variant="outline" builders={[builder]}>
                 Columns <ChevronDown class="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenu.Trigger>

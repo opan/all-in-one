@@ -61,6 +61,12 @@ export async function apiLoad(
 	url: string,
 	options: RequestInit = {}
 ): Promise<Response> {
+	// Construct the full URL for SSR - on server, we need absolute URLs
+	// On client, relative URLs work because of the Vite proxy
+	const apiUrl = browser 
+		? url 
+		: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${url}`;
+
 	const config: RequestInit = {
 		...options,
 		credentials: 'include',
@@ -70,12 +76,17 @@ export async function apiLoad(
 		},
 	};
 
-	const response = await fetchFn(url, config);
+	const response = await fetchFn(apiUrl, config);
 
 	// Handle 401 Unauthorized - try to refresh token first
 	if (response.status === 401) {
+		// Construct refresh URL
+		const refreshUrl = browser 
+			? '/api/v1/sessions/refresh'
+			: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/sessions/refresh`;
+
 		// Attempt to refresh the access token
-		const refreshResponse = await fetchFn('/api/v1/sessions/refresh', {
+		const refreshResponse = await fetchFn(refreshUrl, {
 			method: 'POST',
 			credentials: 'include',
 			headers: {
@@ -85,7 +96,7 @@ export async function apiLoad(
 
 		// If refresh succeeds, retry the original request
 		if (refreshResponse.ok) {
-			const retryResponse = await fetchFn(url, config);
+			const retryResponse = await fetchFn(apiUrl, config);
 			return retryResponse;
 		}
 

@@ -18,6 +18,8 @@ All-in-one is an app that contains multiple application. User can start this app
   - `github.com/spf13/cobra` (CLI)
   - `github.com/rs/zerolog` (structured logging)
   - `github.com/jmoiron/sqlx` (database access)
+  - `golang.org/x/crypto/bcrypt` (for data encryption/password)
+  - `github.com/golang-jwt/jwt/v5` (for JWT)
 - Use idiomatic Go: small functions, explicit error handling, `context.Context` passed to handlers/services.
 - Use dependency injection (no globals) where practical.
 - Each app might support multiple storage backends (e.g., SQLite, in-memory). Abstract storage access via repository interfaces.

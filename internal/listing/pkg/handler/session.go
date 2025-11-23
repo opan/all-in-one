@@ -291,7 +291,12 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := claims["sub"].(uuid.UUID)
+	sessionID, err := uuid.Parse(claims["sub"].(string))
+	if err != nil {
+		log.Error().Err(err).Msg("Invalid session ID in token")
+		httpHelper.SendError(w, "Invalid session ID", http.StatusUnauthorized)
+		return
+	}
 
 	// Verify session still exists in DB
 	session, err := h.storage.SessionRepo().Get(ctx, sessionID)

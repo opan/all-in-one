@@ -65,7 +65,7 @@ func (r *topicRepository) CreateTrx(ctx context.Context) (query.QueryOptions, er
 
 func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, description, created_at, updated_at 
+		SELECT id, name, description, form_schema, created_at, updated_at 
 		FROM topics
 		ORDER BY id
 	`)
@@ -80,10 +80,18 @@ func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
 	for rows.Next() {
 		var topic model.Topic
 		var createdAt, updatedAt string
+		var formSchemaJSON sql.NullString
 
-		err := rows.Scan(&topic.ID, &topic.Name, &topic.Description, &createdAt, &updatedAt)
+		err := rows.Scan(&topic.ID, &topic.Name, &topic.Description, &formSchemaJSON, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("unable to scan topic row: %w", err)
+		}
+
+		// Parse form schema
+		if formSchemaJSON.Valid {
+			if err := topic.FormSchema.Scan(formSchemaJSON.String); err != nil {
+				return nil, fmt.Errorf("unable to parse form_schema: %w", err)
+			}
 		}
 
 		// Parse timestamps
@@ -99,18 +107,26 @@ func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
 func (r *topicRepository) Get(ctx context.Context, id int) (model.Topic, error) {
 	var topic model.Topic
 	var createdAt, updatedAt string
+	var formSchemaJSON sql.NullString
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, description, created_at, updated_at 
+		SELECT id, name, description, form_schema, created_at, updated_at 
 		FROM topics
 		WHERE id = ?
-	`, id).Scan(&topic.ID, &topic.Name, &topic.Description, &createdAt, &updatedAt)
+	`, id).Scan(&topic.ID, &topic.Name, &topic.Description, &formSchemaJSON, &createdAt, &updatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return topic, fmt.Errorf("topic with id %d not found", id)
 		}
 		return topic, fmt.Errorf("unable to fetch topic from db: %w", err)
+	}
+
+	// Parse form schema
+	if formSchemaJSON.Valid {
+		if err := topic.FormSchema.Scan(formSchemaJSON.String); err != nil {
+			return topic, fmt.Errorf("unable to parse form_schema: %w", err)
+		}
 	}
 
 	// Parse timestamps
@@ -123,10 +139,16 @@ func (r *topicRepository) Get(ctx context.Context, id int) (model.Topic, error) 
 func (r *topicRepository) Create(ctx context.Context, topic model.Topic) (model.Topic, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
+	// Convert FormSchema to JSON
+	formSchemaJSON, err := topic.FormSchema.Value()
+	if err != nil {
+		return model.Topic{}, fmt.Errorf("unable to marshal form_schema: %w", err)
+	}
+
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO topics (name, description, created_at, updated_at) 
-		VALUES (?, ?, ?, ?)
-	`, topic.Name, topic.Description, now, now)
+		INSERT INTO topics (name, description, form_schema, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?)
+	`, topic.Name, topic.Description, formSchemaJSON, now, now)
 
 	if err != nil {
 		return model.Topic{}, fmt.Errorf("unable to insert topic into db: %w", err)
@@ -147,11 +169,17 @@ func (r *topicRepository) Create(ctx context.Context, topic model.Topic) (model.
 func (r *topicRepository) Update(ctx context.Context, id int, topic model.Topic) (model.Topic, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	_, err := r.db.ExecContext(ctx, `
+	// Convert FormSchema to JSON
+	formSchemaJSON, err := topic.FormSchema.Value()
+	if err != nil {
+		return model.Topic{}, fmt.Errorf("unable to marshal form_schema: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx, `
 		UPDATE topics 
-		SET name = ?, description = ?, updated_at = ? 
+		SET name = ?, description = ?, form_schema = ?, updated_at = ? 
 		WHERE id = ?
-	`, topic.Name, topic.Description, now, id)
+	`, topic.Name, topic.Description, formSchemaJSON, now, id)
 
 	if err != nil {
 		return model.Topic{}, fmt.Errorf("unable to update topic in db: %w", err)
