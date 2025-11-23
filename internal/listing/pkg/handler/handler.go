@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	httpHelper "github.com/all-in-one/internal/http"
+	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
 )
@@ -13,33 +12,46 @@ import (
 // Handler manages HTTP requests for the listing service
 type Handler struct {
 	storage repository.Storage
+	config  config.Config
 }
 
 // NewHandler creates a new listing handler
-func NewHandler(storage repository.Storage) *Handler {
+func NewHandler(storage repository.Storage, config config.Config) *Handler {
 	return &Handler{
 		storage: storage,
+		config:  config,
 	}
 }
 
 // RegisterRoutes registers the listing routes to the given router
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	// Topic routes
+	h.registerPublicRoutes(router)
+}
+
+// RegisterAuthenticatedRoutes registers routes that require JWT authentication
+func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/topics", h.GetTopics).Methods("GET")
 	router.HandleFunc("/topics", h.CreateTopic).Methods("POST")
 	router.HandleFunc("/topics/{id}", h.GetTopic).Methods("GET")
 	router.HandleFunc("/topics/{id}", h.UpdateTopic).Methods("PUT")
 	router.HandleFunc("/topics/{id}", h.DeleteTopic).Methods("DELETE")
 
-	// Item routes (nested under topics)
 	router.HandleFunc("/topics/{topic_id}/items", h.GetItems).Methods("GET")
 	router.HandleFunc("/topics/{topic_id}/items", h.CreateItem).Methods("POST")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.GetItem).Methods("GET")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.UpdateItem).Methods("PUT")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.DeleteItem).Methods("DELETE")
+
+	router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
 }
 
-// Helper Functions
+// registerPublicRoutes registers routes that don't require authentication
+func (h *Handler) registerPublicRoutes(router *mux.Router) {
+	router.HandleFunc("/users", h.RegisterUser).Methods("POST")
+	router.HandleFunc("/sessions", h.CreateSession).Methods("POST")
+	router.HandleFunc("/sessions/refresh", h.RefreshToken).Methods("POST")
+	router.HandleFunc("/sessions/verify", h.VerifySession).Methods("GET")
+}
 
 // getIDFromRequest extracts the ID from the request URL
 func getIDFromRequest(r *http.Request) (int, error) {
@@ -51,20 +63,4 @@ func getIDFromRequest(r *http.Request) (int, error) {
 func getTopicIDFromRequest(r *http.Request) (int, error) {
 	vars := mux.Vars(r)
 	return strconv.Atoi(vars["topic_id"])
-}
-
-// sendJSON sends a JSON response
-func sendJSON(w http.ResponseWriter, data interface{}, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
-}
-
-// sendError sends an error response
-func sendError(w http.ResponseWriter, message string, statusCode int) {
-	response := httpHelper.Response{
-		Success: false,
-		Error:   message,
-	}
-	sendJSON(w, response, statusCode)
 }

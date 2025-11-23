@@ -13,6 +13,7 @@ type Config struct {
 	Storage StorageConfig `mapstructure:"storage"`
 	Logging LoggingConfig `mapstructure:"log"`
 	Http    HTTPConfig    `mapstructure:"http"`
+	Auth    Auth          `mapstructure:"auth"`
 }
 
 type ServerConfig struct {
@@ -39,6 +40,11 @@ type HTTPConfig struct {
 	Timeout time.Duration `mapstructure:"timeout"`
 }
 
+type Auth struct {
+	JWTSecret         string `mapstructure:"jwt_secret"`
+	DirectAuthEnabled bool   `mapstructure:"direct_auth_enabled"`
+}
+
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
@@ -61,6 +67,11 @@ func Load() (*Config, error) {
 		} else {
 			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
+	}
+
+	// make sure jwt_secret is set
+	if !viper.IsSet("auth.jwt_secret") {
+		return nil, fmt.Errorf("missing required configuration: auth.jwt_secret")
 	}
 
 	var config Config

@@ -44,7 +44,7 @@ func (s *server) Start() error {
 
 	s.log.Info().Msg("Initiating server start...")
 
-	svc, err := service.NewService(ctx, s.config)
+	svc, err := service.NewService(ctx, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
 		return err
@@ -66,13 +66,20 @@ func (s *server) Start() error {
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 
-	// Register listing routes
-	svc.RegisterRoutes(api)
+	// Public routes (no authentication required)
+	publicRoutes := api.NewRoute().Subrouter()
+	svc.RegisterRoutes(publicRoutes)
 
-	// Health check
+	// Authenticated routes (JWT required)
+	authenticatedRoutes := api.NewRoute().Subrouter()
+	authenticatedRoutes.Use(h.JWTAuth)
+	svc.RegisterAuthenticatedRoutes(authenticatedRoutes)
+
+	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
 
 	// Swagger documentation
+	s.log.Info().Msg("Register swagger...")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 		httpSwagger.DeepLinking(true),

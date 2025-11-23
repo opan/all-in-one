@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  github_com_all-in-one_internal_http.Response:
+  http.Response:
     properties:
       data: {}
       error:
@@ -10,7 +10,7 @@ definitions:
       success:
         type: boolean
     type: object
-  github_com_all-in-one_internal_listing_pkg_model.Item:
+  model.Item:
     properties:
       created_at:
         type: string
@@ -25,7 +25,14 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_all-in-one_internal_listing_pkg_model.Topic:
+  model.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  model.Topic:
     properties:
       created_at:
         type: string
@@ -33,9 +40,26 @@ definitions:
         type: string
       id:
         type: integer
-      title:
+      name:
         type: string
       updated_at:
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      last_login:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      username:
         type: string
     type: object
 host: localhost:8080
@@ -52,6 +76,91 @@ info:
   title: Listing API
   version: "1.0"
 paths:
+  /sessions:
+    delete:
+      description: Invalidate the current session and clear authentication cookies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session deleted successfully
+          schema:
+            $ref: '#/definitions/http.Response'
+        "401":
+          description: Unauthorized - invalid or missing token
+          schema:
+            $ref: '#/definitions/http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/http.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete session (logout)
+      tags:
+      - sessions
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and create a new session with access and refresh
+        tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Session created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/http.Response'
+        "404":
+          description: Username or password not found
+          schema:
+            $ref: '#/definitions/http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/http.Response'
+      summary: Create a new session (login)
+      tags:
+      - sessions
+  /sessions/refresh:
+    post:
+      description: Generate a new access token using a valid refresh token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            $ref: '#/definitions/http.Response'
+        "401":
+          description: Unauthorized - invalid or missing refresh token
+          schema:
+            $ref: '#/definitions/http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/http.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Refresh access token
+      tags:
+      - sessions
   /topics:
     get:
       description: Retrieve a list of all topics
@@ -62,17 +171,17 @@ paths:
           description: List of topics
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic'
+                    $ref: '#/definitions/model.Topic'
                   type: array
               type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Get all topics
       tags:
       - topics
@@ -86,7 +195,7 @@ paths:
         name: topic
         required: true
         schema:
-          $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic'
+          $ref: '#/definitions/model.Topic'
       produces:
       - application/json
       responses:
@@ -94,19 +203,19 @@ paths:
           description: Topic created successfully
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic'
+                  $ref: '#/definitions/model.Topic'
               type: object
         "400":
           description: Invalid JSON data or missing required fields
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Create a new topic
       tags:
       - topics
@@ -125,19 +234,19 @@ paths:
         "200":
           description: Topic deleted successfully
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: Invalid ID
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Topic not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Delete a topic
       tags:
       - topics
@@ -156,23 +265,23 @@ paths:
           description: Topic details
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic'
+                  $ref: '#/definitions/model.Topic'
               type: object
         "400":
           description: Invalid ID
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Topic not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Get topic by ID
       tags:
       - topics
@@ -191,7 +300,7 @@ paths:
         name: topic
         required: true
         schema:
-          $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic'
+          $ref: '#/definitions/model.Topic'
       produces:
       - application/json
       responses:
@@ -199,23 +308,23 @@ paths:
           description: Topic updated successfully
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Topic'
+                  $ref: '#/definitions/model.Topic'
               type: object
         "400":
           description: Invalid ID or JSON data
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Topic not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Update an existing topic
       tags:
       - topics
@@ -235,21 +344,21 @@ paths:
           description: List of items
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+                    $ref: '#/definitions/model.Item'
                   type: array
               type: object
         "400":
           description: Invalid topic ID
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Get all items for a topic
       tags:
       - items
@@ -268,7 +377,7 @@ paths:
         name: item
         required: true
         schema:
-          $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+          $ref: '#/definitions/model.Item'
       produces:
       - application/json
       responses:
@@ -276,23 +385,23 @@ paths:
           description: Item created successfully
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+                  $ref: '#/definitions/model.Item'
               type: object
         "400":
           description: Invalid JSON data or missing required fields
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Topic not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Create a new item
       tags:
       - items
@@ -316,19 +425,19 @@ paths:
         "200":
           description: Item deleted successfully
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: Invalid ID
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Item not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Delete an item
       tags:
       - items
@@ -352,23 +461,23 @@ paths:
           description: Item details
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+                  $ref: '#/definitions/model.Item'
               type: object
         "400":
           description: Invalid ID
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Item not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Get item by ID
       tags:
       - items
@@ -392,7 +501,7 @@ paths:
         name: item
         required: true
         schema:
-          $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+          $ref: '#/definitions/model.Item'
       produces:
       - application/json
       responses:
@@ -400,23 +509,23 @@ paths:
           description: Item updated successfully
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - $ref: '#/definitions/http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/github_com_all-in-one_internal_listing_pkg_model.Item'
+                  $ref: '#/definitions/model.Item'
               type: object
         "400":
           description: Invalid ID or JSON data
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "404":
           description: Item not found
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            $ref: '#/definitions/http.Response'
       summary: Update an existing item
       tags:
       - items

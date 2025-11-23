@@ -6,6 +6,7 @@
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
   import type { ColumnDef } from "@tanstack/table-core";
+  import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
 
   interface Topic {
     id: number;
@@ -42,7 +43,7 @@
     error = '';
     
     try {
-      const response = await fetch('/api/v1/topics');
+      const response = await apiClient('/api/v1/topics');
       if (!response.ok) {
         throw new Error('Failed to reload topics');
       }
@@ -131,15 +132,9 @@
     
     try {
       if (editingTopic) {
-        const response = await fetch(`/api/v1/topics/${editingTopic}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: formData.name.trim(),
-            description: formData.description.trim()
-          }),
+        const response = await apiPut(`/api/v1/topics/${editingTopic}`, {
+          name: formData.name.trim(),
+          description: formData.description.trim()
         });
         
         if (!response.ok) {
@@ -153,15 +148,9 @@
           topics = topics;
         }
       } else {
-        const response = await fetch('/api/v1/topics', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: formData.name.trim(),
-            description: formData.description.trim()
-          }),
+        const response = await apiPost('/api/v1/topics', {
+          name: formData.name.trim(),
+          description: formData.description.trim()
         });
         
         if (!response.ok) {
@@ -195,9 +184,7 @@
     error = '';
     
     try {
-      const response = await fetch(`/api/v1/topics/${topicToDelete.id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`/api/v1/topics/${topicToDelete.id}`);
       
       if (!response.ok) {
         throw new Error('Failed to delete topic');

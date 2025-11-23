@@ -9,20 +9,20 @@ import (
 )
 
 // GetItems godoc
-// @Summary Get all items for a topic
-// @Description Retrieve a list of all items for a specific topic
-// @Tags items
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Success 200 {object} httpHelper.Response{data=[]model.Item} "List of items"
-// @Failure 400 {object} httpHelper.Response "Invalid topic ID"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items [get]
+// @Summary      Get all items for a topic
+// @Description  Retrieve a list of all items for a specific topic
+// @Tags         items
+// @Produce      json
+// @Param        topic_id  path      int                                     true  "Topic ID"
+// @Success      200       {object}  httpHelper.Response{data=[]model.Item}  "List of items"
+// @Failure      400       {object}  httpHelper.Response                     "Invalid topic ID"
+// @Failure      500       {object}  httpHelper.Response                     "Internal server error"
+// @Router       /topics/{topic_id}/items [get]
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid topic ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
@@ -30,16 +30,16 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to verify topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to verify topic", http.StatusInternalServerError)
 		return
 	}
 
 	items, err := h.storage.ItemRepo().GetByTopicID(ctx, topicID)
 	if err != nil {
-		sendError(w, "Failed to retrieve items", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
 	}
 
@@ -48,32 +48,32 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 		Data:    items,
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
 // GetItem godoc
-// @Summary Get item by ID
-// @Description Retrieve a single item by its ID within a topic
-// @Tags items
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param id path int true "Item ID"
-// @Success 200 {object} httpHelper.Response{data=model.Item} "Item details"
-// @Failure 400 {object} httpHelper.Response "Invalid ID"
-// @Failure 404 {object} httpHelper.Response "Item not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items/{id} [get]
+// @Summary      Get item by ID
+// @Description  Retrieve a single item by its ID within a topic
+// @Tags         items
+// @Produce      json
+// @Param        topic_id  path      int                                   true  "Topic ID"
+// @Param        id        path      int                                   true  "Item ID"
+// @Success      200       {object}  httpHelper.Response{data=model.Item}  "Item details"
+// @Failure      400       {object}  httpHelper.Response                   "Invalid ID"
+// @Failure      404       {object}  httpHelper.Response                   "Item not found"
+// @Failure      500       {object}  httpHelper.Response                   "Internal server error"
+// @Router       /topics/{topic_id}/items/{id} [get]
 func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid topic ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
 	id, err := getIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
@@ -81,26 +81,26 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to verify topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to verify topic", http.StatusInternalServerError)
 		return
 	}
 
 	item, err := h.storage.ItemRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to retrieve item", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to retrieve item", http.StatusInternalServerError)
 		return
 	}
 
 	// Verify item belongs to the topic
 	if item.TopicID != topicID {
-		sendError(w, "Item not found in this topic", http.StatusNotFound)
+		httpHelper.SendError(w, "Item not found in this topic", http.StatusNotFound)
 		return
 	}
 
@@ -109,27 +109,27 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		Data:    item,
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
 // CreateItem godoc
-// @Summary Create a new item
-// @Description Create a new item within a topic
-// @Tags items
-// @Accept json
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param item body model.Item true "Item to create"
-// @Success 201 {object} httpHelper.Response{data=model.Item} "Item created successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid JSON data or missing required fields"
-// @Failure 404 {object} httpHelper.Response "Topic not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items [post]
+// @Summary      Create a new item
+// @Description  Create a new item within a topic
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        topic_id  path      int                                   true  "Topic ID"
+// @Param        item      body      model.Item                            true  "Item to create"
+// @Success      201       {object}  httpHelper.Response{data=model.Item}  "Item created successfully"
+// @Failure      400       {object}  httpHelper.Response                   "Invalid JSON data or missing required fields"
+// @Failure      404       {object}  httpHelper.Response                   "Topic not found"
+// @Failure      500       {object}  httpHelper.Response                   "Internal server error"
+// @Router       /topics/{topic_id}/items [post]
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid topic ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
@@ -137,22 +137,22 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to verify topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to verify topic", http.StatusInternalServerError)
 		return
 	}
 
 	var newItem model.Item
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
-		sendError(w, "Invalid JSON data", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
 	if newItem.Title == "" {
-		sendError(w, "Title is required", http.StatusBadRequest)
+		httpHelper.SendError(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 
 	createdItem, err := h.storage.ItemRepo().Create(ctx, newItem)
 	if err != nil {
-		sendError(w, "Failed to create item", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to create item", http.StatusInternalServerError)
 		return
 	}
 
@@ -171,34 +171,34 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		Data:    createdItem,
 	}
 
-	sendJSON(w, response, http.StatusCreated)
+	httpHelper.SendJSON(w, response, http.StatusCreated)
 }
 
 // UpdateItem godoc
-// @Summary Update an existing item
-// @Description Update an existing item by ID within a topic
-// @Tags items
-// @Accept json
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param id path int true "Item ID"
-// @Param item body model.Item true "Updated item data"
-// @Success 200 {object} httpHelper.Response{data=model.Item} "Item updated successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid ID or JSON data"
-// @Failure 404 {object} httpHelper.Response "Item not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items/{id} [put]
+// @Summary      Update an existing item
+// @Description  Update an existing item by ID within a topic
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        topic_id  path      int                                   true  "Topic ID"
+// @Param        id        path      int                                   true  "Item ID"
+// @Param        item      body      model.Item                            true  "Updated item data"
+// @Success      200       {object}  httpHelper.Response{data=model.Item}  "Item updated successfully"
+// @Failure      400       {object}  httpHelper.Response                   "Invalid ID or JSON data"
+// @Failure      404       {object}  httpHelper.Response                   "Item not found"
+// @Failure      500       {object}  httpHelper.Response                   "Internal server error"
+// @Router       /topics/{topic_id}/items/{id} [put]
 func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid topic ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
 	id, err := getIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
@@ -206,10 +206,10 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to verify topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to verify topic", http.StatusInternalServerError)
 		return
 	}
 
@@ -217,27 +217,27 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	existingItem, err := h.storage.ItemRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to retrieve item", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to retrieve item", http.StatusInternalServerError)
 		return
 	}
 
 	if existingItem.TopicID != topicID {
-		sendError(w, "Item not found in this topic", http.StatusNotFound)
+		httpHelper.SendError(w, "Item not found in this topic", http.StatusNotFound)
 		return
 	}
 
 	var updatedItem model.Item
 	if err := json.NewDecoder(r.Body).Decode(&updatedItem); err != nil {
-		sendError(w, "Invalid JSON data", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
 	if updatedItem.Title == "" {
-		sendError(w, "Title is required", http.StatusBadRequest)
+		httpHelper.SendError(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
@@ -247,10 +247,10 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	result, err := h.storage.ItemRepo().Update(ctx, id, updatedItem)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to update item", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to update item", http.StatusInternalServerError)
 		return
 	}
 
@@ -260,32 +260,32 @@ func (h *Handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		Data:    result,
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
 // DeleteItem godoc
-// @Summary Delete an item
-// @Description Delete an item by ID within a topic
-// @Tags items
-// @Produce json
-// @Param topic_id path int true "Topic ID"
-// @Param id path int true "Item ID"
-// @Success 200 {object} httpHelper.Response "Item deleted successfully"
-// @Failure 400 {object} httpHelper.Response "Invalid ID"
-// @Failure 404 {object} httpHelper.Response "Item not found"
-// @Failure 500 {object} httpHelper.Response "Internal server error"
-// @Router /topics/{topic_id}/items/{id} [delete]
+// @Summary      Delete an item
+// @Description  Delete an item by ID within a topic
+// @Tags         items
+// @Produce      json
+// @Param        topic_id  path      int                  true  "Topic ID"
+// @Param        id        path      int                  true  "Item ID"
+// @Success      200       {object}  httpHelper.Response  "Item deleted successfully"
+// @Failure      400       {object}  httpHelper.Response  "Invalid ID"
+// @Failure      404       {object}  httpHelper.Response  "Item not found"
+// @Failure      500       {object}  httpHelper.Response  "Internal server error"
+// @Router       /topics/{topic_id}/items/{id} [delete]
 func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid topic ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
 	id, err := getIDFromRequest(r)
 	if err != nil {
-		sendError(w, "Invalid ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
 
@@ -293,10 +293,10 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Topic not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to verify topic", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to verify topic", http.StatusInternalServerError)
 		return
 	}
 
@@ -304,25 +304,25 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	existingItem, err := h.storage.ItemRepo().Get(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to retrieve item", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to retrieve item", http.StatusInternalServerError)
 		return
 	}
 
 	if existingItem.TopicID != topicID {
-		sendError(w, "Item not found in this topic", http.StatusNotFound)
+		httpHelper.SendError(w, "Item not found in this topic", http.StatusNotFound)
 		return
 	}
 
 	err = h.storage.ItemRepo().Delete(ctx, id)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
-			sendError(w, "Item not found", http.StatusNotFound)
+			httpHelper.SendError(w, "Item not found", http.StatusNotFound)
 			return
 		}
-		sendError(w, "Failed to delete item", http.StatusInternalServerError)
+		httpHelper.SendError(w, "Failed to delete item", http.StatusInternalServerError)
 		return
 	}
 
@@ -331,5 +331,5 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		Message: "Item deleted successfully",
 	}
 
-	sendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, response, http.StatusOK)
 }

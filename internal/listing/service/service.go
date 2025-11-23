@@ -8,6 +8,8 @@ import (
 	"github.com/all-in-one/internal/listing/pkg/handler"
 	"github.com/all-in-one/internal/listing/pkg/repository"
 	"github.com/gorilla/mux"
+
+	"github.com/rs/zerolog"
 )
 
 // Service represents the listing service
@@ -16,13 +18,13 @@ type Service struct {
 	Storage repository.Storage
 }
 
-func NewService(ctx context.Context, config config.Config) (*Service, error) {
-	store, err := repository.NewStorage(ctx, config)
+func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (*Service, error) {
+	store, err := repository.NewStorage(ctx, config, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}
 
-	h := handler.NewHandler(store)
+	h := handler.NewHandler(store, config)
 
 	return &Service{
 		Handler: h,
@@ -30,9 +32,14 @@ func NewService(ctx context.Context, config config.Config) (*Service, error) {
 	}, nil
 }
 
-// RegisterRoutes registers the listing routes to the given router
+// RegisterRoutes registers the public listing routes to the given router
 func (s *Service) RegisterRoutes(router *mux.Router) {
 	s.Handler.RegisterRoutes(router)
+}
+
+// RegisterAuthenticatedRoutes registers authenticated routes to the given router
+func (s *Service) RegisterAuthenticatedRoutes(router *mux.Router) {
+	s.Handler.RegisterAuthenticatedRoutes(router)
 }
 
 // InitializeSampleData adds sample data to the storage
