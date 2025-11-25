@@ -62,6 +62,10 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		UserID:    u.ID,
 		CreatedAt: time.Now(),
 		UserAgent: r.UserAgent(),
+		// 30 minutes
+		AccessTokenExpiry: int((time.Now().Add(30 * time.Minute)).Unix()),
+		// 7 days
+		RefreshTokenExpiry: int((time.Now().Add(14 * 24 * time.Hour)).Unix()),
 	}
 
 	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
@@ -104,7 +108,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   true,
 		Path:     "/",
-		MaxAge:   900, // 15 minutes
+		MaxAge:   1800, // 30 minutes
 		SameSite: http.SameSiteStrictMode,
 	})
 
@@ -307,6 +311,18 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !session.IsAccessTokenExpired() {
+		log.Info().Msg("access token still valid")
+		httpHelper.SendError(w, "access token still valid", http.StatusBadRequest)
+		return
+	}
+
+	if session.IsRefreshTokenExpired() {
+		log.Info().Msg("refresh token expired")
+		httpHelper.SendError(w, "refresh token expired, please login again", http.StatusUnauthorized)
+		return
+	}
+
 	// Get user details
 	user, err := h.storage.UserRepo().Find(ctx, session.UserID)
 	if err != nil {
@@ -330,7 +346,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   true,
 		Path:     "/",
-		MaxAge:   900, // 15 minutes
+		MaxAge:   1800, // 30 minutes
 		SameSite: http.SameSiteStrictMode,
 	})
 

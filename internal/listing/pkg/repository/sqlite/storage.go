@@ -83,6 +83,8 @@ func dbMigrate(db *sqlx.DB) error {
 			user_id TEXT NOT NULL,
 			created_at TIMESTAMP,
 			user_agent TEXT,
+			access_token_expiry INTEGER, -- unix timestampt
+			refresh_token_expiry INTEGER, -- unix timestampt
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);
 		`
