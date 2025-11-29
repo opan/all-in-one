@@ -6,8 +6,8 @@
 	import { goto } from '$app/navigation';
 	import { apiPost } from '$lib/api';
 
-	let username = '';
-	let password = '';
+	let username = $state('');
+	let password = $state('');
 	let loading = $state(false);
 	let error = $state('');
 

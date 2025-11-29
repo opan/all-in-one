@@ -232,7 +232,7 @@ func (h *Handler) createAccessToken(sessionID uuid.UUID, user *model.User) (stri
 		"username": user.Username,
 		"email":    user.Email,
 		"type":     "access",
-		"exp":      time.Now().Add(15 * time.Minute).Unix(), // 15 min
+		"exp":      time.Now().Add(30 * time.Minute).Unix(), // 30 min
 		"iat":      time.Now().Unix(),
 	}
 

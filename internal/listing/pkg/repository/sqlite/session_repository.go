@@ -30,8 +30,8 @@ func (s *sessionRepository) Create(ctx context.Context, session model.Session, o
 	exec := getExecCtx(s.db, opts...)
 
 	_, err := exec.NamedExecContext(ctx,
-		`INSERT INTO sessions (id, user_id, created_at, user_agent) 
-		VALUES (:id, :user_id, :created_at, :user_agent)`,
+		`INSERT INTO sessions (id, user_id, created_at, user_agent, access_token_expiry, refresh_token_expiry) 
+		VALUES (:id, :user_id, :created_at, :user_agent, :access_token_expiry, :refresh_token_expiry)`,
 		session)
 	if err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
