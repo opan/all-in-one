@@ -60,10 +60,7 @@ func (s *sessionRepository) Get(ctx context.Context, id uuid.UUID) (*model.Sessi
 
 	var session model.Session
 
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, user_id, created_at, user_agent 
-		FROM sessions WHERE id = ?`, id).Scan(&session)
-
+	err := s.db.GetContext(ctx, &session, "SELECT * FROM sessions WHERE id = ?", id)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get session by id %s: %w", id, err)
 	}
