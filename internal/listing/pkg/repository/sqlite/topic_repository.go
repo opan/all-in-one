@@ -93,9 +93,9 @@ func (r *topicRepository) Create(ctx context.Context, topic model.Topic) (model.
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO topics (name, description, created_at, updated_at) 
-		VALUES (?, ?, ?, ?)
-	`, topic.Name, topic.Description, now, now)
+		INSERT INTO topics (name, description, created_at, updated_at, form_schema) 
+		VALUES (?, ?, ?, ?, ?)
+	`, topic.Name, topic.Description, now, now, topic.FormSchema)
 
 	if err != nil {
 		return model.Topic{}, fmt.Errorf("unable to insert topic into db: %w", err)
@@ -118,9 +118,9 @@ func (r *topicRepository) Update(ctx context.Context, id int, topic model.Topic)
 
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE topics 
-		SET name = ?, description = ?, updated_at = ? 
+		SET name = ?, description = ?, updated_at = ?, form_schema = ?
 		WHERE id = ?
-	`, topic.Name, topic.Description, now, id)
+	`, topic.Name, topic.Description, now, topic.FormSchema, id)
 
 	if err != nil {
 		return model.Topic{}, fmt.Errorf("unable to update topic in db: %w", err)
