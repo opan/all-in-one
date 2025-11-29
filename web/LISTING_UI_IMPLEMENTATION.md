@@ -105,6 +105,24 @@ The page includes 4 sample items for demonstration:
 
 Each with descriptions and timestamps.
 
+## JSONForms Integration
+
+Topics now support custom form schemas using [JSONForms.io](https://jsonforms.io/) format. This allows flexible definition of custom fields for items within each topic.
+
+### Schema Format
+Each topic can define:
+- **JSON Schema** - Data structure and validation rules (standard JSON Schema format)
+- **UI Schema** - Layout and rendering instructions (JSONForms UI Schema format)
+
+See [JSONFORMS_SCHEMA_GUIDE.md](./JSONFORMS_SCHEMA_GUIDE.md) for detailed documentation and examples.
+
+### Features
+- Real-time JSON validation
+- Visual preview of schema properties
+- Support for all standard JSON Schema types and formats
+- Flexible UI layouts (Vertical, Horizontal, Groups)
+- Link to official JSONForms documentation
+
 ## Next Steps
 
 To connect to the real API:
