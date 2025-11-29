@@ -5,13 +5,32 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
+  import { Textarea } from "$lib/components/ui/textarea/index";
+  import * as Card from "$lib/components/ui/card/index";
   import type { ColumnDef } from "@tanstack/table-core";
   import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
+
+  type FieldType = 'text' | 'number' | 'select' | 'multi_select' | 'checkbox' | 'date';
+
+  interface CustomField {
+    key: string;
+    label: string;
+    type: FieldType;
+    required: boolean;
+    options?: string[];
+    default_value?: any;
+    description?: string;
+  }
+
+  interface FormSchema {
+    fields: CustomField[];
+  }
 
   interface Topic {
     id: number;
     name: string;
     description: string;
+    form_schema?: FormSchema;
     created_at: string;
     updated_at: string;
   }
@@ -32,11 +51,14 @@
   let editingTopic = $state<number | null>(null);
   let formData = $state({
     name: '',
-    description: ''
+    description: '',
+    form_schema_json: ''
   });
   
   let loading = $state(false);
   let error = $state('');
+  let jsonError = $state('');
+  let parsedFormSchema = $state<FormSchema | null>(null);
 
   async function reloadTopics() {
     loading = true;
@@ -109,13 +131,21 @@
 
   function openAddDialog() {
     editingTopic = null;
-    formData = { name: '', description: '' };
+    formData = { name: '', description: '', form_schema_json: '' };
+    jsonError = '';
+    parsedFormSchema = null;
     dialogOpen = true;
   }
 
   function openEditDialog(topic: Topic) {
     editingTopic = topic.id;
-    formData = { name: topic.name, description: topic.description };
+    formData = { 
+      name: topic.name, 
+      description: topic.description,
+      form_schema_json: topic.form_schema ? JSON.stringify(topic.form_schema, null, 2) : ''
+    };
+    jsonError = '';
+    parsedFormSchema = topic.form_schema || null;
     dialogOpen = true;
   }
 
@@ -127,15 +157,31 @@
       return;
     }
     
+    // Validate JSON if provided
+    if (formData.form_schema_json.trim()) {
+      handleFormSchemaInput();
+      if (jsonError) {
+        error = 'Please fix the JSON schema errors before saving';
+        return;
+      }
+    }
+    
     loading = true;
     error = '';
     
     try {
+      const payload: any = {
+        name: formData.name.trim(),
+        description: formData.description.trim()
+      };
+      
+      // Add form_schema if provided
+      if (formData.form_schema_json.trim() && parsedFormSchema) {
+        payload.form_schema = parsedFormSchema;
+      }
+      
       if (editingTopic) {
-        const response = await apiPut(`/api/v1/topics/${editingTopic}`, {
-          name: formData.name.trim(),
-          description: formData.description.trim()
-        });
+        const response = await apiPut(`/api/v1/topics/${editingTopic}`, payload);
         
         if (!response.ok) {
           throw new Error('Failed to update topic');
@@ -148,10 +194,7 @@
           topics = topics;
         }
       } else {
-        const response = await apiPost('/api/v1/topics', {
-          name: formData.name.trim(),
-          description: formData.description.trim()
-        });
+        const response = await apiPost('/api/v1/topics', payload);
         
         if (!response.ok) {
           throw new Error('Failed to create topic');
@@ -162,7 +205,9 @@
         topics = topics;
       }
       
-      formData = { name: '', description: '' };
+      formData = { name: '', description: '', form_schema_json: '' };
+      jsonError = '';
+      parsedFormSchema = null;
       editingTopic = null;
       dialogOpen = false;
     } catch (err) {
@@ -202,6 +247,44 @@
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
     } finally {
       loading = false;
+    }
+  }
+
+  function handleFormSchemaInput() {
+    jsonError = '';
+    parsedFormSchema = null;
+    
+    if (!formData.form_schema_json.trim()) {
+      return;
+    }
+    
+    try {
+      const parsed = JSON.parse(formData.form_schema_json);
+      
+      // Validate structure
+      if (!parsed.fields || !Array.isArray(parsed.fields)) {
+        jsonError = 'Invalid schema: must have a "fields" array';
+        return;
+      }
+      
+      // Validate each field
+      for (let i = 0; i < parsed.fields.length; i++) {
+        const field = parsed.fields[i];
+        if (!field.key || !field.label || !field.type) {
+          jsonError = `Invalid field at index ${i}: must have key, label, and type`;
+          return;
+        }
+        
+        const validTypes = ['text', 'number', 'select', 'multi_select', 'checkbox', 'date'];
+        if (!validTypes.includes(field.type)) {
+          jsonError = `Invalid field type "${field.type}" at index ${i}: must be one of ${validTypes.join(', ')}`;
+          return;
+        }
+      }
+      
+      parsedFormSchema = parsed;
+    } catch (e) {
+      jsonError = e instanceof Error ? e.message : 'Invalid JSON';
     }
   }
 
@@ -269,6 +352,79 @@
         <Label for="description">Description</Label>
         <Input id="description" type="text" bind:value={formData.description} />
       </div>
+
+      <div class="space-y-2">
+        <Label for="form_schema">Form Schema (JSON)</Label>
+        <Textarea 
+          id="form_schema" 
+          bind:value={formData.form_schema_json}
+          oninput={handleFormSchemaInput}
+          placeholder={`{
+  "fields": [
+    {
+      "key": "title",
+      "label": "Title",
+      "type": "text",
+      "required": true
+    }
+  ]
+}`}
+          rows={8}
+          class="font-mono text-sm"
+        />
+        {#if jsonError}
+          <div class="rounded-md bg-destructive/15 p-2 text-xs text-destructive">
+            {jsonError}
+          </div>
+        {/if}
+        <p class="text-xs text-muted-foreground">
+          Define custom fields for items in this topic. Leave empty for basic items.
+        </p>
+      </div>
+
+      {#if parsedFormSchema && parsedFormSchema.fields.length > 0}
+        <div class="space-y-2">
+          <Label>Preview</Label>
+          <Card.Root>
+            <Card.Header>
+              <Card.Title class="text-sm">Form Fields Preview</Card.Title>
+            </Card.Header>
+            <Card.Content class="space-y-3">
+              {#each parsedFormSchema.fields as field, index}
+                <div class="border-b pb-2 last:border-b-0">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium text-sm">{field.label}</span>
+                        {#if field.required}
+                          <span class="text-xs text-destructive">*</span>
+                        {/if}
+                      </div>
+                      <div class="text-xs text-muted-foreground mt-1">
+                        Key: <code class="bg-muted px-1 py-0.5 rounded">{field.key}</code>
+                        · Type: <code class="bg-muted px-1 py-0.5 rounded">{field.type}</code>
+                      </div>
+                      {#if field.description}
+                        <p class="text-xs text-muted-foreground mt-1">{field.description}</p>
+                      {/if}
+                      {#if field.options && field.options.length > 0}
+                        <div class="text-xs mt-1">
+                          Options: {field.options.join(', ')}
+                        </div>
+                      {/if}
+                      {#if field.default_value !== undefined && field.default_value !== null}
+                        <div class="text-xs text-muted-foreground mt-1">
+                          Default: {JSON.stringify(field.default_value)}
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </Card.Content>
+          </Card.Root>
+        </div>
+      {/if}
 
       <Dialog.Footer>
         <Button type="button" variant="outline" onclick={() => { dialogOpen = false; editingTopic = null; }} disabled={loading}>
