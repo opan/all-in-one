@@ -25,31 +25,14 @@ func newItemRepository(db *sqlx.DB) *itemRepository {
 
 // GetAll returns all items
 func (r *itemRepository) GetAll(ctx context.Context) ([]model.Item, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, topic_id, title, description, created_at, updated_at 
+	var items []model.Item
+	err := r.db.SelectContext(ctx, &items, `
+		SELECT id, topic_id, title, description, created_at, updated_at, form_schema_values
 		FROM items
 		ORDER BY id
 	`)
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var items []model.Item
-	for rows.Next() {
-		var item model.Item
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&item.ID, &item.TopicID, &item.Title, &item.Description, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		// Parse timestamps
-		item.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		item.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		items = append(items, item)
 	}
 
 	return items, nil
@@ -57,32 +40,15 @@ func (r *itemRepository) GetAll(ctx context.Context) ([]model.Item, error) {
 
 // GetByTopicID returns all items for a specific topic
 func (r *itemRepository) GetByTopicID(ctx context.Context, topicID int) ([]model.Item, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, topic_id, title, description, created_at, updated_at 
+	var items []model.Item
+	err := r.db.SelectContext(ctx, &items, `
+		SELECT id, topic_id, title, description, created_at, updated_at, form_schema_values
 		FROM items
 		WHERE topic_id = ?
 		ORDER BY id
 	`, topicID)
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var items []model.Item
-	for rows.Next() {
-		var item model.Item
-		var createdAt, updatedAt string
-
-		err := rows.Scan(&item.ID, &item.TopicID, &item.Title, &item.Description, &createdAt, &updatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		// Parse timestamps
-		item.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		item.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-
-		items = append(items, item)
 	}
 
 	return items, nil
@@ -93,11 +59,11 @@ func (r *itemRepository) Get(ctx context.Context, id int) (model.Item, error) {
 	var item model.Item
 	var createdAt, updatedAt string
 
-	err := r.db.QueryRowContext(ctx, `
-		SELECT id, topic_id, title, description, created_at, updated_at 
+	err := r.db.GetContext(ctx, &item, `
+		SELECT *
 		FROM items 
 		WHERE id = ?
-	`, id).Scan(&item.ID, &item.TopicID, &item.Title, &item.Description, &createdAt, &updatedAt)
+	`, id)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -118,9 +84,9 @@ func (r *itemRepository) Create(ctx context.Context, item model.Item) (model.Ite
 	now := time.Now().Format(time.RFC3339)
 
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO items (topic_id, title, description, created_at, updated_at) 
-		VALUES (?, ?, ?, ?, ?)
-	`, item.TopicID, item.Title, item.Description, now, now)
+		INSERT INTO items (topic_id, title, description, created_at, updated_at, form_schema_value) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, item.TopicID, item.Title, item.Description, now, now, item.FormSchemaValues)
 
 	if err != nil {
 		return model.Item{}, err
@@ -151,9 +117,9 @@ func (r *itemRepository) Update(ctx context.Context, id int, item model.Item) (m
 
 	_, err = r.db.Exec(`
 		UPDATE items 
-		SET topic_id = ?, title = ?, description = ?, updated_at = ? 
+		SET topic_id = ?, title = ?, description = ?, updated_at = ?, form_schema_value = ?
 		WHERE id = ?
-	`, item.TopicID, item.Title, item.Description, now, id)
+	`, item.TopicID, item.Title, item.Description, now, item.FormSchemaValues, id)
 
 	if err != nil {
 		return model.Item{}, err

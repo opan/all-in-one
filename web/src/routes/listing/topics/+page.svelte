@@ -9,55 +9,7 @@
   import * as Card from "$lib/components/ui/card/index";
   import type { ColumnDef } from "@tanstack/table-core";
   import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
-
-  // JSONForms.io compliant schema types
-  interface JSONSchema {
-    type: 'object';
-    properties: Record<string, {
-      type: 'string' | 'number' | 'integer' | 'boolean' | 'array';
-      title?: string;
-      description?: string;
-      enum?: string[];
-      format?: string;
-      default?: any;
-      items?: {
-        type: string;
-        enum?: string[];
-      };
-    }>;
-    required?: string[];
-  }
-
-  interface UISchemaElement {
-    type: 'Control' | 'VerticalLayout' | 'HorizontalLayout' | 'Group';
-    scope?: string;
-    label?: string | boolean;
-    options?: {
-      format?: string;
-      readonly?: boolean;
-      [key: string]: any;
-    };
-    elements?: UISchemaElement[];
-  }
-
-  interface UISchema extends UISchemaElement {
-    type: 'VerticalLayout' | 'HorizontalLayout' | 'Group';
-    elements: UISchemaElement[];
-  }
-
-  interface FormSchema {
-    schema: JSONSchema;
-    uischema: UISchema;
-  }
-
-  interface Topic {
-    id: number;
-    name: string;
-    description: string;
-    form_schema?: FormSchema;
-    created_at: string;
-    updated_at: string;
-  }
+  import type { Topic, FormSchema } from "$lib/types/json-forms";
 
   interface Props {
     data: {
@@ -224,9 +176,7 @@
           throw new Error('Failed to create topic');
         }
         
-        const newTopic = await response.json();
-        topics.push(newTopic.data);
-        topics = topics;
+        await reloadTopics();
       }
       
       formData = { name: '', description: '', form_schema_json: '' };
@@ -267,6 +217,8 @@
       
       deleteDialogOpen = false;
       topicToDelete = null;
+
+      await reloadTopics();
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
     } finally {

@@ -6,25 +6,12 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
   import { Input } from "$lib/components/ui/input/index";
   import { Label } from "$lib/components/ui/label/index";
+  import { Textarea } from "$lib/components/ui/textarea/index";
+  import { Checkbox } from "$lib/components/ui/checkbox/index";
+  import * as Select from "$lib/components/ui/select/index";
   import type { ColumnDef } from "@tanstack/table-core";
   import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
-
-  interface Item {
-    id: number;
-    title: string;
-    description: string;
-    topic_id: number;
-    created_at: string;
-    updated_at: string;
-  }
-
-  interface Topic {
-    id: number;
-    name: string;
-    description: string;
-    created_at: string;
-    updated_at: string;
-  }
+  import type { Topic, Item } from "$lib/types/json-forms";
 
   interface Props {
     data: {
@@ -44,6 +31,10 @@
     title: '',
     description: ''
   });
+  
+  // Dynamic form schema values
+  let schemaValues = $state<Record<string, any>>({});
+  let schemaErrors = $state<Record<string, string>>({});
   
   let topicDialogOpen = $state(false);
   let topicFormData = $state({
@@ -122,13 +113,100 @@
   function openAddDialog() {
     editingItem = null;
     formData = { title: '', description: '' };
+    schemaValues = initializeSchemaValues();
+    schemaErrors = {};
     dialogOpen = true;
   }
 
   function openEditDialog(item: Item) {
     editingItem = item.id;
     formData = { title: item.title, description: item.description };
+    
+    // Parse existing form_schema_value
+    if (item.form_schema_value) {
+      try {
+        schemaValues = JSON.parse(item.form_schema_value);
+      } catch (e) {
+        schemaValues = initializeSchemaValues();
+      }
+    } else {
+      schemaValues = initializeSchemaValues();
+    }
+    
+    schemaErrors = {};
     dialogOpen = true;
+  }
+  
+  function initializeSchemaValues(): Record<string, any> {
+    if (!topic.form_schema?.schema?.properties) {
+      return {};
+    }
+    
+    const values: Record<string, any> = {};
+    for (const [key, prop] of Object.entries(topic.form_schema.schema.properties)) {
+      if (prop.default !== undefined) {
+        values[key] = prop.default;
+      } else {
+        // Initialize with appropriate empty values based on type
+        switch (prop.type) {
+          case 'string':
+            values[key] = '';
+            break;
+          case 'number':
+          case 'integer':
+            values[key] = 0;
+            break;
+          case 'boolean':
+            values[key] = false;
+            break;
+          case 'array':
+            values[key] = [];
+            break;
+          default:
+            values[key] = '';
+        }
+      }
+    }
+    return values;
+  }
+  
+  function validateSchemaValues(): boolean {
+    if (!topic.form_schema?.schema) {
+      return true;
+    }
+    
+    schemaErrors = {};
+    let isValid = true;
+    
+    const requiredFields = topic.form_schema.schema.required || [];
+    
+    for (const [key, prop] of Object.entries(topic.form_schema.schema.properties)) {
+      const value = schemaValues[key];
+      
+      // Check required fields
+      if (requiredFields.includes(key)) {
+        if (value === undefined || value === null || value === '') {
+          schemaErrors[key] = `${prop.title || key} is required`;
+          isValid = false;
+          continue;
+        }
+      }
+      
+      // Type validation
+      if (value !== undefined && value !== null && value !== '') {
+        switch (prop.type) {
+          case 'number':
+          case 'integer':
+            if (isNaN(Number(value))) {
+              schemaErrors[key] = `${prop.title || key} must be a valid number`;
+              isValid = false;
+            }
+            break;
+        }
+      }
+    }
+    
+    return isValid;
   }
 
   async function handleSubmit(e: Event) {
@@ -139,16 +217,29 @@
       return;
     }
     
+    // Validate schema values if form_schema exists
+    if (topic.form_schema && !validateSchemaValues()) {
+      error = 'Please fix the validation errors in the form';
+      return;
+    }
+    
     loading = true;
     error = '';
     
     try {
+      const payload: any = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        topic_id: topic.id
+      };
+      
+      // Add form_schema_value if schema exists
+      if (topic.form_schema?.schema?.properties) {
+        payload.form_schema_value = JSON.stringify(schemaValues);
+      }
+      
       if (editingItem) {
-        const response = await apiPut(`/api/v1/items/${editingItem}`, {
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          topic_id: topic.id
-        });
+        const response = await apiPut(`/api/v1/topics/${topic.id}/items/${editingItem}`, payload);
         
         if (!response.ok) {
           throw new Error('Failed to update item');
@@ -161,11 +252,7 @@
           items = items;
         }
       } else {
-        const response = await apiPost('/api/v1/items', {
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          topic_id: topic.id
-        });
+        const response = await apiPost(`/api/v1/topics/${topic.id}/items`, payload);
         
         if (!response.ok) {
           throw new Error('Failed to create item');
@@ -177,6 +264,8 @@
       }
       
       formData = { title: '', description: '' };
+      schemaValues = {};
+      schemaErrors = {};
       editingItem = null;
       dialogOpen = false;
     } catch (err) {
@@ -195,7 +284,7 @@
     error = '';
     
     try {
-      const response = await apiDelete(`/api/v1/items/${id}`);
+      const response = await apiDelete(`/api/v1/topics/${topic.id}/items/${id}`);
       
       if (!response.ok) {
         throw new Error('Failed to delete item');
@@ -327,7 +416,7 @@
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
-  <Dialog.Content class="sm:max-w-[425px]">
+  <Dialog.Content class="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
     <Dialog.Header>
       <Dialog.Title>{editingItem ? 'Edit Item' : 'Add New Item'}</Dialog.Title>
       <Dialog.Description>
@@ -335,24 +424,146 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    <form onsubmit={handleSubmit} class="space-y-4">
+    <form onsubmit={handleSubmit} class="flex-1 overflow-hidden flex flex-col">
       {#if error}
-        <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+        <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive mb-4">
           {error}
         </div>
       {/if}
 
-      <div class="space-y-2">
-        <Label for="title">Title</Label>
-        <Input id="title" type="text" bind:value={formData.title} required />
+      <div class="flex-1 overflow-y-auto space-y-4 pr-2">
+        <div class="space-y-2">
+          <Label for="title">Title</Label>
+          <Input id="title" type="text" bind:value={formData.title} required />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="description">Description</Label>
+          <Input id="description" type="text" bind:value={formData.description} required />
+        </div>
+
+        {#if topic.form_schema?.schema?.properties}
+          <div class="border-t pt-4 mt-4">
+            <h4 class="font-semibold mb-4 text-sm">Additional Fields</h4>
+            <div class="space-y-4">
+              {#each Object.entries(topic.form_schema.schema.properties) as [key, prop]}
+                {@const isRequired = topic.form_schema.schema.required?.includes(key)}
+                <div class="space-y-2">
+                  <Label for={key} class="flex items-center gap-2">
+                    {prop.title || key}
+                    {#if isRequired}
+                      <span class="text-xs text-destructive">*</span>
+                    {/if}
+                  </Label>
+                  
+                  {#if prop.description}
+                    <p class="text-xs text-muted-foreground">{prop.description}</p>
+                  {/if}
+                  
+                  {#if prop.enum && prop.enum.length > 0}
+                    <!-- Select dropdown for enum values -->
+                    <Select.Root
+                      type="single"
+                      bind:value={schemaValues[key]}
+                    >
+                      <Select.Trigger class="w-full">
+                        {schemaValues[key] || 'Select ' + (prop.title || key)}
+                      </Select.Trigger>
+                      <Select.Content>
+                        {#each prop.enum as option}
+                          <Select.Item value={option} label={option}>
+                            {option}
+                          </Select.Item>
+                        {/each}
+                      </Select.Content>
+                    </Select.Root>
+                  {:else if prop.type === 'boolean'}
+                    <!-- Checkbox for boolean -->
+                    <div class="flex items-center space-x-2">
+                      <Checkbox 
+                        id={key}
+                        checked={schemaValues[key] || false}
+                        onCheckedChange={(checked) => {
+                          schemaValues[key] = checked === true;
+                        }}
+                      />
+                      <Label for={key} class="text-sm font-normal">
+                        {prop.title || key}
+                      </Label>
+                    </div>
+                  {:else if prop.type === 'number' || prop.type === 'integer'}
+                    <!-- Number input -->
+                    <Input 
+                      id={key}
+                      type="number"
+                      step={prop.type === 'integer' ? '1' : 'any'}
+                      bind:value={schemaValues[key]}
+                      required={isRequired}
+                    />
+                  {:else if prop.format === 'date'}
+                    <!-- Date input -->
+                    <Input 
+                      id={key}
+                      type="date"
+                      bind:value={schemaValues[key]}
+                      required={isRequired}
+                    />
+                  {:else if prop.format === 'date-time'}
+                    <!-- DateTime input -->
+                    <Input 
+                      id={key}
+                      type="datetime-local"
+                      bind:value={schemaValues[key]}
+                      required={isRequired}
+                    />
+                  {:else if prop.format === 'email'}
+                    <!-- Email input -->
+                    <Input 
+                      id={key}
+                      type="email"
+                      bind:value={schemaValues[key]}
+                      required={isRequired}
+                    />
+                  {:else if prop.format === 'uri' || prop.format === 'url'}
+                    <!-- URL input -->
+                    <Input 
+                      id={key}
+                      type="url"
+                      bind:value={schemaValues[key]}
+                      required={isRequired}
+                    />
+                  {:else}
+                    <!-- Default text input or textarea -->
+                    {#if prop.description && prop.description.length > 50}
+                      <Textarea 
+                        id={key}
+                        bind:value={schemaValues[key]}
+                        rows={3}
+                        required={isRequired}
+                      />
+                    {:else}
+                      <Input 
+                        id={key}
+                        type="text"
+                        bind:value={schemaValues[key]}
+                        required={isRequired}
+                      />
+                    {/if}
+                  {/if}
+                  
+                  {#if schemaErrors[key]}
+                    <div class="text-xs text-destructive">
+                      {schemaErrors[key]}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
 
-      <div class="space-y-2">
-        <Label for="description">Description</Label>
-        <Input id="description" type="text" bind:value={formData.description} required />
-      </div>
-
-      <Dialog.Footer>
+      <Dialog.Footer class="mt-4 pt-4 border-t">
         <Button type="button" variant="outline" onclick={() => { dialogOpen = false; editingItem = null; }} disabled={loading}>
           Cancel
         </Button>

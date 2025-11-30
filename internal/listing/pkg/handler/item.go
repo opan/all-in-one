@@ -2,10 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/logging"
 )
 
 // GetItems godoc
@@ -20,16 +22,24 @@ import (
 // @Router       /topics/{topic_id}/items [get]
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	fmt.Println("--------------------------------")
+	fmt.Println("masuk")
+	fmt.Println("--------------------------------")
+
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
+		log.Error().Err(err).Msg("invalid topic ID in request")
 		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(ctx, topicID)
+	t, err := h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
+			log.Warn().Msg("topic not found")
 			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
@@ -37,8 +47,11 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.storage.ItemRepo().GetByTopicID(ctx, topicID)
+	items, err := h.storage.ItemRepo().GetByTopicID(ctx, t.ID)
 	if err != nil {
+		fmt.Println("----------------------")
+		fmt.Println(err)
+		log.Error().Err(err).Msg("failed to get items from db")
 		httpHelper.SendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
 	}
