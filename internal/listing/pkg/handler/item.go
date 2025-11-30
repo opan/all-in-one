@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	httpHelper "github.com/all-in-one/internal/http"
@@ -23,10 +22,6 @@ import (
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
-
-	fmt.Println("--------------------------------")
-	fmt.Println("masuk")
-	fmt.Println("--------------------------------")
 
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
@@ -49,8 +44,6 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 
 	items, err := h.storage.ItemRepo().GetByTopicID(ctx, t.ID)
 	if err != nil {
-		fmt.Println("----------------------")
-		fmt.Println(err)
 		log.Error().Err(err).Msg("failed to get items from db")
 		httpHelper.SendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
