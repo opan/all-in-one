@@ -7,37 +7,121 @@ import (
 	"time"
 )
 
-// FieldType represents the type of custom field
-type FieldType string
-
-const (
-	FieldTypeText        FieldType = "text"
-	FieldTypeNumber      FieldType = "number"
-	FieldTypeSelect      FieldType = "select"
-	FieldTypeMultiSelect FieldType = "multi_select"
-	FieldTypeCheckbox    FieldType = "checkbox"
-	FieldTypeDate        FieldType = "date"
-)
-
-// CustomField defines a single custom field in the schema
-type CustomField struct {
-	Key          string      `json:"key"`
-	Label        string      `json:"label"`
-	Type         FieldType   `json:"type"`
-	Required     bool        `json:"required"`
-	Options      []string    `json:"options,omitempty"`
-	DefaultValue interface{} `json:"default_value,omitempty"`
-	Description  string      `json:"description,omitempty"`
+// JSONSchemaProperty defines a property in the JSON Schema
+type JSONSchemaProperty struct {
+	Type        string                   `json:"type"`
+	Title       string                   `json:"title,omitempty"`
+	Description string                   `json:"description,omitempty"`
+	Enum        []string                 `json:"enum,omitempty"`
+	Format      string                   `json:"format,omitempty"`
+	Default     interface{}              `json:"default,omitempty"`
+	Items       *JSONSchemaPropertyItems `json:"items,omitempty"`
 }
 
-// FormSchema defines the structure of custom fields for a topic
+// JSONSchemaPropertyItems defines items for array types
+type JSONSchemaPropertyItems struct {
+	Type string   `json:"type,omitempty"`
+	Enum []string `json:"enum,omitempty"`
+}
+
+// JSONSchema defines the data schema (JSON Schema format)
+type JSONSchema struct {
+	Type       string                        `json:"type"`
+	Properties map[string]JSONSchemaProperty `json:"properties"`
+	Required   []string                      `json:"required,omitempty"`
+}
+
+// UISchemaElement defines a UI schema element
+type UISchemaElement struct {
+	Type     string                 `json:"type"`
+	Scope    string                 `json:"scope,omitempty"`
+	Label    interface{}            `json:"label,omitempty"` // string or bool
+	Options  map[string]interface{} `json:"options,omitempty"`
+	Elements []UISchemaElement      `json:"elements,omitempty"`
+}
+
+// UISchema defines the UI schema for JSONForms
+type UISchema struct {
+	Type     string                 `json:"type"`
+	Elements []UISchemaElement      `json:"elements,omitempty"`
+	Scope    string                 `json:"scope,omitempty"`
+	Label    interface{}            `json:"label,omitempty"`
+	Options  map[string]interface{} `json:"options,omitempty"`
+}
+
+// FormSchema defines the JSONForms.io compliant schema structure.
+// It consists of two parts:
+// 1. Schema (JSON Schema) - defines the data structure and validation rules
+// 2. UISchema - defines how the form should be rendered
+//
+// Example:
+//
+//	{
+//	  "schema": {
+//	    "type": "object",
+//	    "properties": {
+//	      "title": {
+//	        "type": "string",
+//	        "title": "Title",
+//	        "description": "Item title"
+//	      },
+//	      "price": {
+//	        "type": "number",
+//	        "title": "Price"
+//	      },
+//	      "category": {
+//	        "type": "string",
+//	        "title": "Category",
+//	        "enum": ["electronics", "furniture", "clothing"]
+//	      },
+//	      "inStock": {
+//	        "type": "boolean",
+//	        "title": "In Stock"
+//	      },
+//	      "publishDate": {
+//	        "type": "string",
+//	        "format": "date",
+//	        "title": "Publish Date"
+//	      }
+//	    },
+//	    "required": ["title", "price"]
+//	  },
+//	  "uischema": {
+//	    "type": "VerticalLayout",
+//	    "elements": [
+//	      {
+//	        "type": "Control",
+//	        "scope": "#/properties/title"
+//	      },
+//	      {
+//	        "type": "Control",
+//	        "scope": "#/properties/price"
+//	      },
+//	      {
+//	        "type": "Control",
+//	        "scope": "#/properties/category"
+//	      },
+//	      {
+//	        "type": "Control",
+//	        "scope": "#/properties/inStock"
+//	      },
+//	      {
+//	        "type": "Control",
+//	        "scope": "#/properties/publishDate"
+//	      }
+//	    ]
+//	  }
+//	}
+//
+// For more information, see https://jsonforms.io/
 type FormSchema struct {
-	Fields []CustomField `json:"fields"`
+	Schema   JSONSchema `json:"schema"`
+	UISchema UISchema   `json:"uischema"`
 }
 
 // Value implements driver.Valuer for database storage
 func (fs FormSchema) Value() (driver.Value, error) {
-	if len(fs.Fields) == 0 {
+	if len(fs.Schema.Properties) == 0 {
 		return nil, nil
 	}
 	return json.Marshal(fs)
@@ -46,7 +130,8 @@ func (fs FormSchema) Value() (driver.Value, error) {
 // Scan implements sql.Scanner for database retrieval
 func (fs *FormSchema) Scan(value interface{}) error {
 	if value == nil {
-		fs.Fields = []CustomField{}
+		fs.Schema.Properties = make(map[string]JSONSchemaProperty)
+		fs.UISchema.Elements = []UISchemaElement{}
 		return nil
 	}
 

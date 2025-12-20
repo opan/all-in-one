@@ -52,7 +52,7 @@ func dbMigrate(db *sqlx.DB) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
 			description TEXT,
-			form_schema TEXT,
+			form_schema TEXT, -- JSON Form Schema in JSON format
 			created_at TIMESTAMP,
 			updated_at TIMESTAMP
 		);
@@ -62,6 +62,7 @@ func dbMigrate(db *sqlx.DB) error {
 			topic_id INTEGER,
 			title TEXT NOT NULL,
 			description TEXT,
+			form_schema_values TEXT, -- values for JSON Form Schema in JSON format
 			created_at TIMESTAMP,
 			updated_at TIMESTAMP,
 			FOREIGN KEY (topic_id) REFERENCES topics(id)

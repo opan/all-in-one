@@ -6,6 +6,7 @@ import (
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/logging"
 )
 
 // GetItems godoc
@@ -20,16 +21,22 @@ import (
 // @Router       /topics/{topic_id}/items [get]
 func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
-		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
+		log.Error().Err(err).Msg("invalid topic ID in request")
+		httpHelper.SendError(w, "invalid topic ID", http.StatusBadRequest)
 		return
 	}
 
+	log.Info().Str("action", "GetItems").Msgf("get items by topic ID: %d", topicID)
+
 	// Verify topic exists
-	_, err = h.storage.TopicRepo().Get(ctx, topicID)
+	t, err := h.storage.TopicRepo().Get(ctx, topicID)
 	if err != nil {
 		if err == httpHelper.ErrNotFound {
+			log.Warn().Msg("topic not found")
 			httpHelper.SendError(w, "Topic not found", http.StatusNotFound)
 			return
 		}
@@ -37,8 +44,9 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.storage.ItemRepo().GetByTopicID(ctx, topicID)
+	items, err := h.storage.ItemRepo().GetByTopicID(ctx, t.ID)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to get items from db")
 		httpHelper.SendError(w, "Failed to retrieve items", http.StatusInternalServerError)
 		return
 	}
@@ -65,6 +73,8 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics/{topic_id}/items/{id} [get]
 func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -76,6 +86,8 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
+
+	log.Info().Str("action", "GetItem").Msgf("Retrieving item by ID: %d", id)
 
 	// Verify topic exists
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
@@ -127,6 +139,8 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics/{topic_id}/items [post]
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -143,6 +157,8 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, "Failed to verify topic", http.StatusInternalServerError)
 		return
 	}
+
+	log.Info().Str("action", "CreateItem").Msgf("Creating item in topic ID %d", topicID)
 
 	var newItem model.Item
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {

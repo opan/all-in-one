@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/all-in-one/internal/config"
+	"github.com/all-in-one/internal/logging"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -31,10 +32,8 @@ type HTTP struct {
 }
 
 type requestID string
-type loggerID string
 
 const requestIDKey requestID = "request_id"
-const loggerKey loggerID = "logger"
 
 func NewHTTP(log zerolog.Logger, config config.Config) *HTTP {
 	return &HTTP{
@@ -60,13 +59,7 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 		logger := h.log.With().Str("request_id", reqID).Logger()
 
 		// Store logger in the context for downstream
-		ctx = context.WithValue(ctx, loggerKey, &logger)
-
-		h.log.Info().
-			Str("method", r.Method).
-			Str("path", r.URL.Path).
-			Str("ip", r.RemoteAddr).
-			Msg("Request started")
+		ctx = context.WithValue(ctx, logging.LoggerKey, &logger)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 
@@ -74,7 +67,7 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Str("ip", r.RemoteAddr).
-			Dur("duration", time.Since(start)).
+			Dur("duration_ms", time.Since(start)).
 			Msg("Request completed")
 	})
 }
