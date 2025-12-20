@@ -62,11 +62,11 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 		// Store logger in the context for downstream
 		ctx = context.WithValue(ctx, loggerKey, &logger)
 
-		h.log.Info().
-			Str("method", r.Method).
-			Str("path", r.URL.Path).
-			Str("ip", r.RemoteAddr).
-			Msg("Request started")
+		// h.log.Info().
+		// 	Str("method", r.Method).
+		// 	Str("path", r.URL.Path).
+		// 	Str("ip", r.RemoteAddr).
+		// 	Msg("Request started")
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 
@@ -74,7 +74,7 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Str("ip", r.RemoteAddr).
-			Dur("duration", time.Since(start)).
+			Dur("duration_ms", time.Since(start)).
 			Msg("Request completed")
 	})
 }

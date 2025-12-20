@@ -122,13 +122,9 @@
     editingItem = item.id;
     formData = { title: item.title, description: item.description };
     
-    // Parse existing form_schema_value
-    if (item.form_schema_value) {
-      try {
-        schemaValues = JSON.parse(item.form_schema_value);
-      } catch (e) {
-        schemaValues = initializeSchemaValues();
-      }
+    // Use form_schema_values directly (already parsed as JSON object)
+    if (item.form_schema_values) {
+      schemaValues = item.form_schema_values;
     } else {
       schemaValues = initializeSchemaValues();
     }
@@ -233,9 +229,9 @@
         topic_id: topic.id
       };
       
-      // Add form_schema_value if schema exists
+      // Add form_schema_values if schema exists
       if (topic.form_schema?.schema?.properties) {
-        payload.form_schema_value = JSON.stringify(schemaValues);
+        payload.form_schema_values = schemaValues;
       }
       
       if (editingItem) {
@@ -255,6 +251,7 @@
         const response = await apiPost(`/api/v1/topics/${topic.id}/items`, payload);
         
         if (!response.ok) {
+          console.log(response);
           throw new Error('Failed to create item');
         }
         

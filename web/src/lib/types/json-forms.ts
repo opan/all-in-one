@@ -53,7 +53,7 @@ export interface Item {
   title: string;
   description: string;
   topic_id: number;
-  form_schema_value?: string;
+  form_schema_values?: Record<string, any>;
   created_at: string;
   updated_at: string;
 }

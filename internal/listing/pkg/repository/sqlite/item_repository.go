@@ -84,7 +84,7 @@ func (r *itemRepository) Create(ctx context.Context, item model.Item) (model.Ite
 	now := time.Now().Format(time.RFC3339)
 
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO items (topic_id, title, description, created_at, updated_at, form_schema_value) 
+		INSERT INTO items (topic_id, title, description, created_at, updated_at, form_schema_values) 
 		VALUES (?, ?, ?, ?, ?, ?)
 	`, item.TopicID, item.Title, item.Description, now, now, item.FormSchemaValues)
 
@@ -117,7 +117,7 @@ func (r *itemRepository) Update(ctx context.Context, id int, item model.Item) (m
 
 	_, err = r.db.Exec(`
 		UPDATE items 
-		SET topic_id = ?, title = ?, description = ?, updated_at = ?, form_schema_value = ?
+		SET topic_id = ?, title = ?, description = ?, updated_at = ?, form_schema_values = ?
 		WHERE id = ?
 	`, item.TopicID, item.Title, item.Description, now, item.FormSchemaValues, id)
 
