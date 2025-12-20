@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import DataTable from "../../../../components/data-table.svelte";
   import { Button } from "$lib/components/ui/button/index";
+  import * as Card from "$lib/components/ui/card/index";
   import * as Dialog from "$lib/components/ui/dialog/index";
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
   import { Input } from "$lib/components/ui/input/index";
@@ -9,7 +9,7 @@
   import { Textarea } from "$lib/components/ui/textarea/index";
   import { Checkbox } from "$lib/components/ui/checkbox/index";
   import * as Select from "$lib/components/ui/select/index";
-  import type { ColumnDef } from "@tanstack/table-core";
+  import { Separator } from "$lib/components/ui/separator/index";
   import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
   import type { Topic, Item } from "$lib/types/json-forms";
 
@@ -46,6 +46,44 @@
   
   let loading = $state(false);
   let error = $state('');
+  let searchQuery = $state('');
+  let currentPage = $state(1);
+  let itemsPerPage = $state(9);
+
+  // Computed filtered items based on search query
+  let filteredItems = $derived(
+    items.filter(item => 
+      searchQuery.trim() === '' || 
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
+  // Pagination computations
+  let totalPages = $derived(Math.ceil(filteredItems.length / itemsPerPage));
+  let paginatedItems = $derived(
+    filteredItems.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
+  );
+
+  // Reset to first page when search query changes
+  $effect(() => {
+    searchQuery;
+    currentPage = 1;
+  });
+
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      currentPage = page;
+    }
+  }
+
+  function changeItemsPerPage(value: number) {
+    itemsPerPage = value;
+    currentPage = 1;
+  }
 
   async function reloadItems() {
     loading = true;
@@ -64,51 +102,6 @@
       loading = false;
     }
   }
-
-  const columns: ColumnDef<Item>[] = [
-    {
-      accessorKey: "id",
-      header: "ID",
-      cell: (info) => info.getValue(),
-      enableHiding: true,
-    },
-    {
-      accessorKey: "title",
-      header: "Title",
-      cell: (info) => info.getValue(),
-      enableHiding: true,
-    },
-    {
-      accessorKey: "description",
-      header: "Description",
-      cell: (info) => info.getValue(),
-      enableHiding: true,
-    },
-    {
-      accessorKey: "created_at",
-      header: "Created",
-      cell: (info) => formatDate(info.getValue() as string),
-      enableHiding: true,
-    },
-    {
-      accessorKey: "updated_at",
-      header: "Updated",
-      cell: (info) => formatDate(info.getValue() as string),
-      enableHiding: true,
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: (info) => {
-        const item = info.row.original;
-        return {
-          render: () => null,
-          data: item
-        };
-      },
-      enableHiding: false,
-    },
-  ];
 
   function openAddDialog() {
     editingItem = null;
@@ -384,32 +377,230 @@
   </div>
 
   <!-- Items Table -->
-  <DataTable 
-    data={items} 
-    {columns}
-    filterPlaceholder="Filter items..."
-    showFilter={true}
-    showColumnVisibility={true}
-    showPagination={true}
-    onReload={reloadItems}
-    actions={[
-      {
-        label: "Add New Item",
-        onclick: openAddDialog
-      }
-    ]}
-  >
-    {#snippet actionsColumn({ row })}
-      <div class="flex justify-end gap-2">
-        <Button variant="outline" size="sm" onclick={() => openEditDialog(row.original)}>
-          Edit
+  <div class="space-y-4">
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex-1 max-w-sm">
+        <Input 
+          type="text" 
+          placeholder="Filter items..." 
+          bind:value={searchQuery}
+          class="w-full"
+        />
+      </div>
+      <div class="flex gap-2">
+        <Button variant="outline" size="sm" onclick={reloadItems} disabled={loading}>
+          {loading ? 'Reloading...' : 'Reload'}
         </Button>
-        <Button variant="destructive" size="sm" onclick={() => deleteItem(row.original.id)}>
-          Delete
+        <Button size="sm" onclick={openAddDialog}>
+          Add New Item
         </Button>
       </div>
-    {/snippet}
-  </DataTable>
+    </div>
+
+    {#if error}
+      <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+        {error}
+      </div>
+    {/if}
+
+    {#if filteredItems.length === 0}
+      <div class="text-center py-12 border rounded-lg bg-muted/20">
+        <p class="text-muted-foreground">
+          {searchQuery ? 'No items match your search.' : 'No items yet. Click "Add New Item" to create one.'}
+        </p>
+      </div>
+    {:else}
+      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {#each paginatedItems as item (item.id)}
+          <Card.Root class="hover:shadow-md transition-shadow">
+            <Card.Header>
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <Card.Title class="line-clamp-1">{item.title}</Card.Title>
+                  <Card.Description class="line-clamp-2 mt-1.5">
+                    {item.description}
+                  </Card.Description>
+                </div>
+              </div>
+            </Card.Header>
+            
+            {#if item.form_schema_values && Object.keys(item.form_schema_values).length > 0}
+              <Card.Content class="space-y-3">
+                <Separator />
+                <div class="space-y-2">
+                  {#each Object.entries(item.form_schema_values) as [key, value]}
+                    {@const prop = topic.form_schema?.schema?.properties?.[key]}
+                    <div class="text-sm">
+                      <span class="font-medium text-muted-foreground">
+                        {prop?.title || key}:
+                      </span>
+                      <span class="ml-2">
+                        {#if typeof value === 'boolean'}
+                          {value ? 'Yes' : 'No'}
+                        {:else if value === null || value === undefined || value === ''}
+                          <span class="text-muted-foreground italic">Not set</span>
+                        {:else if Array.isArray(value)}
+                          {value.join(', ')}
+                        {:else}
+                          {value}
+                        {/if}
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              </Card.Content>
+            {/if}
+            
+            <Card.Footer class="flex justify-between items-center">
+              <div class="text-xs text-muted-foreground">
+                Updated: {formatDate(item.updated_at)}
+              </div>
+              <div class="flex gap-2">
+                <Button variant="outline" size="sm" onclick={() => openEditDialog(item)}>
+                  Edit
+                </Button>
+                <Button variant="destructive" size="sm" onclick={() => deleteItem(item.id)}>
+                  Delete
+                </Button>
+              </div>
+            </Card.Footer>
+          </Card.Root>
+        {/each}
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">Items per page:</span>
+          <Select.Root
+            type="single"
+            value={itemsPerPage.toString()}
+            onValueChange={(v) => v && changeItemsPerPage(Number(v))}
+          >
+            <Select.Trigger class="w-20">
+              {itemsPerPage}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="9" label="9">9</Select.Item>
+              <Select.Item value="18" label="18">18</Select.Item>
+              <Select.Item value="36" label="36">36</Select.Item>
+              <Select.Item value="50" label="50">50</Select.Item>
+            </Select.Content>
+          </Select.Root>
+        </div>
+
+        <div class="text-sm text-muted-foreground">
+          Showing {filteredItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}
+        </div>
+
+        <div class="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onclick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1 || totalPages === 0}
+          >
+            Previous
+          </Button>
+          
+          <div class="flex items-center gap-1">
+            {#if totalPages <= 7}
+              {#each Array.from({ length: totalPages }, (_, i) => i + 1) as page}
+                <Button
+                  variant={currentPage === page ? 'default' : 'outline'}
+                  size="sm"
+                  onclick={() => goToPage(page)}
+                  class="w-10"
+                >
+                  {page}
+                </Button>
+              {/each}
+            {:else}
+              {#if currentPage <= 3}
+                {#each [1, 2, 3, 4] as page}
+                  <Button
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onclick={() => goToPage(page)}
+                    class="w-10"
+                  >
+                    {page}
+                  </Button>
+                {/each}
+                <span class="px-2 text-muted-foreground">...</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => goToPage(totalPages)}
+                  class="w-10"
+                >
+                  {totalPages}
+                </Button>
+              {:else if currentPage >= totalPages - 2}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => goToPage(1)}
+                  class="w-10"
+                >
+                  1
+                </Button>
+                <span class="px-2 text-muted-foreground">...</span>
+                {#each [totalPages - 3, totalPages - 2, totalPages - 1, totalPages] as page}
+                  <Button
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onclick={() => goToPage(page)}
+                    class="w-10"
+                  >
+                    {page}
+                  </Button>
+                {/each}
+              {:else}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => goToPage(1)}
+                  class="w-10"
+                >
+                  1
+                </Button>
+                <span class="px-2 text-muted-foreground">...</span>
+                {#each [currentPage - 1, currentPage, currentPage + 1] as page}
+                  <Button
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onclick={() => goToPage(page)}
+                    class="w-10"
+                  >
+                    {page}
+                  </Button>
+                {/each}
+                <span class="px-2 text-muted-foreground">...</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => goToPage(totalPages)}
+                  class="w-10"
+                >
+                  {totalPages}
+                </Button>
+              {/if}
+            {/if}
+          </div>
+
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onclick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
