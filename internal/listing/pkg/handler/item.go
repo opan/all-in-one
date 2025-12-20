@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	httpHelper "github.com/all-in-one/internal/http"
@@ -27,9 +26,11 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		log.Error().Err(err).Msg("invalid topic ID in request")
-		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
+		httpHelper.SendError(w, "invalid topic ID", http.StatusBadRequest)
 		return
 	}
+
+	log.Info().Str("action", "GetItems").Msgf("get items by topic ID: %d", topicID)
 
 	// Verify topic exists
 	t, err := h.storage.TopicRepo().Get(ctx, topicID)
@@ -72,6 +73,8 @@ func (h *Handler) GetItems(w http.ResponseWriter, r *http.Request) {
 // @Router       /topics/{topic_id}/items/{id} [get]
 func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
 	topicID, err := getTopicIDFromRequest(r)
 	if err != nil {
 		httpHelper.SendError(w, "Invalid topic ID", http.StatusBadRequest)
@@ -83,6 +86,8 @@ func (h *Handler) GetItem(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
+
+	log.Info().Str("action", "GetItem").Msgf("Retrieving item by ID: %d", id)
 
 	// Verify topic exists
 	_, err = h.storage.TopicRepo().Get(ctx, topicID)
@@ -153,18 +158,13 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info().Msgf("Creating item in topic ID %d", topicID)
-
-	fmt.Println("masuk")
+	log.Info().Str("action", "CreateItem").Msgf("Creating item in topic ID %d", topicID)
 
 	var newItem model.Item
 	if err := json.NewDecoder(r.Body).Decode(&newItem); err != nil {
 		httpHelper.SendError(w, "Invalid JSON data", http.StatusBadRequest)
 		return
 	}
-
-	fmt.Printf("%+v\n", newItem)
-	fmt.Println("batas bawah =====")
 
 	// Validate required fields
 	if newItem.Title == "" {

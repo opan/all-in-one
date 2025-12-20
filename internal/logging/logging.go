@@ -21,12 +21,12 @@ func New(cfg config.LoggingConfig) (zerolog.Logger, error) {
 	return log, nil
 }
 
-type contextKey string
+type ContextKey string
 
-const loggerKey contextKey = "logger"
+const LoggerKey ContextKey = "logger"
 
 func GetLoggerFromContext(ctx context.Context) *zerolog.Logger {
-	if logger, ok := ctx.Value(loggerKey).(*zerolog.Logger); ok {
+	if logger, ok := ctx.Value(LoggerKey).(*zerolog.Logger); ok {
 		return logger
 	}
 	// Fallback to a default logger if not found
