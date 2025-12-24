@@ -14,6 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type contextKey string
+
+const SecureCookieKey contextKey = "secure_cookie"
+
 // CreateSession godoc
 // @Summary      Create a new session (login)
 // @Description  Authenticate user and create a new session with access and refresh tokens
@@ -106,10 +110,10 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    at,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.config.Auth.SecureCookie, // Set to true in production with HTTPS
 		Path:     "/",
 		MaxAge:   1800, // 30 minutes
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	// Set refresh token cookie (longer expiry)
@@ -117,10 +121,10 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		Name:     "refresh_token",
 		Value:    rt,
 		HttpOnly: true,
-		Secure:   true,
-		Path:     "/api/v1/sessions/refresh", // Only sent to refresh endpoint
+		Secure:   h.config.Auth.SecureCookie, // Set to true in production with HTTPS
+		Path:     "/api/v1/sessions/refresh", // Only sent to refresh endpoint (least privilege)
 		MaxAge:   604800,                     // 7 days
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteStrictMode,    // Maximum protection for refresh token
 	})
 
 	log.Info().Str("session_id", sid.String()).Msg("session successfully created")
@@ -199,17 +203,17 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    "",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.config.Auth.SecureCookie,
 		Path:     "/",
 		MaxAge:   -1,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.config.Auth.SecureCookie,
 		Path:     "/api/v1/sessions/refresh",
 		MaxAge:   -1,
 		SameSite: http.SameSiteStrictMode,
@@ -343,10 +347,10 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    accessToken,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.config.Auth.SecureCookie, // Set to true in production with HTTPS
 		Path:     "/",
 		MaxAge:   1800, // 30 minutes
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	httpHelper.SendJSON(w, "token refreshed successfully", http.StatusOK)

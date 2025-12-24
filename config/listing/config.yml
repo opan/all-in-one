@@ -15,6 +15,7 @@ http:
 auth:
   jwt_secret: "replace-this-on-production"
   direct_auth_enabled: false  # Enable direct authentication via x-direct-auth-username header (for development/testing only)
+  secure_cookie: false # Set to true in production with HTTPS
 
 listing:
   port: 8080

@@ -71,7 +71,7 @@ func (h *HTTP) validateJWT(ctx context.Context, r *http.Request) (UserClaims, er
 
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
-		log.Error().Msg("cannot find JWT token")
+		log.Error().Err(err).Msg("cannot find JWT token")
 		return UserClaims{}, fmt.Errorf("Unauthorized: missing or invalid token: %v", err)
 	}
 
