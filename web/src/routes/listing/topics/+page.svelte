@@ -196,6 +196,12 @@
     }
   }
 
+  function formatDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString();
+  }
+</script>
+
+<div class="p-6">
   <DataTable 
     data={topics} 
     {columns}
