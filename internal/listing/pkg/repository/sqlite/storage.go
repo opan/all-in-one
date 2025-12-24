@@ -44,7 +44,7 @@ func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://db/migrations",
+		"file://db/migrations/sqlite3",
 		"sqlite3",
 		driver,
 	)
