@@ -11,6 +11,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
+
+	"github.com/golang-migrate/migrate/v4"
+	sqlite3Migrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 // storage implements the Storage interface from repository package
@@ -31,11 +35,26 @@ func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (
 	}
 
 	log.Info().Msg("Starting database migration")
-	err = dbMigrate(db)
+
+	driver, err := sqlite3Migrate.WithInstance(db.DB, &sqlite3Migrate.Config{})
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to create migration driver")
 		db.Close()
-		return nil, fmt.Errorf("failed to execute db migration: %w", err)
+		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://db/migrations",
+		"sqlite3",
+		driver,
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to create migrate instance")
+		db.Close()
+		return nil, fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	m.Up()
 
 	return &storage{
 		db:          db,
