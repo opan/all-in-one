@@ -295,7 +295,6 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := claims["sub"].(uuid.UUID)
 	sid, err := uuid.Parse(claims["sub"].(string))
 	if err != nil {
 		log.Error().Err(err).Msg("Invalid session ID format in token")
@@ -306,7 +305,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Verify session still exists in DB
 	session, err := h.storage.SessionRepo().Get(ctx, sid)
 	if err != nil {
-		log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("Session not found")
+		log.Warn().Err(err).Str("session_id", sid.String()).Msg("Session not found")
 		httpHelper.SendError(w, "Session expired, please login again", http.StatusUnauthorized)
 		return
 	}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import EditTopicModal from "../../../../components/edit-topic-modal.svelte";
   import { Button } from "$lib/components/ui/button/index";
   import * as Card from "$lib/components/ui/card/index";
   import * as Dialog from "$lib/components/ui/dialog/index";
@@ -11,7 +12,7 @@
   import * as Select from "$lib/components/ui/select/index";
   import { Separator } from "$lib/components/ui/separator/index";
   import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
-  import type { Topic, Item } from "$lib/types/json-forms";
+  import type { Topic, Item, FormSchema } from "$lib/types/json-forms";
 
   interface Props {
     data: {
@@ -37,9 +38,10 @@
   let schemaErrors = $state<Record<string, string>>({});
   
   let topicDialogOpen = $state(false);
-  let topicFormData = $state({
+  let topicModalInitialData = $state({
     name: '',
-    description: ''
+    description: '',
+    form_schema: null as FormSchema | null
   });
   
   let deleteTopicDialogOpen = $state(false);
@@ -297,26 +299,21 @@
   }
 
   function openEditTopicDialog() {
-    topicFormData = { name: topic.name, description: topic.description };
+    topicModalInitialData = { 
+      name: topic.name, 
+      description: topic.description,
+      form_schema: topic.form_schema || null
+    };
+    error = '';
     topicDialogOpen = true;
   }
 
-  async function handleTopicSubmit(e: Event) {
-    e.preventDefault();
-
-    if (!topicFormData.name.trim() || !topicFormData.description.trim()) {
-      error = 'Name and description are required';
-      return;
-    }
-    
+  async function handleTopicSubmit(data: { name: string; description: string; form_schema?: FormSchema }) {
     loading = true;
     error = '';
     
     try {
-      const response = await apiPut(`/api/v1/topics/${topic.id}`, {
-        name: topicFormData.name.trim(),
-        description: topicFormData.description.trim()
-      });
+      const response = await apiPut(`/api/v1/topics/${topic.id}`, data);
       
       if (!response.ok) {
         throw new Error('Failed to update topic');
@@ -324,13 +321,18 @@
       
       const updatedTopic = await response.json();
       topic = updatedTopic.data;
-      topicFormData = { name: '', description: '' };
       topicDialogOpen = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
+      throw err; // Re-throw to let the modal handle it
     } finally {
       loading = false;
     }
+  }
+
+  function closeTopicDialog() {
+    topicDialogOpen = false;
+    error = '';
   }
 
   async function handleDeleteTopic() {
@@ -763,44 +765,15 @@
   </Dialog.Content>
 </Dialog.Root>
 
-<!-- Edit Topic Dialog -->
-<Dialog.Root bind:open={topicDialogOpen}>
-  <Dialog.Content class="sm:max-w-[425px]">
-    <Dialog.Header>
-      <Dialog.Title>Edit Topic</Dialog.Title>
-      <Dialog.Description>
-        Make changes to your topic here.
-      </Dialog.Description>
-    </Dialog.Header>
-
-    <form onsubmit={handleTopicSubmit} class="space-y-4">
-      {#if error}
-        <div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      {/if}
-
-      <div class="space-y-2">
-        <Label for="topic-name">Name</Label>
-        <Input id="topic-name" type="text" bind:value={topicFormData.name} required />
-      </div>
-
-      <div class="space-y-2">
-        <Label for="topic-description">Description</Label>
-        <Input id="topic-description" type="text" bind:value={topicFormData.description} required />
-      </div>
-
-      <Dialog.Footer>
-        <Button type="button" variant="outline" onclick={() => { topicDialogOpen = false; }} disabled={loading}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Saving...' : 'Save changes'}
-        </Button>
-      </Dialog.Footer>
-    </form>
-  </Dialog.Content>
-</Dialog.Root>
+<EditTopicModal 
+  bind:open={topicDialogOpen}
+  editingTopicId={topic.id}
+  initialData={topicModalInitialData}
+  {loading}
+  {error}
+  onClose={closeTopicDialog}
+  onSubmit={handleTopicSubmit}
+/>
 
 <!-- Delete Topic Confirmation Dialog -->
 <AlertDialog.Root bind:open={deleteTopicDialogOpen}>
