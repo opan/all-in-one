@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"context"
+
+	httpHelper "github.com/all-in-one/internal/http"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,4 +20,9 @@ func HashPassword(password string) (string, error) {
 	}
 	// Implement password hashing logic here
 	return string(hash), nil
+}
+
+func GetUserFromContext(ctx context.Context) (httpHelper.UserClaims, bool) {
+	user, ok := ctx.Value(httpHelper.UserContextKey).(httpHelper.UserClaims)
+	return user, ok
 }

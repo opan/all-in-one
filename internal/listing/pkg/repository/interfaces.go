@@ -33,7 +33,7 @@ type ItemRepository interface {
 type TopicRepository interface {
 	CreateTrx(ctx context.Context) (query.QueryOptions, error)
 
-	GetAll(ctx context.Context) ([]model.Topic, error)
+	GetAll(ctx context.Context, userID uuid.UUID) ([]model.Topic, error)
 	Get(ctx context.Context, id int) (model.Topic, error)
 	Create(ctx context.Context, item model.Topic) (model.Topic, error)
 	Update(ctx context.Context, id int, item model.Topic) (model.Topic, error)

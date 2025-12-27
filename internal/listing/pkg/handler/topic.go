@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/all-in-one/internal/auth"
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/logging"
+	"github.com/google/uuid"
 )
 
 // GetTopics godoc
@@ -22,7 +24,21 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
-	topics, err := h.storage.TopicRepo().GetAll(ctx)
+	cu, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		log.Error().Msg("failed to get user from context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	uid, err := uuid.Parse(cu.UserID)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("invalid user ID in context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	topics, err := h.storage.TopicRepo().GetAll(ctx, uid)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get topics from db")
 		httpHelper.SendError(w, "Failed to retrieve topics", http.StatusInternalServerError)

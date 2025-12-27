@@ -63,6 +63,9 @@ func (h *HTTP) tryDirectAuth(ctx context.Context, r *http.Request) (UserClaims, 
 	return UserClaims{
 		SessionID: "direct-auth",
 		Email:     username,
+		// TODO: Use a better way to generate user IDs for direct auth
+		UserID:   username,
+		Username: username,
 	}, true
 }
 
@@ -102,5 +105,7 @@ func (h *HTTP) validateJWT(ctx context.Context, r *http.Request) (UserClaims, er
 	return UserClaims{
 		SessionID: claims["sub"].(string),
 		Email:     claims["email"].(string),
+		UserID:    claims["user_id"].(string),
+		Username:  claims["username"].(string),
 	}, nil
 }
