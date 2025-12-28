@@ -5,7 +5,10 @@
 	import * as Field from '$lib/components/ui/field';
 	import SettingsNav from "../../../components/settings-nav.svelte";
 	
-	let username = $state('');
+	let { data } = $props();
+	
+	let username = $state(data.user?.username || '');
+	let email = $state(data.user?.email || '');
 	let password = $state('');
 	let passwordConfirmation = $state('');
 	let activeSection = $state('account');
@@ -64,11 +67,24 @@
 									type="text" 
 									placeholder="Enter your username" 
 									bind:value={username}
-									class="max-w-xl"
-								/>
-								<Field.Description>
-									This is your public display name.
-								</Field.Description>
+								disabled
+								class="max-w-xl"
+							/>
+							<Field.Description>
+								This is your public display name.
+							</Field.Description>
+						</Field.Field>
+
+						<Field.Field>
+							<Field.Label for="email">Email</Field.Label>
+							<Input 
+								id="email" 
+								type="email" 
+								placeholder="Email address" 
+								bind:value={email}
+								disabled
+								class="max-w-xl"
+							/>
 							</Field.Field>
 
 							<Field.Field>

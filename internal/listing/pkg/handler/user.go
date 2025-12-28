@@ -19,6 +19,39 @@ type RegisterUserRequest struct {
 	Name     string `json:"name"`
 }
 
+func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	cu, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		log.Error().Msg("failed to get user from context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	uid, err := uuid.Parse(cu.UserID)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("invalid user ID in context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.storage.UserRepo().Find(ctx, uid)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("failed to get user from db")
+		httpHelper.SendError(w, "Failed to retrieve user", http.StatusInternalServerError)
+		return
+	}
+
+	response := httpHelper.Response{
+		Success: true,
+		Data:    user,
+	}
+
+	httpHelper.SendJSON(w, response, http.StatusOK)
+}
+
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
