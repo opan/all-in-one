@@ -17,7 +17,7 @@
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
-  import { apiDelete, isLoggedIn } from '$lib/api';
+  import { apiDelete, apiGet, isLoggedIn } from '$lib/api';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
 
@@ -41,9 +41,23 @@
   let playgroundOpen = $state(true);
   let userLoggedIn = $state(false);
   let isSigningOut = $state(false);
+  let currentUser = $state<{ name?: string; username?: string; email?: string } | null>(null);
 
   onMount(async () => {
     userLoggedIn = await isLoggedIn();
+    if (userLoggedIn) {
+      try {
+        const response = await apiGet('/api/v1/users/me');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            currentUser = data.data;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch current user:', error);
+      }
+    }
   });
 
   async function handleSignOut() {
@@ -183,8 +197,8 @@
                     <SquareUser class="size-4" />
                   </div>
                   <div class="grid flex-1 text-left text-sm leading-tight">
-                    <span class="truncate font-semibold">shadcn</span>
-                    <span class="truncate text-xs text-muted-foreground">m@example.com</span>
+                    <span class="truncate font-semibold">{currentUser?.name || currentUser?.username || 'User'}</span>
+                    <span class="truncate text-xs text-muted-foreground">{currentUser?.email || ''}</span>
                   </div>
                 </button>
               {/snippet}
