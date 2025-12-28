@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // JSONSchemaProperty defines a property in the JSON Schema
@@ -150,6 +152,7 @@ func (fs *FormSchema) Scan(value interface{}) error {
 
 type Topic struct {
 	ID          int        `json:"id" db:"id"`
+	UserID      uuid.UUID  `json:"user_id" db:"user_id"`
 	Name        string     `json:"name" db:"name"`
 	Description string     `json:"description" db:"description"`
 	FormSchema  FormSchema `json:"form_schema" db:"form_schema"`

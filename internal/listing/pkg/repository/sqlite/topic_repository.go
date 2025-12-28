@@ -9,6 +9,7 @@ import (
 	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/listing/query"
 	"github.com/all-in-one/internal/logging"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -64,12 +65,15 @@ func (r *topicRepository) CreateTrx(ctx context.Context) (query.QueryOptions, er
 	return &queryOptions{trx: trx, db: r.db}, nil
 }
 
-func (r *topicRepository) GetAll(ctx context.Context) ([]model.Topic, error) {
+func (r *topicRepository) GetAll(ctx context.Context, userID uuid.UUID) ([]model.Topic, error) {
 	log := logging.GetLoggerFromContext(ctx)
-	log.Info().Str("entity", "TopicRepo").Str("action", "GetAll").Msg("fetching all topics from database")
+	log.Info().Str("entity", "TopicRepo").
+		Str("action", "GetAll").
+		Str("user_id", userID.String()).
+		Msg("fetching all topics from database")
 
 	var topics []model.Topic
-	if err := r.db.SelectContext(ctx, &topics, "SELECT * FROM topics"); err != nil {
+	if err := r.db.SelectContext(ctx, &topics, "SELECT * FROM topics WHERE user_id = ?", userID.String()); err != nil {
 		return nil, err
 	}
 
