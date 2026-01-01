@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -70,7 +71,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	existingUser, err := h.storage.UserRepo().FindByUsername(ctx, req.Username)
-	if err == nil && existingUser != nil {
+	if err != nil && err != sql.ErrNoRows {
+		log.Error().Err(err).Msg("failed to check existing user")
+		httpHelper.SendError(w, "failed to register user", http.StatusInternalServerError)
+		return
+	}
+
+	if existingUser.ID != uuid.Nil {
 		log.Error().Str("username", req.Username).Msg("user already exists")
 		httpHelper.SendError(w, "user already exists", http.StatusConflict)
 		return
@@ -153,7 +160,7 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 
 	u.PasswordHash = hashedPassword
 
-	if err := h.storage.UserRepo().Update(ctx, uid, *u); err != nil {
+	if err := h.storage.UserRepo().Update(ctx, uid, u); err != nil {
 		log.Error().Err(err).Str("user_id", cu.UserID).Msg("failed to update user password in db")
 		httpHelper.SendError(w, "Failed to update password", http.StatusInternalServerError)
 		return

@@ -30,20 +30,20 @@ func (u *userRepository) GetAll(ctx context.Context) ([]model.User, error) {
 	return users, nil
 }
 
-func (u *userRepository) FindByUsername(ctx context.Context, username string) (*model.User, error) {
+func (u *userRepository) FindByUsername(ctx context.Context, username string) (model.User, error) {
 	var user model.User
 	if err := u.db.GetContext(ctx, &user, "SELECT * FROM users WHERE username = ?", username); err != nil {
-		return nil, err
+		return model.User{}, err
 	}
-	return &user, nil
+	return user, nil
 }
 
-func (u *userRepository) Find(ctx context.Context, id uuid.UUID) (*model.User, error) {
+func (u *userRepository) Find(ctx context.Context, id uuid.UUID) (model.User, error) {
 	var user model.User
 	if err := u.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = ?", id.String()); err != nil {
-		return nil, err
+		return model.User{}, err
 	}
-	return &user, nil
+	return user, nil
 }
 
 func (u *userRepository) Create(ctx context.Context, user model.User, opts ...query.QueryOptions) error {
