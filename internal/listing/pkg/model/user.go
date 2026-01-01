@@ -19,5 +19,6 @@ type User struct {
 }
 
 type UserPasswordReset struct {
-	Password string `json:"password"`
+	CurrentPassword string `json:"current_password"`
+	Password        string `json:"password"`
 }
