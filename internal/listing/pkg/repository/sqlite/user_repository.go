@@ -60,3 +60,25 @@ func (u *userRepository) Create(ctx context.Context, user model.User, opts ...qu
 
 	return nil
 }
+
+func (u *userRepository) Update(ctx context.Context, id uuid.UUID, user model.User, opts ...query.QueryOptions) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("entity", "UserRepo").
+		Str("action", "UpdatePassword").
+		Str("user_id", id.String()).
+		Msg("updating user password in database")
+
+	exec := getExecCtx(u.db, opts...)
+
+	now := time.Now().UTC()
+	user.UpdatedAt = &now
+
+	_, err := exec.NamedExecContext(ctx, `UPDATE users SET email = :email, username = :username,  password_hash = :password_hash
+	, updated_at = :updated_at
+	WHERE id = :id`, user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -43,6 +43,7 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.DeleteItem).Methods("DELETE")
 
 	router.HandleFunc("/users/me", h.GetCurrentUser).Methods("GET")
+	router.HandleFunc("/users/reset_password", h.ResetPasswordUser).Methods("POST")
 
 	router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
 }

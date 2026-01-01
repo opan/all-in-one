@@ -111,3 +111,58 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	httpHelper.SendJSON(w, res, http.StatusCreated)
 }
+
+func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	cu, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		log.Error().Msg("failed to get user from context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	uid, err := uuid.Parse(cu.UserID)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("invalid user ID in context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req model.UserPasswordReset
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Error().Err(err).Msg("failed to decode request body")
+		httpHelper.SendError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	u, err := h.storage.UserRepo().Find(ctx, uid)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("failed to get user from db")
+		httpHelper.SendError(w, "Failed to retrieve user", http.StatusInternalServerError)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(req.Password)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to hash password")
+		httpHelper.SendError(w, "failed to reset password", http.StatusInternalServerError)
+		return
+	}
+
+	u.PasswordHash = hashedPassword
+
+	if err := h.storage.UserRepo().Update(ctx, uid, *u); err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("failed to update user password in db")
+		httpHelper.SendError(w, "Failed to update password", http.StatusInternalServerError)
+		return
+	}
+
+	res := httpHelper.Response{
+		Success: true,
+		Message: "Password has been resetted successfully",
+	}
+
+	httpHelper.SendJSON(w, res, http.StatusOK)
+}
