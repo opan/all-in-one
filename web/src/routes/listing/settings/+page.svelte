@@ -10,6 +10,7 @@
 	
 	let username = $state(data.user?.username || '');
 	let email = $state(data.user?.email || '');
+	let currentPassword = $state('');
 	let password = $state('');
 	let passwordConfirmation = $state('');
 	let activeSection = $state('account');
@@ -23,8 +24,8 @@
 		event.preventDefault();
 		
 		// Validation: Check if passwords are filled
-		if (!password || !passwordConfirmation) {
-			toast.error('Please fill in both password fields');
+		if (!password || !passwordConfirmation || !currentPassword) {
+			toast.error('Please fill all required fields');
 			return;
 		}
 		
@@ -48,6 +49,7 @@
 			},
 			body: JSON.stringify({
 				username,
+				current_password: currentPassword,
 				password,
 				password_confirmation: passwordConfirmation
 			})
@@ -58,6 +60,7 @@
 				toast.success('Password reset successfully!');
 
 				// Clear password fields
+				currentPassword = '';
 				password = '';
 				passwordConfirmation = '';
 			} else {
@@ -135,6 +138,17 @@
 							</Field.Field>
 
 							<Field.Field>
+								<Field.Label for="current_password">Current Password</Field.Label>
+								<Input 
+									id="current_password" 
+									type="password" 
+									placeholder="Enter your password" 
+									bind:value={currentPassword}
+									class="max-w-xl"
+								/>
+							</Field.Field>
+
+							<Field.Field>
 								<Field.Label for="password">Password</Field.Label>
 								<Input 
 									id="password" 
@@ -144,6 +158,7 @@
 									class="max-w-xl"
 								/>
 							</Field.Field>
+
 
 							<Field.Field>
 								<Field.Label for="password-confirmation">Password Confirmation</Field.Label>

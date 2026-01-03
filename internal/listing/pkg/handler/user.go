@@ -151,6 +151,20 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check current password
+	ok, err = auth.CheckPassword(req.CurrentPassword, u.PasswordHash)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check current password")
+		httpHelper.SendError(w, "failed to check current password", http.StatusInternalServerError)
+		return
+	}
+
+	if !ok {
+		log.Warn().Msg("invalid current password")
+		httpHelper.SendError(w, "invalid password", http.StatusUnauthorized)
+		return
+	}
+
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to hash password")
