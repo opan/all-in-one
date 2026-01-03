@@ -129,7 +129,7 @@
   
   <Sidebar.Content>
     <Sidebar.Group>
-      <Sidebar.GroupLabel>Platform</Sidebar.GroupLabel>
+      <Sidebar.GroupLabel>General</Sidebar.GroupLabel>
       <Sidebar.GroupContent>
         <Sidebar.Menu>
           {#each platformItems as item}

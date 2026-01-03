@@ -201,7 +201,7 @@
   }
 </script>
 
-<div class="p-6">
+<div class="container mx-auto p-6">
   <DataTable 
     data={topics} 
     {columns}
