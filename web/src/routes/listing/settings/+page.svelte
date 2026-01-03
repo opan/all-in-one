@@ -4,8 +4,13 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Field from '$lib/components/ui/field';
 	import SettingsNav from "../../../components/settings-nav.svelte";
+	import { toast, Toaster } from 'svelte-sonner';
 	
-	let username = $state('');
+	let { data } = $props();
+	
+	let username = $state(data.user?.username || '');
+	let email = $state(data.user?.email || '');
+	let currentPassword = $state('');
 	let password = $state('');
 	let passwordConfirmation = $state('');
 	let activeSection = $state('account');
@@ -17,14 +22,62 @@
 
 	function handleAccountSubmit(event: Event) {
 		event.preventDefault();
-		console.log('Account settings saved:', { username, password, passwordConfirmation });
-		alert('Settings saved successfully! (Dummy action)');
+		
+		// Validation: Check if passwords are filled
+		if (!password || !passwordConfirmation || !currentPassword) {
+			toast.error('Please fill all required fields');
+			return;
+		}
+		
+		// Validation: Check if passwords match
+		if (password !== passwordConfirmation) {
+			toast.error('Passwords do not match');
+			return;
+		}
+		
+		// Ideally, we should allow the user set any password they like
+		// But, here we should limit to at least 3 characters
+		if (password.length < 3) {
+			toast.error('Password must be at least 3 characters long');
+			return;
+		}
+		
+		fetch('/api/v1/users/reset_password', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				username,
+				current_password: currentPassword,
+				password,
+				password_confirmation: passwordConfirmation
+			})
+		})
+		.then(async (res) => {
+			const result = await res.json();
+			if (res.ok && result.success) {
+				toast.success('Password reset successfully!');
+
+				// Clear password fields
+				currentPassword = '';
+				password = '';
+				passwordConfirmation = '';
+			} else {
+				toast.error(result.error || 'Failed to reset password.');
+			}
+		})
+		.catch(() => {
+			toast.error('Network error. Please try again.');
+		});
 	}
 
 	function handleSectionChange(id: string) {
 		activeSection = id;
 	}
 </script>
+
+<Toaster richColors position="top-center" />
 
 <div class="container mx-auto p-6">
 	<div class="space-y-6">
@@ -64,11 +117,35 @@
 									type="text" 
 									placeholder="Enter your username" 
 									bind:value={username}
+								disabled
+								class="max-w-xl"
+							/>
+							<Field.Description>
+								This is your public display name.
+							</Field.Description>
+						</Field.Field>
+
+						<Field.Field>
+							<Field.Label for="email">Email</Field.Label>
+							<Input 
+								id="email" 
+								type="email" 
+								placeholder="Email address" 
+								bind:value={email}
+								disabled
+								class="max-w-xl"
+							/>
+							</Field.Field>
+
+							<Field.Field>
+								<Field.Label for="current_password">Current Password</Field.Label>
+								<Input 
+									id="current_password" 
+									type="password" 
+									placeholder="Enter your password" 
+									bind:value={currentPassword}
 									class="max-w-xl"
 								/>
-								<Field.Description>
-									This is your public display name.
-								</Field.Description>
 							</Field.Field>
 
 							<Field.Field>
@@ -81,6 +158,7 @@
 									class="max-w-xl"
 								/>
 							</Field.Field>
+
 
 							<Field.Field>
 								<Field.Label for="password-confirmation">Password Confirmation</Field.Label>

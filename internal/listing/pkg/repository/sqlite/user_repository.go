@@ -30,20 +30,20 @@ func (u *userRepository) GetAll(ctx context.Context) ([]model.User, error) {
 	return users, nil
 }
 
-func (u *userRepository) FindByUsername(ctx context.Context, username string) (*model.User, error) {
+func (u *userRepository) FindByUsername(ctx context.Context, username string) (model.User, error) {
 	var user model.User
 	if err := u.db.GetContext(ctx, &user, "SELECT * FROM users WHERE username = ?", username); err != nil {
-		return nil, err
+		return model.User{}, err
 	}
-	return &user, nil
+	return user, nil
 }
 
-func (u *userRepository) Find(ctx context.Context, id uuid.UUID) (*model.User, error) {
+func (u *userRepository) Find(ctx context.Context, id uuid.UUID) (model.User, error) {
 	var user model.User
 	if err := u.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = ?", id.String()); err != nil {
-		return nil, err
+		return model.User{}, err
 	}
-	return &user, nil
+	return user, nil
 }
 
 func (u *userRepository) Create(ctx context.Context, user model.User, opts ...query.QueryOptions) error {
@@ -54,6 +54,28 @@ func (u *userRepository) Create(ctx context.Context, user model.User, opts ...qu
 	user.UpdatedAt = &now
 
 	_, err := exec.NamedExecContext(ctx, "INSERT INTO users (id, username, email, name, last_login, password_hash, created_at, updated_at) VALUES (:id, :username, :email, :name, :last_login, :password_hash, :created_at, :updated_at)", user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *userRepository) Update(ctx context.Context, id uuid.UUID, user model.User, opts ...query.QueryOptions) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("entity", "UserRepo").
+		Str("action", "UpdatePassword").
+		Str("user_id", id.String()).
+		Msg("updating user password in database")
+
+	exec := getExecCtx(u.db, opts...)
+
+	now := time.Now().UTC()
+	user.UpdatedAt = &now
+
+	_, err := exec.NamedExecContext(ctx, `UPDATE users SET email = :email, username = :username,  password_hash = :password_hash
+	, updated_at = :updated_at
+	WHERE id = :id`, user)
 	if err != nil {
 		return err
 	}

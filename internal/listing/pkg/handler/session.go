@@ -229,7 +229,7 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, res, http.StatusOK)
 }
 
-func (h *Handler) createAccessToken(sessionID uuid.UUID, user *model.User) (string, error) {
+func (h *Handler) createAccessToken(sessionID uuid.UUID, user model.User) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":      sessionID.String(),
 		"user_id":  user.ID,
