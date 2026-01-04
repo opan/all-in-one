@@ -1,5 +1,5 @@
 run-backend:
-	go run cmd/listing/main.go server
+	go run cmd/all-in-one/main.go server
 
 gen-swagger:
-	swag init -g cmd/listing/main.go -d ./ -o docs --parseInternal --exclude vendor
+	swag init -g cmd/all-in-one/main.go -d ./ -o docs --parseInternal --exclude vendor
