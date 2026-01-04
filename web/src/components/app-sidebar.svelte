@@ -82,21 +82,16 @@
     }
   }
 
-  const platformItems: NavItem[] = [
-    // {
-    //   title: "Listing",
-    //   icon: Table,
-    //   isExpandable: true,
-    //   subitems: [
-    //     { title: "Topics", url: "/listing/topics", icon: List },
-    //   ]
-    // },
+  const generalItems: NavItem[] = [
     {
-      title: "Topics",
+      title: "Listings",
       url: "/listing/topics",
       icon: Table,
       isExpandable: false,
     },
+  ];
+
+  const settingItems: NavItem[] = [
     {
       title: "Settings",
       url: "/listing/settings",
@@ -132,7 +127,60 @@
       <Sidebar.GroupLabel>General</Sidebar.GroupLabel>
       <Sidebar.GroupContent>
         <Sidebar.Menu>
-          {#each platformItems as item}
+          {#each generalItems as item}
+            <Sidebar.MenuItem>
+              {#if item.isExpandable}
+                <Sidebar.MenuButton
+                  tooltipContent={item.title}
+                  onclick={() => playgroundOpen = !playgroundOpen}
+                >
+                  {#snippet child({ props })}
+                    <button {...props}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                      <ChevronDown class="ml-auto transition-transform duration-200 {playgroundOpen ? 'rotate-180' : ''}" />
+                    </button>
+                  {/snippet}
+                </Sidebar.MenuButton>
+                {#if playgroundOpen && item.subitems}
+                  <Sidebar.MenuSub>
+                    {#each item.subitems as subitem}
+                      <Sidebar.MenuSubItem>
+                        <Sidebar.MenuSubButton isActive={subitem.url === currentPath}>
+                          {#snippet child({ props })}
+                            <a href={subitem.url} {...props}>
+                              <span>{subitem.title}</span>
+                            </a>
+                          {/snippet}
+                        </Sidebar.MenuSubButton>
+                      </Sidebar.MenuSubItem>
+                    {/each}
+                  </Sidebar.MenuSub>
+                {/if}
+              {:else}
+                <Sidebar.MenuButton 
+                  isActive={item.url === currentPath}
+                  tooltipContent={item.title}
+                >
+                  {#snippet child({ props })}
+                    <a href={item.url} {...props}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  {/snippet}
+                </Sidebar.MenuButton>
+              {/if}
+            </Sidebar.MenuItem>
+          {/each}
+        </Sidebar.Menu>
+      </Sidebar.GroupContent>
+    </Sidebar.Group>
+    
+    <Sidebar.Group>
+      <Sidebar.GroupLabel>Settings</Sidebar.GroupLabel>
+      <Sidebar.GroupContent>
+        <Sidebar.Menu>
+          {#each settingItems as item}
             <Sidebar.MenuItem>
               {#if item.isExpandable}
                 <Sidebar.MenuButton
