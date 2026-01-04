@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/all-in-one/internal/auth"
+	"github.com/all-in-one/internal/authnz/model"
+	"github.com/all-in-one/internal/authnz/service"
 	httpHelper "github.com/all-in-one/internal/http"
-	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/logging"
 	"github.com/google/uuid"
 )
@@ -24,7 +24,7 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
-	cu, ok := auth.GetUserFromContext(ctx)
+	cu, ok := service.GetUserFromContext(ctx)
 	if !ok {
 		log.Error().Msg("failed to get user from context")
 		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
@@ -83,7 +83,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashedPassword, err := auth.HashPassword(req.Password)
+	hashedPassword, err := service.HashPassword(req.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to hash password")
 		httpHelper.SendError(w, "failed to register user", http.StatusInternalServerError)
@@ -123,7 +123,7 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
-	cu, ok := auth.GetUserFromContext(ctx)
+	cu, ok := service.GetUserFromContext(ctx)
 	if !ok {
 		log.Error().Msg("failed to get user from context")
 		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
@@ -152,7 +152,7 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check current password
-	ok, err = auth.CheckPassword(req.CurrentPassword, u.PasswordHash)
+	ok, err = service.CheckPassword(req.CurrentPassword, u.PasswordHash)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check current password")
 		httpHelper.SendError(w, "failed to check current password", http.StatusInternalServerError)
@@ -165,7 +165,7 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashedPassword, err := auth.HashPassword(req.Password)
+	hashedPassword, err := service.HashPassword(req.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to hash password")
 		httpHelper.SendError(w, "failed to reset password", http.StatusInternalServerError)

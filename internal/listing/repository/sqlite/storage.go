@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/all-in-one/internal/auth"
+	authnzModel "github.com/all-in-one/internal/authnz/model"
 	"github.com/all-in-one/internal/config"
-	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/model"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -103,7 +104,7 @@ func (s *storage) InitializeSampleData(ctx context.Context) int {
 
 	pwd, _ := auth.HashPassword("randompass")
 
-	admin := model.User{
+	admin := authnzModel.User{
 		ID:           uid,
 		Username:     "admin",
 		Name:         "admin",

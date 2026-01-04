@@ -3,7 +3,7 @@ package memory
 import (
 	"context"
 
-	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/model"
 	"github.com/rs/zerolog"
 )
 

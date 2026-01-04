@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/all-in-one/internal/listing/pkg/model"
-	"github.com/all-in-one/internal/listing/query"
+	"github.com/all-in-one/internal/listing/model"
 	"github.com/all-in-one/internal/logging"
+	"github.com/all-in-one/internal/query"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"

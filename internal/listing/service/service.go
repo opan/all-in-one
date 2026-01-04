@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/all-in-one/internal/config"
-	"github.com/all-in-one/internal/listing/pkg/handler"
-	"github.com/all-in-one/internal/listing/pkg/repository"
+	"github.com/all-in-one/internal/listing/handler"
+	"github.com/all-in-one/internal/listing/repository"
 	"github.com/gorilla/mux"
 
 	"github.com/rs/zerolog"

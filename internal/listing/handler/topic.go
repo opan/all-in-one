@@ -7,7 +7,7 @@ import (
 
 	"github.com/all-in-one/internal/auth"
 	httpHelper "github.com/all-in-one/internal/http"
-	"github.com/all-in-one/internal/listing/pkg/model"
+	"github.com/all-in-one/internal/listing/model"
 	"github.com/all-in-one/internal/logging"
 	"github.com/google/uuid"
 )

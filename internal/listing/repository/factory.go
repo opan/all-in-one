@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/all-in-one/internal/config"
-	"github.com/all-in-one/internal/listing/pkg/repository/sqlite"
+	"github.com/all-in-one/internal/listing/repository/sqlite"
 	"github.com/rs/zerolog"
 )
 

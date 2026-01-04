@@ -7,8 +7,8 @@ import (
 	"time"
 
 	httpHelper "github.com/all-in-one/internal/http"
-	"github.com/all-in-one/internal/listing/pkg/model"
-	"github.com/all-in-one/internal/listing/query"
+	"github.com/all-in-one/internal/listing/model"
+	"github.com/all-in-one/internal/query"
 )
 
 type queryOptions struct {

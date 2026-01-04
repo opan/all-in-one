@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/all-in-one/internal/auth"
+	"github.com/all-in-one/internal/authnz/model"
 	httpHelper "github.com/all-in-one/internal/http"
-	"github.com/all-in-one/internal/listing/pkg/model"
 	"github.com/all-in-one/internal/logging"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
