@@ -9,6 +9,7 @@ import (
 )
 
 type SessionRepository interface {
+	CreateTrx(ctx context.Context) (query.QueryOptions, error)
 	Create(ctx context.Context, session model.Session, opts ...query.QueryOptions) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	Get(ctx context.Context, id uuid.UUID) (*model.Session, error)

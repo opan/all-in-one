@@ -72,7 +72,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		RefreshTokenExpiry: int((time.Now().Add(14 * 24 * time.Hour)).Unix()),
 	}
 
-	trx, err := h.storage.TopicRepo().CreateTrx(ctx)
+	trx, err := h.storage.SessionRepo().CreateTrx(ctx)
 	if err != nil {
 		httpHelper.SendError(w, fmt.Sprintf("failed to create transaction: %v", err), http.StatusInternalServerError)
 		return

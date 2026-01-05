@@ -1,7 +1,6 @@
 package sqlite
 
 import (
-	"github.com/all-in-one/internal/authnz/repository"
 	"github.com/all-in-one/internal/config"
 	"github.com/jmoiron/sqlx"
 )
@@ -20,11 +19,11 @@ func NewStorage(db *sqlx.DB, config config.Config) *storage {
 	}
 }
 
-func (s *storage) UserRepo() repository.UserRepository {
+func (s *storage) UserRepo() *userRepository {
 	return s.userRepo
 }
 
-func (s *storage) SessionRepo() repository.SessionRepository {
+func (s *storage) SessionRepo() *sessionRepository {
 	return s.sessionRepo
 }
 
