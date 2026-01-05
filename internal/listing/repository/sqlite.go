@@ -1,7 +1,5 @@
 package repository
 
-import "context"
-
 // sqliteStorageAdapter adapts sqlite.storage to repository.Storage interface
 type sqliteStorageAdapter struct {
 	itemRepo  ItemRepository
@@ -19,8 +17,4 @@ func (s *sqliteStorageAdapter) TopicRepo() TopicRepository {
 
 func (s *sqliteStorageAdapter) Close() error {
 	return s.storage.Close()
-}
-
-func (s *sqliteStorageAdapter) InitializeSampleData(ctx context.Context) int {
-	return s.storage.InitializeSampleData(ctx)
 }

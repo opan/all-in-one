@@ -1,7 +1,5 @@
 package repository
 
-import "context"
-
 // memoryStorageAdapter adapts memory.storage to repository.Storage interface
 type memoryStorageAdapter struct {
 	itemRepo  ItemRepository
@@ -19,8 +17,4 @@ func (m *memoryStorageAdapter) TopicRepo() TopicRepository {
 
 func (m *memoryStorageAdapter) Close() error {
 	return m.storage.Close()
-}
-
-func (m *memoryStorageAdapter) InitializeSampleData(ctx context.Context) int {
-	return m.storage.InitializeSampleData(ctx)
 }

@@ -11,7 +11,6 @@ import (
 
 type baseStorage interface {
 	Close() error
-	InitializeSampleData(ctx context.Context) int
 }
 
 func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (Storage, error) {

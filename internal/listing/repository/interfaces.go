@@ -49,6 +49,4 @@ type Storage interface {
 
 	// Close closes the storage connection
 	Close() error
-
-	InitializeSampleData(ctx context.Context) int
 }
