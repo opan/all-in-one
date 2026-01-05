@@ -5,7 +5,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func NewStorage(config config.Config) (*sqlx.DB, error) {
+type Storage interface {
+	DB() *sqlx.DB
+	Migrate()
+}
+
+func NewStorage(config config.Config) (Storage, error) {
 	switch config.Storage.Type {
 	case "sqlite":
 		return NewSQLite(config)
