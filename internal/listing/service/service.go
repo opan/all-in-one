@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/all-in-one/internal/config"
-	"github.com/all-in-one/internal/listing/pkg/handler"
-	"github.com/all-in-one/internal/listing/pkg/repository"
+	"github.com/all-in-one/internal/listing/handler"
+	"github.com/all-in-one/internal/listing/repository"
 	"github.com/gorilla/mux"
 
 	"github.com/rs/zerolog"
@@ -40,11 +40,6 @@ func (s *Service) RegisterRoutes(router *mux.Router) {
 // RegisterAuthenticatedRoutes registers authenticated routes to the given router
 func (s *Service) RegisterAuthenticatedRoutes(router *mux.Router) {
 	s.Handler.RegisterAuthenticatedRoutes(router)
-}
-
-// InitializeSampleData adds sample data to the storage
-func (s *Service) InitializeSampleData(ctx context.Context) int {
-	return s.Storage.InitializeSampleData(ctx)
 }
 
 // Close closes any resources used by the service
