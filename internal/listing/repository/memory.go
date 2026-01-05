@@ -17,10 +17,6 @@ func (m *memoryStorageAdapter) TopicRepo() TopicRepository {
 	return m.topicRepo
 }
 
-func (m *memoryStorageAdapter) SessionRepo() SessionRepository {
-	return nil
-}
-
 func (m *memoryStorageAdapter) Close() error {
 	return m.storage.Close()
 }

@@ -21,3 +21,12 @@ type UserRepository interface {
 	Create(ctx context.Context, user model.User, opts ...query.QueryOptions) error
 	Update(ctx context.Context, id uuid.UUID, user model.User, opts ...query.QueryOptions) error
 }
+
+type Storage interface {
+	SessionRepo() SessionRepository
+	UserRepo() UserRepository
+
+	// InitializeSampleData(ctx context.Context) int
+
+	Close() error
+}

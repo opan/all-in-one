@@ -25,7 +25,7 @@ func NewHandler(storage repository.Storage, config config.Config) *Handler {
 
 // RegisterRoutes registers the listing routes to the given router
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	h.registerPublicRoutes(router)
+	// implement later
 }
 
 // RegisterAuthenticatedRoutes registers routes that require JWT authentication
@@ -42,18 +42,6 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.UpdateItem).Methods("PUT")
 	router.HandleFunc("/topics/{topic_id}/items/{id}", h.DeleteItem).Methods("DELETE")
 
-	// router.HandleFunc("/users/me", h.GetCurrentUser).Methods("GET")
-	// router.HandleFunc("/users/reset_password", h.ResetPasswordUser).Methods("POST")
-
-	// router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
-}
-
-// registerPublicRoutes registers routes that don't require authentication
-func (h *Handler) registerPublicRoutes(router *mux.Router) {
-	// router.HandleFunc("/users", h.RegisterUser).Methods("POST")
-	// router.HandleFunc("/sessions", h.CreateSession).Methods("POST")
-	// router.HandleFunc("/sessions/refresh", h.RefreshToken).Methods("POST")
-	// router.HandleFunc("/sessions/verify", h.VerifySession).Methods("GET")
 }
 
 // getIDFromRequest extracts the ID from the request URL

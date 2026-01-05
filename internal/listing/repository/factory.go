@@ -29,11 +29,9 @@ func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (
 			return nil, err
 		}
 		return &sqliteStorageAdapter{
-			itemRepo:    sqliteStorage.ItemRepo(),
-			topicRepo:   sqliteStorage.TopicRepo(),
-			sessionRepo: sqliteStorage.SessionRepo(),
-			userRepo:    sqliteStorage.UserRepo(),
-			storage:     sqliteStorage,
+			itemRepo:  sqliteStorage.ItemRepo(),
+			topicRepo: sqliteStorage.TopicRepo(),
+			storage:   sqliteStorage,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", config.Storage.Type)
