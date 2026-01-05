@@ -21,7 +21,7 @@ http://localhost:8080/swagger/index.html
 If you make changes to the API endpoints or Swagger annotations, regenerate the documentation with:
 
 ```bash
-swag init -g cmd/listing/main.go -o docs --parseDependency --parseInternal
+swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
 ```
 
 ## Swagger Annotations
