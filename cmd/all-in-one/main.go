@@ -22,6 +22,16 @@ import (
 // @BasePath  /api/v1
 // @schemes   http
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
+// @securityDefinitions.apikey DirectAuth
+// @in header
+// @name x-direct-auth-username
+// @description Direct authentication bypass for testing (only works when DirectAuthEnabled is true in config). Provide username directly.
+
 func main() {
 	cmd := command.New()
 

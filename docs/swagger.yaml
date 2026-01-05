@@ -658,6 +658,7 @@ paths:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
       security:
       - BearerAuth: []
+        DirectAuth: []
       summary: Get current authenticated user
       tags:
       - users
@@ -694,6 +695,7 @@ paths:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
       security:
       - BearerAuth: []
+        DirectAuth: []
       summary: Reset user password
       tags:
       - users
@@ -733,4 +735,16 @@ paths:
       - users
 schemes:
 - http
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+  DirectAuth:
+    description: Direct authentication bypass for testing (only works when DirectAuthEnabled
+      is true in config). Provide username directly.
+    in: header
+    name: x-direct-auth-username
+    type: apiKey
 swagger: "2.0"

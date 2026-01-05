@@ -25,7 +25,7 @@ type RegisterUserRequest struct {
 // @Description  Retrieve the profile of the currently authenticated user
 // @Tags         users
 // @Produce      json
-// @Security     BearerAuth
+// @Security     BearerAuth || DirectAuth
 // @Success      200  {object}  httpHelper.Response{data=model.User}  "User profile"
 // @Failure      401  {object}  httpHelper.Response                   "Unauthorized"
 // @Failure      500  {object}  httpHelper.Response                   "Internal server error"
@@ -147,7 +147,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Security     BearerAuth
+// @Security     BearerAuth || DirectAuth
 // @Param        password  body      model.UserPasswordReset  true  "Current and new password"
 // @Success      200       {object}  httpHelper.Response      "Password reset successfully"
 // @Failure      400       {object}  httpHelper.Response      "Invalid request body"

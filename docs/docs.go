@@ -753,7 +753,8 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "BearerAuth": [],
+                        "DirectAuth": []
                     }
                 ],
                 "description": "Retrieve the profile of the currently authenticated user",
@@ -802,7 +803,8 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "BearerAuth": [],
+                        "DirectAuth": []
                     }
                 ],
                 "description": "Reset the password for the currently authenticated user",
@@ -1161,6 +1163,20 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "DirectAuth": {
+            "description": "Direct authentication bypass for testing (only works when DirectAuthEnabled is true in config). Provide username directly.",
+            "type": "apiKey",
+            "name": "x-direct-auth-username",
+            "in": "header"
         }
     }
 }`
