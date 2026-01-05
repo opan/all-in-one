@@ -14,6 +14,7 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - **Go version:** 1.25+
 - **Libraries to prefer:**
   - `github.com/mattn/go-sqlite3` (SQLite driver)
+  - `github.com/lib/pq` (PostgreSQL driver)
   - `github.com/spf13/viper` (configuration)
   - `github.com/spf13/cobra` (CLI)
   - `github.com/rs/zerolog` (structured logging)
@@ -22,7 +23,10 @@ All-in-one is a multi-functional apps with the main goal for learning.
   - `github.com/golang-jwt/jwt/v5` (for JWT)
 - Use idiomatic Go: small functions, explicit error handling, `context.Context` passed to handlers/services.
 - Use dependency injection (no globals) where practical.
-- Each app might support multiple storage backends (e.g., SQLite, in-memory). Abstract storage access via repository interfaces.
+- Each app might support multiple storage backends (e.g., SQLite, PostgreSQL). Abstract storage access via repository interfaces.
+- Current database supports
+  - SQLite (via `github.com/mattn/go-sqlite3`)
+  - PostgreSQL (via `github.com/lib/pq`)
 
 #### Project structure
 In general, organize code:
