@@ -4,8 +4,8 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "API for managing listing items",
-        "title": "Listing API",
+        "description": "All-in-one is a multi-functional apps with the main goal for learning",
+        "title": "All-in-one API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
@@ -51,7 +51,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -67,19 +67,19 @@
                     "400": {
                         "description": "Invalid request payload",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Username or password not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -102,19 +102,19 @@
                     "200": {
                         "description": "Session deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized - invalid or missing token",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -139,19 +139,19 @@
                     "200": {
                         "description": "Token refreshed successfully",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized - invalid or missing refresh token",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -173,7 +173,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -192,7 +192,7 @@
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -226,7 +226,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -242,13 +242,13 @@
                     "400": {
                         "description": "Invalid JSON data or missing required fields",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -279,7 +279,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -295,19 +295,19 @@
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -348,7 +348,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -364,19 +364,19 @@
                     "400": {
                         "description": "Invalid ID or JSON data",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -403,25 +403,25 @@
                     "200": {
                         "description": "Topic deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -452,7 +452,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -471,13 +471,13 @@
                     "400": {
                         "description": "Invalid topic ID",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -518,7 +518,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -534,19 +534,19 @@
                     "400": {
                         "description": "Invalid JSON data or missing required fields",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Topic not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -584,7 +584,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -600,19 +600,19 @@
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Item not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -660,7 +660,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/http.Response"
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                                 },
                                 {
                                     "type": "object",
@@ -676,19 +676,19 @@
                     "400": {
                         "description": "Invalid ID or JSON data",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Item not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -722,25 +722,183 @@
                     "200": {
                         "description": "Item deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "400": {
                         "description": "Invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "404": {
                         "description": "Item not found",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/http.Response"
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve the profile of the currently authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get current authenticated user",
+                "responses": {
+                    "200": {
+                        "description": "User profile",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me/password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reset the password for the currently authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Reset user password",
+                "parameters": [
+                    {
+                        "description": "Current and new password",
+                        "name": "password",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserPasswordReset"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or invalid current password",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/register": {
+            "post": {
+                "description": "Create a new user account with username, password, email, and name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "User registration details",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RegisterUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing required fields",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "User already exists",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
                     }
                 }
@@ -748,7 +906,7 @@
         }
     },
     "definitions": {
-        "http.Response": {
+        "github_com_all-in-one_internal_http.Response": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -763,6 +921,34 @@
                 }
             }
         },
+        "handler.RegisterUserRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.FormSchema": {
+            "type": "object",
+            "properties": {
+                "schema": {
+                    "$ref": "#/definitions/model.JSONSchema"
+                },
+                "uischema": {
+                    "$ref": "#/definitions/model.UISchema"
+                }
+            }
+        },
         "model.Item": {
             "type": "object",
             "properties": {
@@ -771,6 +957,12 @@
                 },
                 "description": {
                     "type": "string"
+                },
+                "form_schema_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "id": {
                     "type": "integer"
@@ -782,6 +974,67 @@
                     "type": "integer"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONSchema": {
+            "type": "object",
+            "properties": {
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/model.JSONSchemaProperty"
+                    }
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONSchemaProperty": {
+            "type": "object",
+            "properties": {
+                "default": {},
+                "description": {
+                    "type": "string"
+                },
+                "enum": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "format": {
+                    "type": "string"
+                },
+                "items": {
+                    "$ref": "#/definitions/model.JSONSchemaPropertyItems"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONSchemaPropertyItems": {
+            "type": "object",
+            "properties": {
+                "enum": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
                     "type": "string"
                 }
             }
@@ -806,6 +1059,9 @@
                 "description": {
                     "type": "string"
                 },
+                "form_schema": {
+                    "$ref": "#/definitions/model.FormSchema"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -813,6 +1069,55 @@
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UISchema": {
+            "type": "object",
+            "properties": {
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UISchemaElement"
+                    }
+                },
+                "label": {},
+                "options": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UISchemaElement": {
+            "type": "object",
+            "properties": {
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UISchemaElement"
+                    }
+                },
+                "label": {
+                    "description": "string or bool"
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 }
             }
@@ -839,6 +1144,17 @@
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserPasswordReset": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 }
             }

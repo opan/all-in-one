@@ -20,6 +20,16 @@ type RegisterUserRequest struct {
 	Name     string `json:"name"`
 }
 
+// GetCurrentUser godoc
+// @Summary      Get current authenticated user
+// @Description  Retrieve the profile of the currently authenticated user
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  httpHelper.Response{data=model.User}  "User profile"
+// @Failure      401  {object}  httpHelper.Response                   "Unauthorized"
+// @Failure      500  {object}  httpHelper.Response                   "Internal server error"
+// @Router       /users/me [get]
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
@@ -53,6 +63,18 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, response, http.StatusOK)
 }
 
+// RegisterUser godoc
+// @Summary      Register a new user
+// @Description  Create a new user account with username, password, email, and name
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      RegisterUserRequest  true  "User registration details"
+// @Success      201   {object}  httpHelper.Response  "User created successfully"
+// @Failure      400   {object}  httpHelper.Response  "Invalid request body or missing required fields"
+// @Failure      409   {object}  httpHelper.Response  "User already exists"
+// @Failure      500   {object}  httpHelper.Response  "Internal server error"
+// @Router       /users/register [post]
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
@@ -119,6 +141,19 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, res, http.StatusCreated)
 }
 
+// ResetPasswordUser godoc
+// @Summary      Reset user password
+// @Description  Reset the password for the currently authenticated user
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        password  body      model.UserPasswordReset  true  "Current and new password"
+// @Success      200       {object}  httpHelper.Response      "Password reset successfully"
+// @Failure      400       {object}  httpHelper.Response      "Invalid request body"
+// @Failure      401       {object}  httpHelper.Response      "Unauthorized or invalid current password"
+// @Failure      500       {object}  httpHelper.Response      "Internal server error"
+// @Router       /users/me/password [put]
 func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)

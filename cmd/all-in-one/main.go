@@ -6,9 +6,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// @title           Listing API
+// @title           All-in-one API
 // @version         1.0
-// @description     API for managing listing items
+// @description     All-in-one is a multi-functional apps with the main goal for learning
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support

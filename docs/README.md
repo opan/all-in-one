@@ -28,8 +28,10 @@ swag init -g cmd/listing/main.go -o docs --parseDependency --parseInternal
 
 The API documentation is generated from special comments in the code:
 
-- **General API Info**: `cmd/listing/main.go`
-- **Endpoint Definitions**: `internal/listing/pkg/handler/handler.go`
+**General API Info**: `cmd/listing/main.go`
+**Endpoint Definitions**: 
+- `internal/listing/handler/handler.go`
+- `internal/authnz/handler/handler.go`
 
 ### Example Annotations
 
