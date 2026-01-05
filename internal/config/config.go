@@ -50,7 +50,7 @@ func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
 	viper.AddConfigPath(".")
-	viper.AddConfigPath("./config/listing")
+	viper.AddConfigPath("./config")
 
 	// Set default values
 	viper.SetDefault("server.port", ":8080")

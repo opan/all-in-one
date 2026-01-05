@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-All-in-one is an app that contains multiple application. User can start this app in different form, for example to run a listing app we can run (`all-in-one listing <options>`). And more app will be added.
+All-in-one is a multi-functional apps with the main goal for learning.
 
 - Full-stack web application.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
@@ -27,20 +27,21 @@ All-in-one is an app that contains multiple application. User can start this app
 #### Project structure
 In general, organize code:
   - `bin/` for compiled binaries (if applicable).
-  - `cmd/<app-name>/main.go` for CLI entrypoints.
-  - `config/<app-name>/config.yml` for default configuration files for each app.
+  - `cmd/all-in-one/main.go` for CLI entrypoints.
+  - `config/config.yml` for default configuration files for each app.
   - `internal/config/` for configuration related code.
   - `internal/<app-name>` for code specific to an app. Each app can have its own sub-packages as needed
-  - `internal/<app-name>/pkg/handler/` for HTTP handlers. Each domain can have its own file, e.g.: item.go, user.go
-  - `internal/<app-name>/pkg/service/` for business logic
-  - `internal/<app-name>/pkg/model/` for domain models
-  - `internal/<app-name>/pkg/repository/` for data access. 
+  - `internal/<app-name>/handler/` for HTTP handlers. Each domain can have its own file, e.g.: item.go, user.go
+  - `internal/<app-name>/service/` for business logic
+  - `internal/<app-name>/model/` for domain models
+  - `internal/<app-name>/repository/` for data access. 
+  - `internal/<app-name>/<any>/` for other sub-packages as needed (e.g., authnz, middleware, util).
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
   - `web/` for frontend source code.
 
 #### Configuration
 Configuration:
-  - Default config file: `config/<appname>/config.yml`
+  - Default config file: `config/config.yml`
   - Allow env var overrides via `viper`
 
 
@@ -86,7 +87,7 @@ Support authentications:
 - **npm:** 10+
 
 #### Project structure
-- `web/src/rotes/` for SvelteKit routes.
+- `web/src/routes/` for SvelteKit routes.
 - `web/src/lib/` for shared libraries (e.g., API client, stores).
 - `web/src/components/` for reusable Svelte components.
 - `web/src/lib/components/ui/` for shadcn-svelte components.
@@ -121,7 +122,7 @@ Support authentications:
 
 ```bash
 # Backend (run) to run listing app
-go run main.go listing server --config internal/config/config.yaml
+go run main.go all-in-one server
 
 # Backend (build)
 go build -o bin/server main.go
