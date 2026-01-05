@@ -14,7 +14,7 @@ export const load = async ({ fetch }) => {
 	}
 
 	return {
-		breadcrumb: { label: 'Settings', href: '/listing/settings' },
+		breadcrumb: { label: 'Settings', href: '/settings' },
 		user
 	};
 };

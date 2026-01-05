@@ -29,7 +29,7 @@ Added general API information annotations:
 - Added Swagger UI route handler at `/swagger/`
 - Imported generated docs package
 
-#### `internal/listing/pkg/handler/handler.go`
+#### `internal/listing/handler/handler.go`
 Added detailed Swagger annotations to all endpoints:
 - `GetItems` - Get all items
 - `GetItem` - Get item by ID

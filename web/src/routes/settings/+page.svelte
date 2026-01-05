@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Field from '$lib/components/ui/field';
-	import SettingsNav from "../../../components/settings-nav.svelte";
+	import SettingsNav from "../../components/settings-nav.svelte";
 	import { toast, Toaster } from 'svelte-sonner';
 	
 	let { data } = $props();

@@ -202,6 +202,13 @@
 </script>
 
 <div class="container mx-auto p-6">
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold tracking-tight mb-2">Listing</h1>
+    <p class="text-muted-foreground">
+      Listing is a multi-purpose list that can be used to track multiple items in a flexible way by using json-schema form. Create a topic and manage items under that topic.
+    </p>
+  </div>
+  
   <DataTable 
     data={topics} 
     {columns}

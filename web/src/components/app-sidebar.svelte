@@ -94,7 +94,7 @@
   const settingItems: NavItem[] = [
     {
       title: "Settings",
-      url: "/listing/settings",
+      url: "/settings",
       icon: Settings,
       isExpandable: false,
     },
