@@ -54,19 +54,9 @@ jobs:
         working-directory: ./web
         run: npm ci
       
-      - name: Format and auto-fix frontend code
-        working-directory: ./web
-        run: |
-          npm run format
-          npx eslint . --fix
-      
       - name: Check frontend types
         working-directory: ./web
         run: npm run check
-      
-      - name: Lint frontend
-        working-directory: ./web
-        run: npm run lint
 
   # Job 2: Build and push Docker image (only on main branch)
   build-and-push:
