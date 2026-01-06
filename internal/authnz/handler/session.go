@@ -49,6 +49,11 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if u.ID == uuid.Nil {
+		httpHelper.SendError(w, "invalid username or password", http.StatusNotFound)
+		return
+	}
+
 	ok, err := auth.CheckPassword(rl.Password, u.PasswordHash)
 	if err != nil || !ok {
 		httpHelper.SendError(w, "invalid username or password", http.StatusUnauthorized)
