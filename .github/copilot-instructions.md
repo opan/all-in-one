@@ -72,7 +72,7 @@ Support authentications:
 - REST API:
   - Base path: `/api/v1/`
   - JSON-only responses
-  - Standard response envelope (as stated in `internal/common/response.go`):
+  - Standard response envelope (as stated in `internal/http/http.go`):
     ```json
     {
       "success": true,
