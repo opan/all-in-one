@@ -20,3 +20,23 @@ packages:
           filename: "mock_{{.InterfaceName}}.go"
           mockname: "Mock{{.InterfaceName}}"
           outpkg: mocks
+  github.com/all-in-one/internal/listing/repository:
+    interfaces:
+      ItemRepository:
+        config:
+          dir: "internal/listing/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      TopicRepository:
+        config:
+          dir: "internal/listing/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      Storage:
+        config:
+          dir: "internal/listing/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
