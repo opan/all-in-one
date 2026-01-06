@@ -69,7 +69,7 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		// 30 minutes
 		AccessTokenExpiry: int((time.Now().Add(30 * time.Minute)).Unix()),
 		// 7 days
-		RefreshTokenExpiry: int((time.Now().Add(14 * 24 * time.Hour)).Unix()),
+		RefreshTokenExpiry: int((time.Now().Add(7 * 24 * time.Hour)).Unix()),
 	}
 
 	trx, err := h.storage.SessionRepo().CreateTrx(ctx)
@@ -122,9 +122,9 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		Value:    rt,
 		HttpOnly: true,
 		Secure:   h.config.Auth.SecureCookie, // Set to true in production with HTTPS
-		Path:     "/api/v1/sessions/refresh", // Only sent to refresh endpoint (least privilege)
+		Path:     "/",                        // Available to all endpoints for refresh detection
 		MaxAge:   604800,                     // 7 days
-		SameSite: http.SameSiteStrictMode,    // Maximum protection for refresh token
+		SameSite: http.SameSiteLaxMode,       // Lax mode for better compatibility while maintaining security
 	})
 
 	log.Info().Str("session_id", sid.String()).Msg("session successfully created")
@@ -214,9 +214,9 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		HttpOnly: true,
 		Secure:   h.config.Auth.SecureCookie,
-		Path:     "/api/v1/sessions/refresh",
+		Path:     "/",
 		MaxAge:   -1,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	log.Info().Str("session_id", sid.String()).Msg("Session deleted successfully")
