@@ -48,6 +48,10 @@ Configuration:
   - Default config file: `config/config.yml`
   - Allow env var overrides via `viper`
 
+#### Testing
+- Use table-driven tests whenever possible.
+- Use `github.com/stretchr/testify` for assertions.
+- Use `github.com/vektra/mockery` for generating mocks.
 
 #### Middleware
 
