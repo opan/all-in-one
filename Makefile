@@ -10,7 +10,7 @@ gen-swagger:
 gen-mocks:
 	@echo "Generating mocks..."
 	@mockery
-	@echo "Mocks generated successfully in internal/authnz/handler/mocks/"
+	@echo "Mocks generated successfully"
 
 test:
 	@go test -v ./...
