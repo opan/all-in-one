@@ -1,6 +1,6 @@
-import { goto } from '$app/navigation';
-import { browser } from '$app/environment';
-import { redirect } from '@sveltejs/kit';
+import { goto } from "$app/navigation";
+import { browser } from "$app/environment";
+import { redirect } from "@sveltejs/kit";
 
 /**
  * API client wrapper that handles authentication and redirects on 401
@@ -8,14 +8,14 @@ import { redirect } from '@sveltejs/kit';
  */
 export async function apiClient(
 	url: string,
-	options: RequestInit = {}
+	options: RequestInit = {},
 ): Promise<Response> {
 	// Always include credentials for cookie-based auth
 	const config: RequestInit = {
 		...options,
-		credentials: 'include',
+		credentials: "include",
 		headers: {
-			'Content-Type': 'application/json',
+			"Content-Type": "application/json",
 			...options.headers,
 		},
 	};
@@ -26,11 +26,11 @@ export async function apiClient(
 		// Handle 401 Unauthorized - try to refresh token first
 		if (response.status === 401 && browser) {
 			// Attempt to refresh the access token
-			const refreshResponse = await fetch('/api/v1/sessions/refresh', {
-				method: 'POST',
-				credentials: 'include',
+			const refreshResponse = await fetch("/api/v1/sessions/refresh", {
+				method: "POST",
+				credentials: "include",
 				headers: {
-					'Content-Type': 'application/json',
+					"Content-Type": "application/json",
 				},
 			});
 
@@ -41,8 +41,8 @@ export async function apiClient(
 			}
 
 			// If refresh fails, redirect to login
-			await goto('/login', { replaceState: true });
-			throw new Error('Session expired - redirecting to login');
+			await goto("/login", { replaceState: true });
+			throw new Error("Session expired - redirecting to login");
 		}
 
 		return response;
@@ -59,13 +59,13 @@ export async function apiClient(
 export async function apiLoad(
 	fetchFn: typeof fetch,
 	url: string,
-	options: RequestInit = {}
+	options: RequestInit = {},
 ): Promise<Response> {
 	const config: RequestInit = {
 		...options,
-		credentials: 'include',
+		credentials: "include",
 		headers: {
-			'Content-Type': 'application/json',
+			"Content-Type": "application/json",
 			...options.headers,
 		},
 	};
@@ -75,11 +75,11 @@ export async function apiLoad(
 	// Handle 401 Unauthorized - try to refresh token first
 	if (response.status === 401) {
 		// Attempt to refresh the access token
-		const refreshResponse = await fetchFn('/api/v1/sessions/refresh', {
-			method: 'POST',
-			credentials: 'include',
+		const refreshResponse = await fetchFn("/api/v1/sessions/refresh", {
+			method: "POST",
+			credentials: "include",
 			headers: {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 			},
 		});
 
@@ -90,7 +90,7 @@ export async function apiLoad(
 		}
 
 		// If refresh fails, use SvelteKit redirect
-		throw redirect(302, '/login');
+		throw redirect(302, "/login");
 	}
 
 	return response;
@@ -100,7 +100,7 @@ export async function apiLoad(
  * Convenience method for GET requests
  */
 export async function apiGet(url: string): Promise<Response> {
-	return apiClient(url, { method: 'GET' });
+	return apiClient(url, { method: "GET" });
 }
 
 /**
@@ -108,7 +108,7 @@ export async function apiGet(url: string): Promise<Response> {
  */
 export async function apiPost(url: string, data?: unknown): Promise<Response> {
 	return apiClient(url, {
-		method: 'POST',
+		method: "POST",
 		body: data ? JSON.stringify(data) : undefined,
 	});
 }
@@ -118,7 +118,7 @@ export async function apiPost(url: string, data?: unknown): Promise<Response> {
  */
 export async function apiPut(url: string, data?: unknown): Promise<Response> {
 	return apiClient(url, {
-		method: 'PUT',
+		method: "PUT",
 		body: data ? JSON.stringify(data) : undefined,
 	});
 }
@@ -127,7 +127,7 @@ export async function apiPut(url: string, data?: unknown): Promise<Response> {
  * Convenience method for DELETE requests
  */
 export async function apiDelete(url: string): Promise<Response> {
-	return apiClient(url, { method: 'DELETE' });
+	return apiClient(url, { method: "DELETE" });
 }
 
 /**
@@ -138,11 +138,11 @@ export async function apiDelete(url: string): Promise<Response> {
 export async function isLoggedIn(): Promise<boolean> {
 	try {
 		// First, try to verify the current session
-		const verifyResponse = await fetch('/api/v1/sessions/verify', {
-			method: 'GET',
-			credentials: 'include',
+		const verifyResponse = await fetch("/api/v1/sessions/verify", {
+			method: "GET",
+			credentials: "include",
 			headers: {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 			},
 		});
 
@@ -153,11 +153,11 @@ export async function isLoggedIn(): Promise<boolean> {
 
 		// If verification fails with 401, try to refresh the access token
 		if (verifyResponse.status === 401) {
-			const refreshResponse = await fetch('/api/v1/sessions/refresh', {
-				method: 'POST',
-				credentials: 'include',
+			const refreshResponse = await fetch("/api/v1/sessions/refresh", {
+				method: "POST",
+				credentials: "include",
 				headers: {
-					'Content-Type': 'application/json',
+					"Content-Type": "application/json",
 				},
 			});
 
@@ -168,7 +168,7 @@ export async function isLoggedIn(): Promise<boolean> {
 
 			// If refresh fails, redirect to login page
 			if (browser) {
-				await goto('/login', { replaceState: true });
+				await goto("/login", { replaceState: true });
 			}
 			return false;
 		}

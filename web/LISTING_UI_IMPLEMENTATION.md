@@ -1,24 +1,30 @@
 # Listing UI Implementation
 
 ## Overview
+
 Created a complete listing page UI with navigation menu, collapsible sidebar using shadcn-svelte Sidebar component, and data table based on the provided design mockup.
 
 ## Components Added
 
 ### 1. Theme Toggle Component
+
 **File**: `src/lib/components/theme-toggle.svelte`
+
 - Dropdown menu for switching between light and dark themes
 - Persists theme preference in localStorage
 - Sun icon for light mode, moon icon for dark mode
 
 ### 2. App Sidebar Component
+
 **File**: `src/lib/components/app-sidebar.svelte`
+
 - Reusable sidebar using shadcn-svelte Sidebar components
 - Navigation menu with icons (House, LayoutDashboard, Settings)
 - Active state highlighting based on current route
 - Includes sidebar rail for easy toggle
 
 ### 3. shadcn-svelte Components Installed
+
 - ✅ Sidebar component (complete sidebar system)
 - ✅ Card component (for the main content container)
 - ✅ Dropdown Menu component (for theme toggle)
@@ -27,6 +33,7 @@ Created a complete listing page UI with navigation menu, collapsible sidebar usi
 ## Main Features
 
 ### Layout Structure
+
 1. **Sidebar.Provider**
    - Wraps the entire page for sidebar state management
    - Handles sidebar open/close state
@@ -59,6 +66,7 @@ Created a complete listing page UI with navigation menu, collapsible sidebar usi
      - Actions (Edit/Delete buttons)
 
 ### Functionality
+
 - ✅ Add new items via dialog
 - ✅ Edit existing items
 - ✅ Delete items (with confirmation)
@@ -68,6 +76,7 @@ Created a complete listing page UI with navigation menu, collapsible sidebar usi
 - ✅ Icon-based navigation with active states
 
 ### Styling
+
 - Uses Tailwind CSS throughout
 - Follows shadcn-svelte design system
 - Fully responsive layout
@@ -78,6 +87,7 @@ Created a complete listing page UI with navigation menu, collapsible sidebar usi
 ## Sidebar Features
 
 The shadcn-svelte Sidebar component provides:
+
 - **Collapsible states**: offcanvas, icon, or none
 - **Variants**: sidebar, floating, or inset (currently using default)
 - **Keyboard shortcuts**: Cmd/Ctrl + B to toggle
@@ -89,6 +99,7 @@ The shadcn-svelte Sidebar component provides:
 ## Theme Support
 
 The implementation includes full dark/light theme support:
+
 - Theme toggle in navigation bar
 - Persists preference in localStorage
 - Automatic theme application on page load
@@ -98,6 +109,7 @@ The implementation includes full dark/light theme support:
 ## Dummy Data
 
 The page includes 4 sample items for demonstration:
+
 1. First Item
 2. Second Item
 3. Third Item
@@ -110,13 +122,16 @@ Each with descriptions and timestamps.
 Topics now support custom form schemas using [JSONForms.io](https://jsonforms.io/) format. This allows flexible definition of custom fields for items within each topic.
 
 ### Schema Format
+
 Each topic can define:
+
 - **JSON Schema** - Data structure and validation rules (standard JSON Schema format)
 - **UI Schema** - Layout and rendering instructions (JSONForms UI Schema format)
 
 See [JSONFORMS_SCHEMA_GUIDE.md](./JSONFORMS_SCHEMA_GUIDE.md) for detailed documentation and examples.
 
 ### Features
+
 - Real-time JSON validation
 - Visual preview of schema properties
 - Support for all standard JSON Schema types and formats
@@ -126,6 +141,7 @@ See [JSONFORMS_SCHEMA_GUIDE.md](./JSONFORMS_SCHEMA_GUIDE.md) for detailed docume
 ## Next Steps
 
 To connect to the real API:
+
 1. Uncomment the API integration code in `+page.svelte`
 2. Update the data loading in `+page.ts` to fetch from `/api/v1/items`
 3. The API endpoints are already integrated:
@@ -137,10 +153,12 @@ To connect to the real API:
 ## File Changes
 
 ### Modified Files:
+
 - `web/src/routes/listing/+page.svelte` - Complete UI implementation with Sidebar.Provider
 - `web/src/routes/+layout.svelte` - Added background container
 
 ### New Files:
+
 - `web/src/lib/components/theme-toggle.svelte` - Theme switcher component
 - `web/src/lib/components/app-sidebar.svelte` - Reusable sidebar component
 - `web/src/lib/components/ui/card/*` - Card components
@@ -150,7 +168,9 @@ To connect to the real API:
 ## Technical Details
 
 ### Sidebar Component Structure
+
 The implementation uses the official shadcn-svelte sidebar pattern:
+
 ```svelte
 <Sidebar.Provider>
   <AppSidebar />
@@ -161,10 +181,13 @@ The implementation uses the official shadcn-svelte sidebar pattern:
 ```
 
 ### Icons
+
 Uses `@lucide/svelte/icons` for consistent iconography:
+
 - House icon for Listings
 - LayoutDashboard icon for Dashboard
 - Settings icon for Settings
 
 ### Active State Detection
+
 Currently uses `window.location.pathname` for active state detection. Can be enhanced with SvelteKit's `$page` store for more robust routing.
