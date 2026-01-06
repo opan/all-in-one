@@ -54,9 +54,11 @@ jobs:
         working-directory: ./web
         run: npm ci
       
-      - name: Format frontend code
+      - name: Format and auto-fix frontend code
         working-directory: ./web
-        run: npm run format
+        run: |
+          npm run format
+          npx eslint . --fix
       
       - name: Check frontend types
         working-directory: ./web
