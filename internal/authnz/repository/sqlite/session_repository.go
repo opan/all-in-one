@@ -20,10 +20,16 @@ type queryOptions struct {
 }
 
 func (q *queryOptions) Commit() error {
+	if q.trx != nil {
+		return q.trx.Commit()
+	}
 	return nil
 }
 
 func (q *queryOptions) Rollback() error {
+	if q.trx != nil {
+		return q.trx.Rollback()
+	}
 	return nil
 }
 
