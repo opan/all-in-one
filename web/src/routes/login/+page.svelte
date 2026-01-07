@@ -95,7 +95,7 @@
 						bind:value={password}
 						disabled={loading}
 						required
-						placeholder={"Your password"}
+						placeholder="Your password"
 					/>
 				</div>
 				<Button type="submit" class="w-full" disabled={loading}>
