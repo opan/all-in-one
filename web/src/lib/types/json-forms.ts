@@ -36,7 +36,7 @@ export interface UISchemaElement {
 	options?: {
 		format?: string;
 		readonly?: boolean;
-		[key: string]: JSONValue;
+		[key: string]: JSONValue | undefined;
 	};
 	elements?: UISchemaElement[];
 }
