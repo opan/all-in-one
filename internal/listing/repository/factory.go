@@ -15,13 +15,6 @@ type baseStorage interface {
 
 func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (Storage, error) {
 	switch config.Storage.Type {
-	// case "memory":
-	// 	memStorage := memory.NewStorage()
-	// 	return &memoryStorageAdapter{
-	// 		itemRepo:  memStorage.ItemRepo(),
-	// 		topicRepo: memStorage.TopicRepo(),
-	// 		storage:   memStorage,
-	// 	}, nil
 	case "sqlite":
 		sqliteStorage, err := sqlite.NewStorage(ctx, config, log)
 		if err != nil {
