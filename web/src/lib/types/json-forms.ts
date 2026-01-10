@@ -1,5 +1,14 @@
 // JSONForms.io compliant schema types
 
+// Type-safe alternative to 'any' for JSON values
+export type JSONValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JSONValue[]
+	| { [key: string]: JSONValue };
+
 export interface JSONSchema {
 	type: "object";
 	properties: Record<
@@ -10,7 +19,7 @@ export interface JSONSchema {
 			description?: string;
 			enum?: string[];
 			format?: string;
-			default?: any;
+			default?: JSONValue;
 			items?: {
 				type: string;
 				enum?: string[];
@@ -27,7 +36,7 @@ export interface UISchemaElement {
 	options?: {
 		format?: string;
 		readonly?: boolean;
-		[key: string]: any;
+		[key: string]: JSONValue | undefined;
 	};
 	elements?: UISchemaElement[];
 }
@@ -56,7 +65,7 @@ export interface Item {
 	title: string;
 	description: string;
 	topic_id: number;
-	form_schema_values?: Record<string, any>;
+	form_schema_values?: Record<string, JSONValue>;
 	created_at: string;
 	updated_at: string;
 }

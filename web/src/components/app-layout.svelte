@@ -24,7 +24,7 @@
 			
 			<Breadcrumb.Root>
 				<Breadcrumb.List>
-					{#each breadcrumbs as crumb, i}
+					{#each breadcrumbs as crumb, i (i)}
 						{#if i > 0}
 							<Breadcrumb.Separator />
 						{/if}
