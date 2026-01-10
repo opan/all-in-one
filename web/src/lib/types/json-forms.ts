@@ -1,12 +1,12 @@
 // JSONForms.io compliant schema types
 
 // Type-safe alternative to 'any' for JSON values
-export type JSONValue = 
-	| string 
-	| number 
-	| boolean 
-	| null 
-	| JSONValue[] 
+export type JSONValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JSONValue[]
 	| { [key: string]: JSONValue };
 
 export interface JSONSchema {
