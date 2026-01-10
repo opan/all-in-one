@@ -4,14 +4,9 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
   import { 
     SquareTerminal, 
-    BookOpen, 
     Settings, 
     ChevronDown,
-    History,
-    Star,
-    Bot,
     SquareUser,
-    List,
     Table,
     LogOut,
   } from "@lucide/svelte/icons";
