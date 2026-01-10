@@ -21,6 +21,7 @@ All-in-one is a multi-functional apps with the main goal for learning.
   - `github.com/jmoiron/sqlx` (database access)
   - `golang.org/x/crypto/bcrypt` (for data encryption/password)
   - `github.com/golang-jwt/jwt/v5` (for JWT)
+  - `github.com/gorilla/mux` (HTTP routing)
 - Use idiomatic Go: small functions, explicit error handling, `context.Context` passed to handlers/services.
 - Use dependency injection (no globals) where practical.
 - Each app might support multiple storage backends (e.g., SQLite, PostgreSQL). Abstract storage access via repository interfaces.
@@ -42,6 +43,8 @@ In general, organize code:
   - `internal/<app-name>/<any>/` for other sub-packages as needed (e.g., authnz, middleware, util).
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
   - `web/` for frontend source code.
+
+Each app will have its own package under `internal/` (e.g., `internal/todo`, `internal/note`).
 
 #### Configuration
 Configuration:
@@ -86,6 +89,12 @@ Support authentications:
 #### Must have
 - Need to have context that get passing down to DB calls, HTTP requests, and other as required via function parameter/argument.
 - Integrate with Swagger for easier API documentation and manual testing when required.
+
+#### List of apps
+
+- `listing` - a simple item listing app with CRUD operations and user authentication.
+- `authnz` - authentication and authorization module (JWT + username/password).
+- `chat` - a simple chat app with WebSocket support.
 
 ### Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+
