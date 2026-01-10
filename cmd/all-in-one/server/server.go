@@ -10,6 +10,7 @@ import (
 
 	"github.com/all-in-one/internal/authnz/middleware"
 	authnzSvc "github.com/all-in-one/internal/authnz/service"
+	chatSvc "github.com/all-in-one/internal/chat/service"
 	"github.com/all-in-one/internal/config"
 	httpHelper "github.com/all-in-one/internal/http"
 	listingSvc "github.com/all-in-one/internal/listing/service"
@@ -71,6 +72,13 @@ func (s *server) Start() error {
 		return err
 	}
 
+	csvc, err := chatSvc.NewService(ctx, s.config, s.log)
+	if err != nil {
+		s.log.Error().Err(err).Msg("Failed to create chat service")
+		return err
+	}
+	defer csvc.Close()
+
 	// Initialize HTTP helper
 	h := httpHelper.NewHTTP(s.log, s.config)
 
@@ -94,6 +102,7 @@ func (s *server) Start() error {
 	authenticatedRoutes.Use(jwtMiddleware.JWTAuth)
 	lsvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
 	asvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
+	csvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
 
 	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
