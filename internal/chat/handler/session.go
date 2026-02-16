@@ -38,7 +38,17 @@ func (h *Handler) GetSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions, err := h.storage.SessionRepo().GetAllByUserID(ctx, s.UserID)
+	userID, err := uuid.Parse(s.UserID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse user ID")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Invalid user ID",
+		}, http.StatusInternalServerError)
+		return
+	}
+
+	sessions, err := h.storage.SessionRepo().GetAllByUserID(ctx, userID)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get sessions")
 		httpHelper.SendJSON(w, httpHelper.Response{
@@ -82,7 +92,15 @@ func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := s.UserID
+	userID, err := uuid.Parse(s.UserID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse user ID")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Invalid user ID",
+		}, http.StatusInternalServerError)
+		return
+	}
 
 	vars := mux.Vars(r)
 	sessionID := vars["id"]
@@ -99,7 +117,7 @@ func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 
 	// Verify user is a party in the session
 	if !session.HasParty(userID) {
-		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
+		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
 			Error:   "Not authorized to access this session",
@@ -254,7 +272,15 @@ func (h *Handler) UpdateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := s.UserID
+	userID, err := uuid.Parse(s.UserID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse user ID")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Invalid user ID",
+		}, http.StatusInternalServerError)
+		return
+	}
 
 	vars := mux.Vars(r)
 	sessionID := vars["id"]
@@ -272,7 +298,7 @@ func (h *Handler) UpdateSession(w http.ResponseWriter, r *http.Request) {
 
 	// Verify user is a party
 	if !session.HasParty(userID) {
-		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
+		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
 			Error:   "Not authorized to update this session",
@@ -358,7 +384,15 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := s.UserID
+	userID, err := uuid.Parse(s.UserID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse user ID")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Invalid user ID",
+		}, http.StatusInternalServerError)
+		return
+	}
 
 	vars := mux.Vars(r)
 	sessionID := vars["id"]
@@ -376,7 +410,7 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 
 	// Verify user is a party
 	if !session.HasParty(userID) {
-		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
+		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
 			Error:   "Not authorized to delete this session",

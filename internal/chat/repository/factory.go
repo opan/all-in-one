@@ -12,11 +12,11 @@ import (
 func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (Storage, error) {
 	dbType := config.Storage.Type
 	if dbType == "" {
-		dbType = "sqlite3"
+		dbType = "sqlite"
 	}
 
 	switch dbType {
-	case "sqlite3":
+	case "sqlite":
 		return NewSQLiteStorage(ctx, config, log)
 	case "postgres":
 		// TODO: Implement PostgreSQL storage when needed
