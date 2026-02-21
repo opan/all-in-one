@@ -29,6 +29,8 @@ All-in-one is a multi-functional apps with the main goal for learning.
   - SQLite (via `github.com/mattn/go-sqlite3`)
   - PostgreSQL (via `github.com/lib/pq`)
 
+- Don't use comments too excessively, add comment when it is really necessary. Code should be self-explanatory by default, as much as possible.
+
 #### Project structure
 In general, organize code:
   - `bin/` for compiled binaries (if applicable).
@@ -40,6 +42,7 @@ In general, organize code:
   - `internal/<app-name>/service/` for business logic
   - `internal/<app-name>/model/` for domain models
   - `internal/<app-name>/repository/` for data access. 
+  - `internal/<app-name>/seed/` for database seeding (if applicable).
   - `internal/<app-name>/<any>/` for other sub-packages as needed (e.g., authnz, middleware, util).
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
   - `web/` for frontend source code.
