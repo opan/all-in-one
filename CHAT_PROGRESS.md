@@ -1,7 +1,7 @@
 # Chat Feature Implementation Progress
 
 **Last Updated**: February 21, 2026  
-**Overall Completion**: ~80%
+**Overall Completion**: ~85%
 
 ## 📋 Quick Status
 
@@ -14,7 +14,7 @@
 | WebSocket Backend | ✅ Complete | 100% |
 | Server Integration | ✅ Complete | 100% |
 | Frontend API Client | ✅ Complete | 100% |
-| Frontend UI | ✅ Complete | 90% |
+| Frontend UI | ✅ Complete | 100% |
 | WebSocket Frontend | ❌ Not started | 0% |
 | Testing | ❌ Not started | 0% |
 
@@ -80,8 +80,13 @@
 - [x] **Fixed type mismatches (string UUIDs)** ✨
 - [x] **Current user detection from API** ✨
 - [x] **Verified seed data** ✨
-- [x] **Fixed participant data structure** ✨ NEW
-- [x] **Message sending works** ✨ NEW
+- [x] **Fixed participant data structure** ✨
+- [x] **Message sending works** ✨
+- [x] **Added last_message to sessions** ✨
+- [x] **Session list shows previews** ✨
+- [x] **Fixed participant count display (removed omitempty from LeftAt)** ✨ NEW
+- [x] **Group chats show participant count** ✨ NEW
+- [x] **Private chats show other user's name** ✨ NEW
 
 ---
 
@@ -212,8 +217,11 @@
 - ~~Type mismatch: Backend (string UUIDs) vs Frontend (number IDs)~~ - FIXED
 - ~~Temporary user ID extraction hack~~ - FIXED (now uses `/api/v1/users/me`)
 - ~~Repository implementation unclear~~ - VERIFIED (files exist and complete)
-- ~~Participant count shows 0~~ - FIXED (data structure mismatch)
+- ~~Participant count shows 0~~ - FIXED (removed `omitempty` from LeftAt field in SessionParticipant model)
 - ~~Messages not sending~~ - FIXED (POST endpoint works)
+- ~~Last message preview not showing~~ - FIXED (added last_message field)
+- ~~Group chat naming and count display~~ - FIXED (working correctly)
+- ~~Private chat shows other user name~~ - FIXED (working correctly)
 
 ---
 
