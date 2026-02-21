@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { Button } from "$lib/components/ui/button/index";
   import { Input } from "$lib/components/ui/input/index";
   import * as Card from "$lib/components/ui/card/index";
@@ -12,6 +12,9 @@
     type ChatSession as ApiChatSession,
     type ChatMessage as ApiChatMessage,
   } from "$lib/chat-api";
+  import { ChatWebSocketClient } from "$lib/websocket-client";
+  import { WebSocketState } from "$lib/websocket-types";
+  import type { MessagePayload, TypingPayload } from "$lib/websocket-types";
 
   // State
   let chatSessions = $state<ApiChatSession[]>([]);
@@ -22,6 +25,10 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let currentUserId = $state<string | null>(null);
+  let wsClient = $state<ChatWebSocketClient | null>(null);
+  let wsState = $state<WebSocketState>(WebSocketState.DISCONNECTED);
+  let typingUsers = $state<Set<string>>(new Set());
+  let typingTimeout: number | null = null;
 
   // Load sessions on mount
   onMount(async () => {
@@ -44,6 +51,7 @@
       if (chatSessions.length > 0) {
         activeSessionId = chatSessions[0].id;
         await loadMessages(chatSessions[0].id);
+        connectWebSocket(chatSessions[0].id);
       }
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load chats";
@@ -52,6 +60,90 @@
       loading = false;
     }
   });
+
+  // Cleanup on component destroy
+  onDestroy(() => {
+    disconnectWebSocket();
+  });
+
+  function connectWebSocket(sessionId: string) {
+    // Disconnect existing connection if any
+    disconnectWebSocket();
+
+    // Create new WebSocket client
+    wsClient = new ChatWebSocketClient(sessionId);
+
+    // Set up event handlers
+    wsClient.onMessage((payload: MessagePayload) => {
+      handleIncomingMessage(payload);
+    });
+
+    wsClient.onTyping((payload: TypingPayload) => {
+      handleTypingIndicator(payload);
+    });
+
+    wsClient.onError((errorMsg: string) => {
+      console.error("WebSocket error:", errorMsg);
+      error = errorMsg;
+    });
+
+    wsClient.onStateChange((state: WebSocketState) => {
+      wsState = state;
+      console.log("WebSocket state changed:", state);
+    });
+
+    // Connect
+    wsClient.connect();
+  }
+
+  function disconnectWebSocket() {
+    if (wsClient) {
+      wsClient.disconnect();
+      wsClient = null;
+    }
+    wsState = WebSocketState.DISCONNECTED;
+  }
+
+  function handleIncomingMessage(payload: MessagePayload) {
+    // Convert WebSocket payload to ChatMessage format
+    const newMsg: ApiChatMessage = {
+      id: payload.id,
+      chat_session_id: payload.chat_session_id,
+      user_id: payload.user_id,
+      username: payload.username,
+      message: payload.message,
+      created_at: payload.created_at,
+      sent_at: payload.created_at,
+    };
+
+    // Add message to local state if not already present
+    const exists = messages.some((m) => m.id === newMsg.id);
+    if (!exists) {
+      messages = [...messages, newMsg];
+
+      // Update last message in session list
+      const session = chatSessions.find((s) => s.id === payload.chat_session_id);
+      if (session) {
+        session.last_message = newMsg;
+        session.updated_at = newMsg.created_at;
+        chatSessions = [...chatSessions]; // Trigger reactivity
+      }
+    }
+  }
+
+  function handleTypingIndicator(payload: TypingPayload) {
+    // Don't show typing indicator for current user
+    if (payload.user_id === currentUserId) {
+      return;
+    }
+
+    if (payload.is_typing) {
+      typingUsers.add(payload.username);
+    } else {
+      typingUsers.delete(payload.username);
+    }
+    typingUsers = new Set(typingUsers); // Trigger reactivity
+  }
 
   async function loadMessages(sessionId: string) {
     try {
@@ -66,13 +158,11 @@
   let filteredSessions = $derived(
     searchQuery.trim()
       ? chatSessions.filter((session) => {
-          const sessionName = session.name || "";
           const participantNames = session.participants
-            ?.map((p) => p.user?.username || "")
+            ?.map((p) => p.username || "")
             .join(" ");
           const searchLower = searchQuery.toLowerCase();
           return (
-            sessionName.toLowerCase().includes(searchLower) ||
             (participantNames && participantNames.toLowerCase().includes(searchLower))
           );
         })
@@ -90,30 +180,59 @@
   async function selectSession(sessionId: string) {
     activeSessionId = sessionId;
     await loadMessages(sessionId);
+    connectWebSocket(sessionId);
   }
 
   async function sendMessage() {
     if (!newMessage.trim() || !activeSessionId) return;
 
+    const messageText = newMessage;
+    newMessage = ""; // Clear input immediately for better UX
+
     try {
-      const message = await sendMessageApi(activeSessionId, {
-        message: newMessage,
-      });
+      // Send via WebSocket if connected
+      if (wsClient && wsClient.isConnected()) {
+        wsClient.sendMessage(messageText);
+      } else {
+        // Fallback to REST API if WebSocket is not connected
+        console.warn("WebSocket not connected, using REST API fallback");
+        const message = await sendMessageApi(activeSessionId, {
+          message: messageText,
+        });
 
-      // Add message to local state
-      messages = [...messages, message];
+        // Add message to local state
+        messages = [...messages, message];
 
-      // Update last message in session
-      const session = chatSessions.find((s) => s.id === activeSessionId);
-      if (session) {
-        session.last_message = message;
-        session.updated_at = message.created_at;
+        // Update last message in session
+        const session = chatSessions.find((s) => s.id === activeSessionId);
+        if (session) {
+          session.last_message = message;
+          session.updated_at = message.created_at;
+        }
       }
-
-      newMessage = "";
     } catch (err) {
       console.error("Error sending message:", err);
       error = err instanceof Error ? err.message : "Failed to send message";
+      newMessage = messageText; // Restore message on error
+    }
+  }
+
+  function handleInput() {
+    // Send typing indicator when user starts typing
+    if (wsClient && wsClient.isConnected()) {
+      wsClient.sendTyping(true);
+      
+      // Clear existing timeout
+      if (typingTimeout !== null) {
+        clearTimeout(typingTimeout);
+      }
+      
+      // Send "stopped typing" after 2 seconds of inactivity
+      typingTimeout = window.setTimeout(() => {
+        if (wsClient && wsClient.isConnected()) {
+          wsClient.sendTyping(false);
+        }
+      }, 2000);
     }
   }
 
@@ -284,16 +403,43 @@
             </div>
           </div>
         {/each}
+
+        <!-- Typing Indicator -->
+        {#if typingUsers.size > 0}
+          <div class="flex justify-start">
+            <div class="bg-muted rounded-lg px-4 py-2">
+              <p class="text-xs text-muted-foreground italic">
+                {Array.from(typingUsers).join(", ")} {typingUsers.size === 1 ? "is" : "are"} typing...
+              </p>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Message Input -->
       <div class="p-4 border-t">
+        <!-- Connection Status -->
+        {#if wsState !== WebSocketState.CONNECTED}
+          <div class="mb-2 text-xs text-center">
+            <span class="text-yellow-600">
+              {#if wsState === WebSocketState.CONNECTING}
+                Connecting...
+              {:else if wsState === WebSocketState.DISCONNECTED}
+                Disconnected - messages will be sent via fallback
+              {:else if wsState === WebSocketState.ERROR}
+                Connection error - using fallback mode
+              {/if}
+            </span>
+          </div>
+        {/if}
+        
         <div class="flex gap-2">
           <Input
             type="text"
             placeholder="Type a message..."
             class="flex-1"
             bind:value={newMessage}
+            oninput={handleInput}
             onkeypress={handleKeyPress}
           />
           <Button onclick={sendMessage} disabled={!newMessage.trim()}>

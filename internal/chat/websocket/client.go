@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -44,26 +45,44 @@ type Client struct {
 	// Username of the connected user
 	username string
 
+	// Message handler for processing incoming messages
+	messageHandler MessageHandler
+
+	// Context for the client lifecycle
+	ctx context.Context
+
+	// Cancel function for the context
+	cancel context.CancelFunc
+
 	// Logger
 	log zerolog.Logger
 }
 
+// MessageHandler is a function that processes incoming WebSocket messages
+type MessageHandler func(ctx context.Context, client *Client, wsMsg model.WebSocketMessage) error
+
 // NewClient creates a new WebSocket client
-func NewClient(hub *Hub, conn *websocket.Conn, sessionID string, userID uuid.UUID, username string, log zerolog.Logger) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, sessionID string, userID uuid.UUID, username string, messageHandler MessageHandler, ctx context.Context, cancel context.CancelFunc, log zerolog.Logger) *Client {
 	return &Client{
-		hub:       hub,
-		conn:      conn,
-		send:      make(chan model.WebSocketMessage, 256),
-		sessionID: sessionID,
-		userID:    userID,
-		username:  username,
-		log:       log,
+		hub:            hub,
+		conn:           conn,
+		send:           make(chan model.WebSocketMessage, 256),
+		sessionID:      sessionID,
+		userID:         userID,
+		username:       username,
+		messageHandler: messageHandler,
+		ctx:            ctx,
+		cancel:         cancel,
+		log:            log,
 	}
 }
 
 // readPump pumps messages from the websocket connection to the hub
 func (c *Client) ReadPump() {
 	defer func() {
+		if c.cancel != nil {
+			c.cancel()
+		}
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
@@ -106,10 +125,16 @@ func (c *Client) ReadPump() {
 			Str("user_id", c.userID.String()).
 			Msg("Received WebSocket message")
 
-		// Handle different message types
-		// For now, we just broadcast all messages back to the session
-		// The handler will process and store actual chat messages
-		c.hub.Broadcast(c.sessionID, wsMsg)
+		// Process the message through the handler
+		if c.messageHandler != nil {
+			if err := c.messageHandler(c.ctx, c, wsMsg); err != nil {
+				c.log.Error().Err(err).Str("type", wsMsg.Type).Msg("Failed to process WebSocket message")
+				c.sendError(err.Error())
+			}
+		} else {
+			// Fallback: just broadcast if no handler is set
+			c.hub.Broadcast(c.sessionID, wsMsg)
+		}
 	}
 }
 
@@ -168,4 +193,19 @@ func (c *Client) sendError(errorMsg string) {
 	default:
 		c.log.Warn().Str("error", errorMsg).Msg("Failed to send error message to client")
 	}
+}
+
+// GetSessionID returns the session ID
+func (c *Client) GetSessionID() string {
+	return c.sessionID
+}
+
+// GetUserID returns the user ID
+func (c *Client) GetUserID() uuid.UUID {
+	return c.userID
+}
+
+// GetUsername returns the username
+func (c *Client) GetUsername() string {
+	return c.username
 }

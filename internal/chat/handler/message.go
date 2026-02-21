@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -184,8 +185,17 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Get username (you may need to fetch from user service or context)
 	username := s.Username // Placeholder - should fetch actual username
 
-	// Create new client
-	client := websocket.NewClient(h.hub, conn, sessionID, uuidUserID, username, *log)
+	// Create a new context for the WebSocket connection that's not tied to the HTTP request
+	// Copy important values from the request context
+	wsCtx, wsCancel := context.WithCancel(context.Background())
+
+	// Copy request_id and other important values to the new context
+	if requestID := ctx.Value("request_id"); requestID != nil {
+		wsCtx = context.WithValue(wsCtx, "request_id", requestID)
+	}
+
+	// Create new client with message handler
+	client := websocket.NewClient(h.hub, conn, sessionID, uuidUserID, username, h.handleWebSocketMessage, wsCtx, wsCancel, *log)
 
 	// Register client with hub
 	h.hub.Register(client)
@@ -198,6 +208,44 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Str("session_id", sessionID).
 		Str("user_id", userID).
 		Msg("WebSocket connection established")
+}
+
+// handleWebSocketMessage processes incoming WebSocket messages
+func (h *Handler) handleWebSocketMessage(ctx context.Context, client *websocket.Client, wsMsg model.WebSocketMessage) error {
+	log := logging.GetLoggerFromContext(ctx)
+
+	switch wsMsg.Type {
+	case "message":
+		// Extract message content from payload
+		payloadMap, ok := wsMsg.Payload.(map[string]interface{})
+		if !ok {
+			return errors.New("invalid message payload format")
+		}
+
+		messageText, ok := payloadMap["message"].(string)
+		if !ok || messageText == "" {
+			return errors.New("message text is required")
+		}
+
+		// Create and save the message
+		_, err := h.CreateMessage(ctx, client.GetSessionID(), client.GetUserID(), client.GetUsername(), messageText)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create message from WebSocket")
+			return err
+		}
+
+		log.Info().Str("session_id", client.GetSessionID()).Msg("Message created from WebSocket")
+		return nil
+
+	case "typing":
+		// Broadcast typing indicator to other users in the session
+		h.hub.Broadcast(client.GetSessionID(), wsMsg)
+		return nil
+
+	default:
+		log.Warn().Str("type", wsMsg.Type).Msg("Unknown WebSocket message type")
+		return nil
+	}
 }
 
 // handleClientMessages processes incoming messages from a WebSocket client
