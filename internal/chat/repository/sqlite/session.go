@@ -58,7 +58,7 @@ func (r *sessionRepository) GetAllByUserID(ctx context.Context, userID uuid.UUID
 			continue
 		}
 		sessions[i].Participants = participants
-		
+
 		// Load last message for each session
 		lastMsg, err := r.getLastMessage(ctx, sessions[i].ID)
 		if err == nil && lastMsg != nil {

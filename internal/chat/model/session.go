@@ -27,7 +27,7 @@ type SessionParticipant struct {
 	SessionID string     `json:"session_id" db:"session_id"`
 	UserID    string     `json:"user_id" db:"user_id"`
 	JoinedAt  time.Time  `json:"joined_at" db:"joined_at"`
-	LeftAt    *time.Time `json:"left_at,omitempty" db:"left_at"`
+	LeftAt    *time.Time `json:"left_at" db:"left_at"`
 
 	// Not stored in DB, populated by joins
 	Username string `json:"username,omitempty" db:"username"`

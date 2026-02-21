@@ -40,9 +40,6 @@
       
       chatSessions = await getSessions();
       
-      // Debug: Log the sessions to see what we're getting
-      console.log('Loaded sessions:', chatSessions);
-      
       // Select first session by default if available
       if (chatSessions.length > 0) {
         activeSessionId = chatSessions[0].id;
