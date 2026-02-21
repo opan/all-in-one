@@ -26,7 +26,7 @@ func NewMessageRepository(db *sqlx.DB, log zerolog.Logger) *messageRepository {
 }
 
 // GetBySessionID returns all messages for a session with optional limit
-func (r *messageRepository) GetBySessionID(ctx context.Context, sessionID string, limit int) ([]model.Chat, error) {
+func (r *messageRepository) GetBySessionID(ctx context.Context, sessionID string, limit int) ([]model.ChatMessage, error) {
 	if limit <= 0 {
 		limit = 100 // Default limit
 	}
@@ -38,15 +38,16 @@ func (r *messageRepository) GetBySessionID(ctx context.Context, sessionID string
 			c.user_id,
 			c.message,
 			c.created_at,
+			c.sent_at,
 			u.username
-		FROM chats c
+		FROM chat_messages c
 		LEFT JOIN users u ON c.user_id = u.id
 		WHERE c.chat_session_id = ?
 		ORDER BY c.created_at DESC
 		LIMIT ?
 	`
 
-	var messages []model.Chat
+	var messages []model.ChatMessage
 	err := r.db.SelectContext(ctx, &messages, query, sessionID, limit)
 	if err != nil {
 		r.log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get messages")
@@ -62,7 +63,7 @@ func (r *messageRepository) GetBySessionID(ctx context.Context, sessionID string
 }
 
 // Create creates a new message
-func (r *messageRepository) Create(ctx context.Context, chat model.Chat) (model.Chat, error) {
+func (r *messageRepository) Create(ctx context.Context, chat model.ChatMessage) (model.ChatMessage, error) {
 	if chat.ID == "" {
 		chat.ID = uuid.NewString()
 	}
@@ -71,9 +72,13 @@ func (r *messageRepository) Create(ctx context.Context, chat model.Chat) (model.
 		chat.CreatedAt = time.Now()
 	}
 
+	if chat.SentAt.IsZero() {
+		chat.SentAt = time.Now()
+	}
+
 	query := `
-		INSERT INTO chats (id, chat_session_id, user_id, message, created_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO chat_messages (id, chat_session_id, user_id, message, created_at, sent_at)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -82,10 +87,11 @@ func (r *messageRepository) Create(ctx context.Context, chat model.Chat) (model.
 		chat.UserID,
 		chat.Message,
 		chat.CreatedAt,
+		chat.SentAt,
 	)
 	if err != nil {
 		r.log.Error().Err(err).Interface("chat", chat).Msg("Failed to create message")
-		return model.Chat{}, fmt.Errorf("failed to create message: %w", err)
+		return model.ChatMessage{}, fmt.Errorf("failed to create message: %w", err)
 	}
 
 	// Fetch the created message with username
@@ -93,7 +99,7 @@ func (r *messageRepository) Create(ctx context.Context, chat model.Chat) (model.
 }
 
 // Get returns a message by ID
-func (r *messageRepository) Get(ctx context.Context, id string) (model.Chat, error) {
+func (r *messageRepository) Get(ctx context.Context, id string) (model.ChatMessage, error) {
 	query := `
 		SELECT 
 			c.id,
@@ -101,20 +107,21 @@ func (r *messageRepository) Get(ctx context.Context, id string) (model.Chat, err
 			c.user_id,
 			c.message,
 			c.created_at,
+			c.sent_at,
 			u.username
-		FROM chats c
+		FROM chat_messages c
 		LEFT JOIN users u ON c.user_id = u.id
 		WHERE c.id = ?
 	`
 
-	var chat model.Chat
+	var chat model.ChatMessage
 	err := r.db.GetContext(ctx, &chat, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return model.Chat{}, fmt.Errorf("message not found")
+			return model.ChatMessage{}, fmt.Errorf("message not found")
 		}
 		r.log.Error().Err(err).Str("message_id", id).Msg("Failed to get message")
-		return model.Chat{}, fmt.Errorf("failed to get message: %w", err)
+		return model.ChatMessage{}, fmt.Errorf("failed to get message: %w", err)
 	}
 
 	return chat, nil

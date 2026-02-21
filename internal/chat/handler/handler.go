@@ -31,9 +31,11 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/chats/{id}", h.GetSession).Methods("GET")
 	router.HandleFunc("/chats/{id}", h.UpdateSession).Methods("PUT")
 	router.HandleFunc("/chats/{id}", h.DeleteSession).Methods("DELETE")
+	router.HandleFunc("/chats/{id}/leave", h.LeaveSession).Methods("POST")
 
 	// Message endpoints
 	router.HandleFunc("/chats/{id}/messages", h.GetMessages).Methods("GET")
+	router.HandleFunc("/chats/{id}/messages", h.SendMessage).Methods("POST")
 
 	// WebSocket endpoint
 	router.HandleFunc("/chats/{id}/ws", h.HandleWebSocket)

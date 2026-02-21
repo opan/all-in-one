@@ -2,13 +2,14 @@ package model
 
 import "time"
 
-// Chat represents a chat message
-type Chat struct {
+// ChatMessage represents a chat message
+type ChatMessage struct {
 	ID            string    `json:"id" db:"id"`
 	ChatSessionID string    `json:"chat_session_id" db:"chat_session_id"`
 	UserID        string    `json:"user_id" db:"user_id"`
 	Message       string    `json:"message" db:"message"`
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	SentAt        time.Time `json:"sent_at" db:"sent_at"`
 
 	// Optional: Include username for frontend convenience
 	Username string `json:"username,omitempty" db:"username"`

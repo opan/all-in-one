@@ -28,8 +28,8 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - Current database supports
   - SQLite (via `github.com/mattn/go-sqlite3`)
   - PostgreSQL (via `github.com/lib/pq`)
-
 - Don't use comments too excessively, add comment when it is really necessary. Code should be self-explanatory by default, as much as possible.
+- IMPORTANT: do not delete existing database, all-in-one.db, because it persist some data not coming from seed. ask me first before tries to delete it.
 
 #### Project structure
 In general, organize code:

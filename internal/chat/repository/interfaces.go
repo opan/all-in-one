@@ -9,13 +9,19 @@ import (
 
 // SessionRepository defines the interface for chat session storage operations
 type SessionRepository interface {
-	// GetAllByUserID returns all sessions where the user is a party
+	// GetAllByUserID returns all sessions where the user is an active participant
 	GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.ChatSession, error)
 
-	// Get returns a session by ID
+	// Get returns a session by ID with participants
 	Get(ctx context.Context, id string) (model.ChatSession, error)
 
-	// Create creates a new chat session
+	// GetByParticipantHash finds a session by participant hash
+	GetByParticipantHash(ctx context.Context, hash string) (model.ChatSession, error)
+
+	// GetParticipants returns all participants for a session
+	GetParticipants(ctx context.Context, sessionID string) ([]model.SessionParticipant, error)
+
+	// Create creates a new chat session with participants
 	Create(ctx context.Context, session model.ChatSession) (model.ChatSession, error)
 
 	// Update updates an existing chat session
@@ -24,20 +30,30 @@ type SessionRepository interface {
 	// Delete soft deletes a session by setting status to 'deleted'
 	Delete(ctx context.Context, id string) error
 
-	// AddParty adds a user to the session's parties list
+	// AddParticipant adds or reactivates a participant in the session
+	AddParticipant(ctx context.Context, sessionID string, userID uuid.UUID) error
+
+	// RemoveParticipant marks a participant as having left the session
+	// Auto-deletes session if less than 2 active participants remain
+	RemoveParticipant(ctx context.Context, sessionID string, userID uuid.UUID) error
+
+	// GetActiveParticipantCount returns the number of active participants
+	GetActiveParticipantCount(ctx context.Context, sessionID string) (int, error)
+
+	// AddParty is deprecated - use AddParticipant instead
 	AddParty(ctx context.Context, sessionID string, userID uuid.UUID) error
 }
 
 // MessageRepository defines the interface for chat message storage operations
 type MessageRepository interface {
 	// GetBySessionID returns all messages for a session with optional limit
-	GetBySessionID(ctx context.Context, sessionID string, limit int) ([]model.Chat, error)
+	GetBySessionID(ctx context.Context, sessionID string, limit int) ([]model.ChatMessage, error)
 
 	// Create creates a new message
-	Create(ctx context.Context, chat model.Chat) (model.Chat, error)
+	Create(ctx context.Context, chat model.ChatMessage) (model.ChatMessage, error)
 
 	// Get returns a message by ID
-	Get(ctx context.Context, id string) (model.Chat, error)
+	Get(ctx context.Context, id string) (model.ChatMessage, error)
 }
 
 // Storage defines the main storage interface that aggregates all repositories

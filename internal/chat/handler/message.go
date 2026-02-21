@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -79,7 +80,15 @@ func (h *Handler) GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !session.HasParty(uuidUserID) {
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == uuidUserID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
 		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
@@ -151,7 +160,15 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !session.HasParty(uuidUserID) {
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == uuidUserID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
 		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
 		http.Error(w, "Not authorized", http.StatusForbidden)
 		return
@@ -194,7 +211,7 @@ func (h *Handler) handleClientMessages(client *websocket.Client) {
 
 // BroadcastMessage broadcasts a message to all clients in a session
 // This is called when a message is persisted to the database
-func (h *Handler) BroadcastMessage(sessionID string, chat model.Chat) {
+func (h *Handler) BroadcastMessage(sessionID string, chat model.ChatMessage) {
 	payload := model.MessagePayload{
 		ID:            chat.ID,
 		ChatSessionID: chat.ChatSessionID,
@@ -214,7 +231,7 @@ func (h *Handler) BroadcastMessage(sessionID string, chat model.Chat) {
 }
 
 // CreateMessage creates a new message (called via WebSocket or REST)
-func (h *Handler) CreateMessage(ctx context.Context, sessionID string, userID uuid.UUID, username string, messageText string) (*model.Chat, error) {
+func (h *Handler) CreateMessage(ctx context.Context, sessionID string, userID uuid.UUID, username string, messageText string) (*model.ChatMessage, error) {
 	log := logging.GetLoggerFromContext(ctx)
 
 	// Verify user is a party in the session
@@ -224,13 +241,21 @@ func (h *Handler) CreateMessage(ctx context.Context, sessionID string, userID uu
 		return nil, err
 	}
 
-	if !session.HasParty(userID) {
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == userID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
 		log.Warn().Str("session_id", sessionID).Str("user_id", userID.String()).Msg("User not authorized for session")
 		return nil, httpHelper.ErrNotFound
 	}
 
 	// Create the message
-	chat := model.Chat{
+	chat := model.ChatMessage{
 		ID:            uuid.NewString(),
 		ChatSessionID: sessionID,
 		UserID:        userID.String(),
@@ -303,4 +328,126 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		Data:    []UserSearchResult{},
 		Message: "User search not yet implemented - integrate with authnz service",
 	}, http.StatusOK)
+}
+
+// SendMessage creates a new message in a chat session
+// @Summary Send a message
+// @Description Send a new message to a chat session
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Param message body object true "Message content"
+// @Success 201 {object} httpHelper.Response
+// @Failure 400 {object} httpHelper.Response
+// @Failure 401 {object} httpHelper.Response
+// @Failure 403 {object} httpHelper.Response
+// @Failure 404 {object} httpHelper.Response
+// @Failure 500 {object} httpHelper.Response
+// @Router /chats/{id}/messages [post]
+func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	s, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		log.Error().Msg("Failed to get user from context")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Unauthorized",
+		}, http.StatusUnauthorized)
+		return
+	}
+
+	userID := s.UserID
+	uuidUserID, err := uuid.Parse(userID)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("Invalid user ID format")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Unauthorized",
+		}, http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	sessionID := vars["id"]
+
+	// Verify session exists and user is a participant
+	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
+	if err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get session")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Session not found",
+		}, http.StatusNotFound)
+		return
+	}
+
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == uuidUserID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
+		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Not authorized to send messages to this session",
+		}, http.StatusForbidden)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		Message string `json:"message"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Error().Err(err).Msg("Failed to decode request body")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Invalid request body",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	if req.Message == "" {
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Message content is required",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Create message
+	message := model.ChatMessage{
+		ChatSessionID: session.ID,
+		UserID:        uuidUserID.String(),
+		Message:       req.Message,
+		CreatedAt:     time.Now(),
+		SentAt:        time.Now(),
+	}
+
+	createdMessage, err := h.storage.MessageRepo().Create(ctx, message)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to create message")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Failed to send message",
+		}, http.StatusInternalServerError)
+		return
+	}
+
+	log.Info().Str("session_id", sessionID).Str("message_id", createdMessage.ID).Msg("Message created")
+
+	httpHelper.SendJSON(w, httpHelper.Response{
+		Success: true,
+		Data:    createdMessage,
+		Message: "Message sent successfully",
+	}, http.StatusCreated)
 }

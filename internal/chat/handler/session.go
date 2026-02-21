@@ -115,8 +115,15 @@ func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify user is a party in the session
-	if !session.HasParty(userID) {
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == userID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
 		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
@@ -159,15 +166,6 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := s.UserID
-	uuidUserID, err := uuid.Parse(userID)
-	if err != nil {
-		log.Error().Err(err).Msg("Invalid user ID")
-		httpHelper.SendJSON(w, httpHelper.Response{
-			Success: false,
-			Error:   "Invalid user ID",
-		}, http.StatusBadRequest)
-		return
-	}
 
 	var req model.CreateSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -179,49 +177,73 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that at least one other party is specified
-	if len(req.Parties) == 0 {
+	// Validate that at least one other participant is specified
+	if len(req.Participants) == 0 {
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
-			Error:   "At least one party must be specified",
+			Error:   "At least one participant must be specified",
 		}, http.StatusBadRequest)
 		return
 	}
 
-	// Parse party UUIDs
-	partyIDs := make([]uuid.UUID, 0, len(req.Parties)+1)
-	partyIDs = append(partyIDs, uuidUserID) // Add current user
+	// Collect all participant IDs (including current user)
+	participantIDs := []string{userID}
 
-	for _, partyStr := range req.Parties {
-		partyID, err := uuid.Parse(partyStr)
+	for _, participantStr := range req.Participants {
+		participantID, err := uuid.Parse(participantStr)
 		if err != nil {
-			log.Error().Err(err).Str("party", partyStr).Msg("Invalid party UUID")
+			log.Error().Err(err).Str("participant", participantStr).Msg("Invalid participant UUID")
 			httpHelper.SendJSON(w, httpHelper.Response{
 				Success: false,
-				Error:   "Invalid party ID: " + partyStr,
+				Error:   "Invalid participant ID: " + participantStr,
 			}, http.StatusBadRequest)
 			return
 		}
 		// Avoid duplicates
 		isDuplicate := false
-		for _, existingID := range partyIDs {
-			if existingID == partyID {
+		for _, existingID := range participantIDs {
+			if existingID == participantID.String() {
 				isDuplicate = true
 				break
 			}
 		}
 		if !isDuplicate {
-			partyIDs = append(partyIDs, partyID)
+			participantIDs = append(participantIDs, participantID.String())
 		}
+	}
+
+	// Generate participant hash for uniqueness
+	participantHash := model.GenerateParticipantHash(participantIDs)
+
+	// Check if session with these participants already exists
+	existingSession, err := h.storage.SessionRepo().GetByParticipantHash(ctx, participantHash)
+	if err == nil {
+		// Session already exists, return it
+		log.Info().Str("session_id", existingSession.ID).Msg("Session already exists with these participants")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: true,
+			Message: "Session already exists",
+			Data:    existingSession,
+		}, http.StatusOK)
+		return
+	}
+
+	// Create participant objects
+	participants := make([]model.SessionParticipant, 0, len(participantIDs))
+	for _, pID := range participantIDs {
+		participants = append(participants, model.SessionParticipant{
+			UserID: pID,
+		})
 	}
 
 	// Create the session
 	session := model.ChatSession{
-		ID:        uuid.NewString(),
-		CreatedBy: userID,
-		Status:    model.SessionStatusActive,
+		ID:              uuid.NewString(),
+		ParticipantHash: participantHash,
+		CreatedBy:       userID,
+		Status:          model.SessionStatusActive,
+		Participants:    participants,
 	}
-	session.SetPartyIDs(partyIDs)
 
 	createdSession, err := h.storage.SessionRepo().Create(ctx, session)
 	if err != nil {
@@ -296,8 +318,15 @@ func (h *Handler) UpdateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify user is a party
-	if !session.HasParty(userID) {
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == userID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
 		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
@@ -316,19 +345,28 @@ func (h *Handler) UpdateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update parties if provided
-	if len(req.Parties) > 0 {
-		for _, partyStr := range req.Parties {
-			partyID, err := uuid.Parse(partyStr)
+	// Add participants if provided
+	if len(req.AddParticipants) > 0 {
+		for _, participantStr := range req.AddParticipants {
+			participantID, err := uuid.Parse(participantStr)
 			if err != nil {
-				log.Error().Err(err).Str("party", partyStr).Msg("Invalid party UUID")
+				log.Error().Err(err).Str("participant", participantStr).Msg("Invalid participant UUID")
 				httpHelper.SendJSON(w, httpHelper.Response{
 					Success: false,
-					Error:   "Invalid party ID: " + partyStr,
+					Error:   "Invalid participant ID: " + participantStr,
 				}, http.StatusBadRequest)
 				return
 			}
-			session.AddParty(partyID)
+			// Add participant to session
+			err = h.storage.SessionRepo().AddParticipant(ctx, sessionID, participantID)
+			if err != nil {
+				log.Error().Err(err).Str("participant_id", participantStr).Msg("Failed to add participant")
+				httpHelper.SendJSON(w, httpHelper.Response{
+					Success: false,
+					Error:   "Failed to add participant",
+				}, http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 
@@ -408,8 +446,15 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify user is a party
-	if !session.HasParty(userID) {
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == userID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
 		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not authorized for session")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
@@ -433,5 +478,93 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
 		Message: "Session deleted successfully",
+	}, http.StatusOK)
+}
+
+// LeaveSession removes the current user from a chat session
+// @Summary Leave a chat session
+// @Description Remove yourself from a chat session. Session auto-deletes if <2 participants remain.
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Session ID"
+// @Success 200 {object} httpHelper.Response
+// @Failure 401 {object} httpHelper.Response
+// @Failure 403 {object} httpHelper.Response
+// @Failure 404 {object} httpHelper.Response
+// @Failure 500 {object} httpHelper.Response
+// @Router /chats/{id}/leave [post]
+func (h *Handler) LeaveSession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	s, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		log.Error().Msg("Failed to get user from context")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Unauthorized",
+		}, http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := uuid.Parse(s.UserID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse user ID")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Invalid user ID",
+		}, http.StatusInternalServerError)
+		return
+	}
+
+	vars := mux.Vars(r)
+	sessionID := vars["id"]
+
+	// Get existing session
+	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
+	if err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get session")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Session not found",
+		}, http.StatusNotFound)
+		return
+	}
+
+	// Check if user is an active participant
+	isActive := false
+	for _, p := range session.GetActiveParticipants() {
+		if p.UserID == userID.String() {
+			isActive = true
+			break
+		}
+	}
+	if !isActive {
+		log.Warn().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User not active in session")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "You are not an active participant in this session",
+		}, http.StatusForbidden)
+		return
+	}
+
+	// Remove participant (this will auto-delete session if <2 participants remain)
+	err = h.storage.SessionRepo().RemoveParticipant(ctx, sessionID, userID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to leave session")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Failed to leave session",
+		}, http.StatusInternalServerError)
+		return
+	}
+
+	log.Info().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User left session successfully")
+
+	httpHelper.SendJSON(w, httpHelper.Response{
+		Success: true,
+		Message: "Successfully left the session",
 	}, http.StatusOK)
 }
