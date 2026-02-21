@@ -8,6 +8,14 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
 - **Frontend:** Svelte 5+ with TypeScript 5.9+, source under `web/`.
 
+
+## General instructions
+
+- When I said "we are working on a feature" or something similar:
+  - create a tracker file to track the progress, e.g.: `CHAT_PROGRESS.md`
+  - the file can be used by you when I create new chat session so you don't miss context and start from scratch.
+  - at the end once we finish the feature, create an ADR file to document the design decision, e.g.: `CHAT_IMPLEMENTATION_PLAN.md`    
+
 ## Tech stacks
 
 ### Backend (Go) Guidelines
