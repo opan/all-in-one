@@ -15,6 +15,7 @@ All-in-one is a multi-functional apps with the main goal for learning.
   - create a tracker file to track the progress, e.g.: `CHAT_PROGRESS.md`
   - the file can be used by you when I create new chat session so you don't miss context and start from scratch.
   - at the end once we finish the feature, create an ADR file to document the design decision, e.g.: `CHAT_IMPLEMENTATION_PLAN.md`    
+  - put all the files under `.github/context/`
 
 ## Tech stacks
 
