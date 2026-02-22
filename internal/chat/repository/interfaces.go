@@ -56,6 +56,14 @@ type MessageRepository interface {
 	Get(ctx context.Context, id string) (model.ChatMessage, error)
 }
 
+// UserSearchResult represents a user in search results
+type UserSearchResult struct {
+	ID       string `json:"id" db:"id"`
+	Username string `json:"username" db:"username"`
+	Email    string `json:"email" db:"email"`
+	Name     string `json:"name" db:"name"`
+}
+
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
 	// SessionRepo returns the session repository
@@ -63,6 +71,9 @@ type Storage interface {
 
 	// MessageRepo returns the message repository
 	MessageRepo() MessageRepository
+
+	// SearchUsers searches for users by username or name
+	SearchUsers(ctx context.Context, query string, excludeUserID uuid.UUID, limit int) ([]UserSearchResult, error)
 
 	// Close closes the storage connection
 	Close() error

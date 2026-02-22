@@ -15,6 +15,7 @@
   import { ChatWebSocketClient } from "$lib/websocket-client";
   import { WebSocketState } from "$lib/websocket-types";
   import type { MessagePayload, TypingPayload } from "$lib/websocket-types";
+  import NewChatDialog from "$components/NewChatDialog.svelte";
 
   // State
   let chatSessions = $state<ApiChatSession[]>([]);
@@ -23,18 +24,21 @@
   let searchQuery = $state("");
   let newMessage = $state("");
   let loading = $state(true);
-  let error = $state<string | null>(null);
+  let sessionsError = $state<string | null>(null); // Error loading sessions list
+  let messagesError = $state<string | null>(null); // Error loading messages
   let currentUserId = $state<string | null>(null);
   let wsClient = $state<ChatWebSocketClient | null>(null);
   let wsState = $state<WebSocketState>(WebSocketState.DISCONNECTED);
   let typingUsers = $state<Set<string>>(new Set());
   let typingTimeout: number | null = null;
+  let showNewChatDialog = $state(false);
 
   // Load sessions on mount
   onMount(async () => {
     try {
       loading = true;
-      error = null;
+      sessionsError = null;
+      messagesError = null;
       
       // Get current user
       const userResponse = await fetch('/api/v1/users/me', { credentials: 'include' });
@@ -54,7 +58,7 @@
         connectWebSocket(chatSessions[0].id);
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : "Failed to load chats";
+      sessionsError = err instanceof Error ? err.message : "Failed to load chats";
       console.error("Error loading chats:", err);
     } finally {
       loading = false;
@@ -65,6 +69,26 @@
   onDestroy(() => {
     disconnectWebSocket();
   });
+
+  async function handleSessionCreated() {
+    // Reload sessions after creating a new one
+    try {
+      sessionsError = null; // Clear any previous errors
+      messagesError = null;
+      chatSessions = await getSessions();
+      
+      // Select the newly created session (it should be first)
+      if (chatSessions.length > 0) {
+        const newSession = chatSessions[0];
+        activeSessionId = newSession.id;
+        await loadMessages(newSession.id);
+        connectWebSocket(newSession.id);
+      }
+    } catch (err) {
+      console.error("Error reloading sessions:", err);
+      sessionsError = err instanceof Error ? err.message : "Failed to reload sessions";
+    }
+  }
 
   function connectWebSocket(sessionId: string) {
     // Disconnect existing connection if any
@@ -84,7 +108,7 @@
 
     wsClient.onError((errorMsg: string) => {
       console.error("WebSocket error:", errorMsg);
-      error = errorMsg;
+      messagesError = errorMsg;
     });
 
     wsClient.onStateChange((state: WebSocketState) => {
@@ -148,9 +172,10 @@
   async function loadMessages(sessionId: string) {
     try {
       messages = await getMessages(sessionId);
+      messagesError = null; // Clear error on successful load
     } catch (err) {
       console.error("Error loading messages:", err);
-      error = err instanceof Error ? err.message : "Failed to load messages";
+      messagesError = err instanceof Error ? err.message : "Failed to load messages";
     }
   }
 
@@ -178,6 +203,7 @@
   );
 
   async function selectSession(sessionId: string) {
+    messagesError = null; // Clear any previous errors
     activeSessionId = sessionId;
     await loadMessages(sessionId);
     connectWebSocket(sessionId);
@@ -212,7 +238,7 @@
       }
     } catch (err) {
       console.error("Error sending message:", err);
-      error = err instanceof Error ? err.message : "Failed to send message";
+      messagesError = err instanceof Error ? err.message : "Failed to send message";
       newMessage = messageText; // Restore message on error
     }
   }
@@ -298,7 +324,7 @@
     <div class="p-4 border-b">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold">Chats</h2>
-        <Button variant="ghost" size="icon" class="h-8 w-8">
+        <Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => showNewChatDialog = true}>
           <Plus class="h-4 w-4" />
         </Button>
       </div>
@@ -321,9 +347,9 @@
         <div class="p-4 text-center text-muted-foreground">
           <p>Loading chats...</p>
         </div>
-      {:else if error}
+      {:else if sessionsError}
         <div class="p-4 text-center text-destructive">
-          <p class="text-sm">{error}</p>
+          <p class="text-sm">{sessionsError}</p>
         </div>
       {:else if filteredSessions.length === 0}
         <div class="p-4 text-center text-muted-foreground">
@@ -377,6 +403,13 @@
 
       <!-- Messages Area -->
       <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Error Message -->
+        {#if messagesError}
+          <div class="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p class="text-sm text-destructive">{messagesError}</p>
+          </div>
+        {/if}
+
         {#each sessionMessages as message (message.id)}
           {@const isCurrentUser = message.user_id === currentUserId}
           <div
@@ -465,3 +498,9 @@
     {/if}
   </div>
 </div>
+
+<!-- New Chat Dialog -->
+<NewChatDialog 
+  bind:open={showNewChatDialog} 
+  onSessionCreated={handleSessionCreated}
+/>

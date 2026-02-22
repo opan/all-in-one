@@ -4,6 +4,7 @@ export interface User {
 	id: string;
 	username: string;
 	email: string;
+	name: string;
 }
 
 export interface SessionParticipant {
@@ -131,11 +132,12 @@ export async function getMessages(
 	);
 	const json = (await response.json()) as ApiResponse<ChatMessage[]>;
 
-	if (!json.success || !json.data) {
+	if (!json.success) {
 		throw new Error(json.error || "Failed to fetch messages");
 	}
 
-	return json.data;
+	// Handle null data as empty array (for sessions with no messages)
+	return json.data || [];
 }
 
 /**

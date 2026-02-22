@@ -47,7 +47,8 @@ func (r *messageRepository) GetBySessionID(ctx context.Context, sessionID string
 		LIMIT ?
 	`
 
-	var messages []model.ChatMessage
+	// Initialize with empty slice instead of nil to ensure JSON marshals as [] not null
+	messages := make([]model.ChatMessage, 0)
 	err := r.db.SelectContext(ctx, &messages, query, sessionID, limit)
 	if err != nil {
 		r.log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get messages")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -334,6 +335,7 @@ func (h *Handler) CreateMessage(ctx context.Context, sessionID string, userID uu
 // @Produce json
 // @Security BearerAuth
 // @Param q query string true "Search query (username or name)"
+// @Param limit query int false "Max results" default(10)
 // @Success 200 {object} httpHelper.Response
 // @Failure 400 {object} httpHelper.Response
 // @Failure 401 {object} httpHelper.Response
@@ -343,7 +345,7 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
-	_, ok := auth.GetUserFromContext(ctx)
+	s, ok := auth.GetUserFromContext(ctx)
 	if !ok {
 		log.Error().Msg("Failed to get user from context")
 		httpHelper.SendJSON(w, httpHelper.Response{
@@ -353,28 +355,51 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := r.URL.Query().Get("q")
-	if query == "" {
+	userID, err := uuid.Parse(s.UserID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse user ID")
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: false,
-			Error:   "Search query is required",
-		}, http.StatusBadRequest)
+			Error:   "Invalid user ID",
+		}, http.StatusInternalServerError)
 		return
 	}
 
-	// TODO: Implement actual user search
-	// For now, return empty results as this requires authnz service integration
-	type UserSearchResult struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-		Name     string `json:"name"`
-		Email    string `json:"email"`
+	query := r.URL.Query().Get("q")
+	limit := 10
+	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+		if parsedLimit, err := fmt.Sscanf(limitParam, "%d", &limit); err == nil && parsedLimit == 1 && limit > 0 && limit <= 50 {
+			// use parsed limit
+		} else {
+			limit = 10 // fallback to default
+		}
 	}
+
+	// If query is empty, return empty results
+	if query == "" {
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: true,
+			Data:    []interface{}{},
+		}, http.StatusOK)
+		return
+	}
+
+	// Search users
+	users, err := h.storage.SearchUsers(ctx, query, userID, limit)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to search users")
+		httpHelper.SendJSON(w, httpHelper.Response{
+			Success: false,
+			Error:   "Failed to search users",
+		}, http.StatusInternalServerError)
+		return
+	}
+
+	log.Info().Str("query", query).Int("results", len(users)).Msg("User search completed")
 
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
-		Data:    []UserSearchResult{},
-		Message: "User search not yet implemented - integrate with authnz service",
+		Data:    users,
 	}, http.StatusOK)
 }
 
