@@ -20,6 +20,7 @@ export class ChatWebSocketClient {
 	private reconnectTimeout: number | null = null;
 	private pingInterval: number | null = null;
 	private state: WebSocketState = WebSocketState.DISCONNECTED;
+	private intentionalClose = false; // Flag to prevent reconnection on intentional disconnect
 	
 	// Event handlers
 	private messageHandlers: Set<MessageHandler> = new Set();
@@ -38,15 +39,22 @@ export class ChatWebSocketClient {
 	 */
 	public connect(): void {
 		if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
-			console.log("WebSocket already connected or connecting");
+			console.log("WebSocket already connected or connecting, state:", this.ws.readyState);
 			return;
 		}
 
+		// Reset intentional close flag
+		this.intentionalClose = false;
+		console.log("🔌 Connecting to WebSocket...");
 		this.updateState(WebSocketState.CONNECTING);
 
 		// Determine WebSocket URL (ws:// or wss://)
 		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-		const host = window.location.host;
+		
+		// In development (Vite), connect directly to backend to avoid proxy issues
+		// In production, use the same host as the frontend
+		const isDev = import.meta.env.DEV;
+		const host = isDev ? "localhost:8080" : window.location.host;
 		
 		// Get JWT token from cookie
 		const token = this.getCookie("access_token");
@@ -54,7 +62,7 @@ export class ChatWebSocketClient {
 		
 		const wsUrl = `${protocol}//${host}/api/v1/ws${tokenParam}`;
 
-		console.log("Connecting to WebSocket:", wsUrl.replace(/token=[^&]+/, "token=***"));
+		console.log("Connecting to WebSocket:", wsUrl.replace(/token=[^&]+/, "token=***"), `(${isDev ? 'development' : 'production'} mode)`);
 
 		try {
 			this.ws = new WebSocket(wsUrl);
@@ -70,6 +78,7 @@ export class ChatWebSocketClient {
 	 * Disconnect from the WebSocket server
 	 */
 	public disconnect(): void {
+		this.intentionalClose = true; // Mark as intentional
 		this.updateState(WebSocketState.DISCONNECTING);
 		this.clearReconnectTimeout();
 		this.clearPingInterval();
@@ -183,10 +192,14 @@ export class ChatWebSocketClient {
 			this.clearPingInterval();
 			this.updateState(WebSocketState.DISCONNECTED);
 			
-			// Attempt reconnect if it wasn't a clean close
-			if (event.code !== 1000 && event.code !== 1001) {
+			// Only attempt reconnect if:
+			// 1. It wasn't an intentional close
+			// 2. It wasn't a clean close (1000 = normal, 1001 = going away)
+			if (!this.intentionalClose && event.code !== 1000 && event.code !== 1001) {
 				console.warn("Unexpected close, attempting reconnect...");
 				this.attemptReconnect();
+			} else {
+				console.log("WebSocket closed cleanly, not reconnecting");
 			}
 		};
 

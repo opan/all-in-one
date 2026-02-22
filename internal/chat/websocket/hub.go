@@ -75,12 +75,20 @@ func (h *Hub) registerClient(client *Client) {
 
 	userID := client.userID.String()
 
-	// If user already has a connection, close the old one
+	// If user already has a connection, close the old one properly
 	if existingClient, exists := h.users[userID]; exists {
 		h.log.Info().
 			Str("user_id", userID).
 			Msg("Replacing existing WebSocket connection for user")
-		close(existingClient.send)
+
+		// Close the old connection gracefully
+		// This will send a proper close frame to the client
+		go func(oldClient *Client) {
+			if oldClient.cancel != nil {
+				oldClient.cancel() // Cancel the context
+			}
+			close(oldClient.send) // Close the send channel
+		}(existingClient)
 	}
 
 	h.users[userID] = client

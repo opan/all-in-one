@@ -69,6 +69,7 @@
 
   // Cleanup on component destroy
   onDestroy(() => {
+    console.log("Chat component unmounting, disconnecting WebSocket...");
     disconnectWebSocket();
   });
 
@@ -92,6 +93,18 @@
   }
 
   function connectWebSocket() {
+    // Don't create a new connection if already connected
+    if (wsClient && wsClient.isConnected()) {
+      console.log("WebSocket already connected, skipping...");
+      return;
+    }
+
+    // Disconnect any existing client first
+    if (wsClient) {
+      console.log("Disconnecting existing WebSocket before reconnecting...");
+      wsClient.disconnect();
+    }
+
     // Create user-level WebSocket client (receives messages from all sessions)
     wsClient = new ChatWebSocketClient();
 
@@ -300,7 +313,7 @@
   function getParticipantNames(session: ApiChatSession): string {
     if (!session.participants) return "";
     return session.participants
-      .filter((p) => p.left_at === null) // Only active participants
+      .filter((p) => p.left_at === null && p.user_id !== currentUserId) // Only active participants, exclude current user
       .map((p) => p.username || `User ${p.user_id}`)
       .join(", ");
   }
@@ -309,14 +322,15 @@
     if (!session.participants) return "Chat";
     
     const activeParticipants = session.participants.filter((p) => p.left_at === null);
-    if (activeParticipants.length === 2) {
+    const otherParticipants = activeParticipants.filter((p) => p.user_id !== currentUserId);
+    
+    if (otherParticipants.length === 1) {
       // 1-on-1 chat: show the other user's name
-      const otherUser = activeParticipants.find((p) => p.user_id !== currentUserId);
-      return otherUser?.username || "Chat";
+      return otherParticipants[0]?.username || "Chat";
     }
     
-    // Group chat: show participant count
-    return `Group (${activeParticipants.length})`;
+    // Group chat: show participant count (excluding current user)
+    return `Group (${otherParticipants.length})`;
   }
 </script>
 

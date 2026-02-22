@@ -6,10 +6,10 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		proxy: {
+			// Proxy API requests (WebSocket connects directly to backend in dev)
 			"/api": {
 				target: "http://localhost:8080",
 				changeOrigin: true,
-				ws: true, // Enable WebSocket proxying
 			},
 		},
 		watch: {
