@@ -12,6 +12,9 @@ type SessionRepository interface {
 	// GetAllByUserID returns all sessions where the user is an active participant
 	GetAllByUserID(ctx context.Context, userID uuid.UUID) ([]model.ChatSession, error)
 
+	// GetAllByUserIDWithPagination returns sessions where the user is an active participant with pagination
+	GetAllByUserIDWithPagination(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]model.ChatSession, error)
+
 	// Get returns a session by ID with participants
 	Get(ctx context.Context, id string) (model.ChatSession, error)
 

@@ -54,8 +54,13 @@ export interface SendMessageRequest {
 /**
  * Get all chat sessions for the current user
  */
-export async function getSessions(): Promise<ChatSession[]> {
-	const response = await apiGet("/api/v1/chats");
+export async function getSessions(limit?: number, offset?: number): Promise<ChatSession[]> {
+	const params = new URLSearchParams();
+	if (limit !== undefined) params.set('limit', limit.toString());
+	if (offset !== undefined) params.set('offset', offset.toString());
+	
+	const url = `/api/v1/chats${params.toString() ? '?' + params.toString() : ''}`;
+	const response = await apiGet(url);
 	const json = (await response.json()) as ApiResponse<ChatSession[]>;
 
 	if (!json.success || !json.data) {

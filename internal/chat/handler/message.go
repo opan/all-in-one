@@ -151,31 +151,6 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	sessionID := vars["id"]
-
-	// Verify user is a party in the session
-	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
-	if err != nil {
-		log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get session")
-		http.Error(w, "Session not found", http.StatusNotFound)
-		return
-	}
-
-	// Check if user is an active participant
-	isActive := false
-	for _, p := range session.GetActiveParticipants() {
-		if p.UserID == uuidUserID.String() {
-			isActive = true
-			break
-		}
-	}
-	if !isActive {
-		log.Warn().Str("session_id", sessionID).Str("user_id", userID).Msg("User not authorized for session")
-		http.Error(w, "Not authorized", http.StatusForbidden)
-		return
-	}
-
 	// Upgrade HTTP connection to WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -183,8 +158,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get username (you may need to fetch from user service or context)
-	username := s.Username // Placeholder - should fetch actual username
+	// Get username
+	username := s.Username
 
 	// Create a new context for the WebSocket connection that's not tied to the HTTP request
 	// Copy important values from the request context
@@ -195,8 +170,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		wsCtx = context.WithValue(wsCtx, "request_id", requestID)
 	}
 
-	// Create new client with message handler
-	client := websocket.NewClient(h.hub, conn, sessionID, uuidUserID, username, h.handleWebSocketMessage, wsCtx, wsCancel, *log)
+	// Create new client with message handler (no sessionID needed)
+	client := websocket.NewClient(h.hub, conn, uuidUserID, username, h.handleWebSocketMessage, wsCtx, wsCancel, *log)
 
 	// Register client with hub
 	h.hub.Register(client)
@@ -206,7 +181,6 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	go h.handleClientMessages(client)
 
 	log.Info().
-		Str("session_id", sessionID).
 		Str("user_id", userID).
 		Msg("WebSocket connection established")
 }
@@ -217,7 +191,7 @@ func (h *Handler) handleWebSocketMessage(ctx context.Context, client *websocket.
 
 	switch wsMsg.Type {
 	case "message":
-		// Extract message content from payload
+		// Extract message content and session ID from payload
 		payloadMap, ok := wsMsg.Payload.(map[string]interface{})
 		if !ok {
 			return errors.New("invalid message payload format")
@@ -228,19 +202,58 @@ func (h *Handler) handleWebSocketMessage(ctx context.Context, client *websocket.
 			return errors.New("message text is required")
 		}
 
-		// Create and save the message
-		_, err := h.CreateMessage(ctx, client.GetSessionID(), client.GetUserID(), client.GetUsername(), messageText)
+		// Extract sessionID from payload
+		sessionID, ok := payloadMap["session_id"].(string)
+		if !ok || sessionID == "" {
+			return errors.New("session_id is required in message payload")
+		}
+
+		// Create and save the message (includes authorization check)
+		_, err := h.CreateMessage(ctx, sessionID, client.GetUserID(), client.GetUsername(), messageText)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create message from WebSocket")
 			return err
 		}
 
-		log.Info().Str("session_id", client.GetSessionID()).Msg("Message created from WebSocket")
+		log.Info().Str("session_id", sessionID).Msg("Message created from WebSocket")
 		return nil
 
 	case "typing":
-		// Broadcast typing indicator to other users in the session
-		h.hub.Broadcast(client.GetSessionID(), wsMsg)
+		// Extract sessionID from typing payload
+		payloadMap, ok := wsMsg.Payload.(map[string]interface{})
+		if !ok {
+			return errors.New("invalid typing payload format")
+		}
+
+		sessionID, ok := payloadMap["session_id"].(string)
+		if !ok || sessionID == "" {
+			return errors.New("session_id is required in typing payload")
+		}
+
+		// Verify user has access to this session before broadcasting typing
+		session, err := h.storage.SessionRepo().Get(ctx, sessionID)
+		if err != nil {
+			log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get session for typing indicator")
+			return err
+		}
+
+		// Check if user is an active participant
+		isActive := false
+		participants := []string{}
+		for _, p := range session.GetActiveParticipants() {
+			participants = append(participants, p.UserID)
+			if p.UserID == client.GetUserID().String() {
+				isActive = true
+			}
+		}
+
+		if !isActive {
+			log.Warn().Str("session_id", sessionID).Str("user_id", client.GetUserID().String()).Msg("User not authorized for session")
+			return errors.New("not authorized for this session")
+		}
+
+		// Broadcast typing indicator to all participants
+		h.hub.BroadcastToUsers(sessionID, wsMsg, participants)
 		return nil
 
 	default:
@@ -258,7 +271,7 @@ func (h *Handler) handleClientMessages(client *websocket.Client) {
 	client.ReadPump()
 }
 
-// BroadcastMessage broadcasts a message to all clients in a session
+// BroadcastMessage broadcasts a message to all participants in a session
 // This is called when a message is persisted to the database
 func (h *Handler) BroadcastMessage(sessionID string, chat model.ChatMessage) {
 	payload := model.MessagePayload{
@@ -276,7 +289,25 @@ func (h *Handler) BroadcastMessage(sessionID string, chat model.ChatMessage) {
 		Timestamp: time.Now(),
 	}
 
-	h.hub.Broadcast(sessionID, wsMsg)
+	// Get session participants
+	ctx := context.Background()
+	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
+	if err != nil {
+		h.hub.Broadcast(sessionID, wsMsg) // Fallback to cached participants
+		return
+	}
+
+	// Extract participant user IDs
+	participants := []string{}
+	for _, p := range session.GetActiveParticipants() {
+		participants = append(participants, p.UserID)
+	}
+
+	// Cache participants for future use
+	h.hub.CacheSessionParticipants(sessionID, participants)
+
+	// Broadcast to all participants
+	h.hub.BroadcastToUsers(sessionID, wsMsg, participants)
 }
 
 // CreateMessage creates a new message (called via WebSocket or REST)

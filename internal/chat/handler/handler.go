@@ -37,8 +37,8 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/chats/{id}/messages", h.GetMessages).Methods("GET")
 	router.HandleFunc("/chats/{id}/messages", h.SendMessage).Methods("POST")
 
-	// WebSocket endpoint
-	router.HandleFunc("/chats/{id}/ws", h.HandleWebSocket)
+	// WebSocket endpoint (user-level, not session-specific)
+	router.HandleFunc("/ws", h.HandleWebSocket)
 
 	// User search for invitations (reuse authnz user search if available)
 	// For now, we'll implement a simple search in the handler

@@ -49,13 +49,15 @@
         }
       }
       
-      chatSessions = await getSessions();
+      chatSessions = await getSessions(20, 0); // Load first 20 sessions
+      
+      // Connect WebSocket once (user-level connection)
+      connectWebSocket();
       
       // Select first session by default if available
       if (chatSessions.length > 0) {
         activeSessionId = chatSessions[0].id;
         await loadMessages(chatSessions[0].id);
-        connectWebSocket(chatSessions[0].id);
       }
     } catch (err) {
       sessionsError = err instanceof Error ? err.message : "Failed to load chats";
@@ -75,14 +77,13 @@
     try {
       sessionsError = null; // Clear any previous errors
       messagesError = null;
-      chatSessions = await getSessions();
+      chatSessions = await getSessions(20, 0); // Reload first 20 sessions
       
       // Select the newly created session (it should be first)
       if (chatSessions.length > 0) {
         const newSession = chatSessions[0];
         activeSessionId = newSession.id;
         await loadMessages(newSession.id);
-        connectWebSocket(newSession.id);
       }
     } catch (err) {
       console.error("Error reloading sessions:", err);
@@ -90,12 +91,9 @@
     }
   }
 
-  function connectWebSocket(sessionId: string) {
-    // Disconnect existing connection if any
-    disconnectWebSocket();
-
-    // Create new WebSocket client
-    wsClient = new ChatWebSocketClient(sessionId);
+  function connectWebSocket() {
+    // Create user-level WebSocket client (receives messages from all sessions)
+    wsClient = new ChatWebSocketClient();
 
     // Set up event handlers
     wsClient.onMessage((payload: MessagePayload) => {
@@ -140,18 +138,24 @@
       sent_at: payload.created_at,
     };
 
-    // Add message to local state if not already present
-    const exists = messages.some((m) => m.id === newMsg.id);
-    if (!exists) {
-      messages = [...messages, newMsg];
-
-      // Update last message in session list
-      const session = chatSessions.find((s) => s.id === payload.chat_session_id);
-      if (session) {
-        session.last_message = newMsg;
-        session.updated_at = newMsg.created_at;
-        chatSessions = [...chatSessions]; // Trigger reactivity
+    // If message is for the active session, add to messages list
+    if (payload.chat_session_id === activeSessionId) {
+      const exists = messages.some((m) => m.id === newMsg.id);
+      if (!exists) {
+        messages = [...messages, newMsg];
       }
+    }
+
+    // Always update last message in session list (this is the key improvement!)
+    const session = chatSessions.find((s) => s.id === payload.chat_session_id);
+    if (session) {
+      session.last_message = newMsg;
+      session.updated_at = newMsg.created_at;
+      
+      // Re-sort sessions by updated_at to bring this to the top
+      chatSessions = chatSessions.sort((a, b) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
     }
   }
 
@@ -206,7 +210,6 @@
     messagesError = null; // Clear any previous errors
     activeSessionId = sessionId;
     await loadMessages(sessionId);
-    connectWebSocket(sessionId);
   }
 
   async function sendMessage() {
@@ -218,7 +221,7 @@
     try {
       // Send via WebSocket if connected
       if (wsClient && wsClient.isConnected()) {
-        wsClient.sendMessage(messageText);
+        wsClient.sendMessage(messageText, activeSessionId);
       } else {
         // Fallback to REST API if WebSocket is not connected
         console.warn("WebSocket not connected, using REST API fallback");
@@ -245,8 +248,8 @@
 
   function handleInput() {
     // Send typing indicator when user starts typing
-    if (wsClient && wsClient.isConnected()) {
-      wsClient.sendTyping(true);
+    if (wsClient && wsClient.isConnected() && activeSessionId) {
+      wsClient.sendTyping(true, activeSessionId);
       
       // Clear existing timeout
       if (typingTimeout !== null) {
@@ -255,8 +258,8 @@
       
       // Send "stopped typing" after 2 seconds of inactivity
       typingTimeout = window.setTimeout(() => {
-        if (wsClient && wsClient.isConnected()) {
-          wsClient.sendTyping(false);
+        if (wsClient && wsClient.isConnected() && activeSessionId) {
+          wsClient.sendTyping(false, activeSessionId);
         }
       }, 2000);
     }

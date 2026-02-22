@@ -69,6 +69,62 @@ func (r *sessionRepository) GetAllByUserID(ctx context.Context, userID uuid.UUID
 	return sessions, nil
 }
 
+// GetAllByUserIDWithPagination returns sessions where the user is an active participant with pagination
+func (r *sessionRepository) GetAllByUserIDWithPagination(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]model.ChatSession, error) {
+	// Validate and set defaults
+	if limit <= 0 {
+		limit = 20 // default
+	}
+	if limit > 100 {
+		limit = 100 // max
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := `
+		SELECT DISTINCT 
+			cs.id, 
+			cs.participant_hash, 
+			cs.status, 
+			cs.created_at, 
+			cs.updated_at, 
+			cs.created_by
+		FROM chat_sessions cs
+		INNER JOIN chat_session_participants csp ON cs.id = csp.session_id
+		WHERE cs.status != 'deleted'
+		  AND csp.user_id = ?
+		  AND csp.left_at IS NULL
+		ORDER BY cs.updated_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	var sessions []model.ChatSession
+	err := r.db.SelectContext(ctx, &sessions, query, userID.String(), limit, offset)
+	if err != nil {
+		r.log.Error().Err(err).Str("user_id", userID.String()).Msg("Failed to get sessions by user ID with pagination")
+		return nil, fmt.Errorf("failed to get sessions: %w", err)
+	}
+
+	// Load participants for each session
+	for i := range sessions {
+		participants, err := r.GetParticipants(ctx, sessions[i].ID)
+		if err != nil {
+			r.log.Error().Err(err).Str("session_id", sessions[i].ID).Msg("Failed to load participants")
+			continue
+		}
+		sessions[i].Participants = participants
+
+		// Load last message for each session
+		lastMsg, err := r.getLastMessage(ctx, sessions[i].ID)
+		if err == nil && lastMsg != nil {
+			sessions[i].LastMessage = lastMsg
+		}
+	}
+
+	return sessions, nil
+}
+
 // Get returns a session by ID
 func (r *sessionRepository) Get(ctx context.Context, id string) (model.ChatSession, error) {
 	query := `

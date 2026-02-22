@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/all-in-one/internal/auth"
@@ -19,6 +20,8 @@ import (
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param limit query int false "Max results" default(20)
+// @Param offset query int false "Offset for pagination" default(0)
 // @Success 200 {object} httpHelper.Response
 // @Failure 401 {object} httpHelper.Response
 // @Failure 500 {object} httpHelper.Response
@@ -48,7 +51,27 @@ func (h *Handler) GetSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions, err := h.storage.SessionRepo().GetAllByUserID(ctx, userID)
+	// Parse pagination parameters
+	limit := 20 // default
+	offset := 0 // default
+
+	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+		if parsedLimit, parseErr := fmt.Sscanf(limitParam, "%d", &limit); parseErr == nil && parsedLimit == 1 && limit > 0 && limit <= 100 {
+			// use parsed limit
+		} else {
+			limit = 20 // fallback to default
+		}
+	}
+
+	if offsetParam := r.URL.Query().Get("offset"); offsetParam != "" {
+		if parsedOffset, parseErr := fmt.Sscanf(offsetParam, "%d", &offset); parseErr == nil && parsedOffset == 1 && offset >= 0 {
+			// use parsed offset
+		} else {
+			offset = 0 // fallback to default
+		}
+	}
+
+	sessions, err := h.storage.SessionRepo().GetAllByUserIDWithPagination(ctx, userID, limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get sessions")
 		httpHelper.SendJSON(w, httpHelper.Response{
@@ -368,6 +391,8 @@ func (h *Handler) UpdateSession(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		// Invalidate participant cache for this session
+		h.hub.InvalidateSessionCache(sessionID)
 	}
 
 	// Update status if provided
@@ -560,6 +585,9 @@ func (h *Handler) LeaveSession(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusInternalServerError)
 		return
 	}
+
+	// Invalidate participant cache for this session
+	h.hub.InvalidateSessionCache(sessionID)
 
 	log.Info().Str("session_id", sessionID).Str("user_id", s.UserID).Msg("User left session successfully")
 

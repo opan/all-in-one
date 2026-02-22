@@ -36,9 +36,6 @@ type Client struct {
 	// Buffered channel of outbound messages
 	send chan model.WebSocketMessage
 
-	// The session ID this client is connected to
-	sessionID string
-
 	// The user ID of the connected user
 	userID uuid.UUID
 
@@ -62,12 +59,11 @@ type Client struct {
 type MessageHandler func(ctx context.Context, client *Client, wsMsg model.WebSocketMessage) error
 
 // NewClient creates a new WebSocket client
-func NewClient(hub *Hub, conn *websocket.Conn, sessionID string, userID uuid.UUID, username string, messageHandler MessageHandler, ctx context.Context, cancel context.CancelFunc, log zerolog.Logger) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string, messageHandler MessageHandler, ctx context.Context, cancel context.CancelFunc, log zerolog.Logger) *Client {
 	return &Client{
 		hub:            hub,
 		conn:           conn,
 		send:           make(chan model.WebSocketMessage, 256),
-		sessionID:      sessionID,
 		userID:         userID,
 		username:       username,
 		messageHandler: messageHandler,
@@ -99,7 +95,6 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				c.log.Error().Err(err).
-					Str("session_id", c.sessionID).
 					Str("user_id", c.userID.String()).
 					Msg("WebSocket unexpected close")
 			}
@@ -121,7 +116,6 @@ func (c *Client) ReadPump() {
 
 		c.log.Debug().
 			Str("type", wsMsg.Type).
-			Str("session_id", c.sessionID).
 			Str("user_id", c.userID.String()).
 			Msg("Received WebSocket message")
 
@@ -132,8 +126,7 @@ func (c *Client) ReadPump() {
 				c.sendError(err.Error())
 			}
 		} else {
-			// Fallback: just broadcast if no handler is set
-			c.hub.Broadcast(c.sessionID, wsMsg)
+			c.log.Warn().Str("type", wsMsg.Type).Msg("No message handler configured")
 		}
 	}
 }
@@ -164,7 +157,6 @@ func (c *Client) WritePump() {
 
 			c.log.Debug().
 				Str("type", message.Type).
-				Str("session_id", c.sessionID).
 				Msg("Sent WebSocket message to client")
 
 		case <-ticker.C:
@@ -193,11 +185,6 @@ func (c *Client) sendError(errorMsg string) {
 	default:
 		c.log.Warn().Str("error", errorMsg).Msg("Failed to send error message to client")
 	}
-}
-
-// GetSessionID returns the session ID
-func (c *Client) GetSessionID() string {
-	return c.sessionID
 }
 
 // GetUserID returns the user ID

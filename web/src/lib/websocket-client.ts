@@ -14,7 +14,6 @@ import { WebSocketState } from "./websocket-types";
 
 export class ChatWebSocketClient {
 	private ws: WebSocket | null = null;
-	private sessionId: string;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
 	private reconnectDelay = 1000; // Start with 1 second
@@ -30,8 +29,8 @@ export class ChatWebSocketClient {
 	private errorHandlers: Set<ErrorHandler> = new Set();
 	private stateChangeHandlers: Set<StateChangeHandler> = new Set();
 
-	constructor(sessionId: string) {
-		this.sessionId = sessionId;
+	constructor() {
+		// No sessionId needed - this is a user-level connection
 	}
 
 	/**
@@ -53,7 +52,7 @@ export class ChatWebSocketClient {
 		const token = this.getCookie("access_token");
 		const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
 		
-		const wsUrl = `${protocol}//${host}/api/v1/chats/${this.sessionId}/ws${tokenParam}`;
+		const wsUrl = `${protocol}//${host}/api/v1/ws${tokenParam}`;
 
 		console.log("Connecting to WebSocket:", wsUrl.replace(/token=[^&]+/, "token=***"));
 
@@ -86,7 +85,7 @@ export class ChatWebSocketClient {
 	/**
 	 * Send a message through the WebSocket
 	 */
-	public sendMessage(message: string): void {
+	public sendMessage(message: string, sessionId: string): void {
 		if (!this.isConnected()) {
 			console.error("Cannot send message: WebSocket not connected");
 			return;
@@ -94,7 +93,7 @@ export class ChatWebSocketClient {
 
 		const wsMessage: WebSocketMessage = {
 			type: "message",
-			payload: { message },
+			payload: { message, session_id: sessionId },
 			timestamp: new Date().toISOString(),
 		};
 
@@ -104,14 +103,14 @@ export class ChatWebSocketClient {
 	/**
 	 * Send a typing indicator
 	 */
-	public sendTyping(isTyping: boolean): void {
+	public sendTyping(isTyping: boolean, sessionId: string): void {
 		if (!this.isConnected()) {
 			return;
 		}
 
 		const wsMessage: WebSocketMessage = {
 			type: "typing",
-			payload: { is_typing: isTyping },
+			payload: { is_typing: isTyping, session_id: sessionId },
 			timestamp: new Date().toISOString(),
 		};
 
@@ -286,13 +285,8 @@ export class ChatWebSocketClient {
 		// Send ping every 30 seconds
 		this.pingInterval = window.setInterval(() => {
 			if (this.isConnected()) {
-				// Send a ping message (you can customize this based on your backend)
-				const pingMessage: WebSocketMessage = {
-					type: "typing",
-					payload: { is_typing: false },
-					timestamp: new Date().toISOString(),
-				};
-				this.send(pingMessage);
+				// WebSocket connection stays alive with native ping/pong
+				// We don't need to send application-level pings
 			}
 		}, 30000);
 	}
