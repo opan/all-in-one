@@ -1,6 +1,6 @@
 # Chat Feature Implementation Progress
 
-**Last Updated**: February 21, 2026  
+**Last Updated**: February 22, 2026  
 **Overall Completion**: ~100% ✅
 
 ## 📋 Quick Status
@@ -158,6 +158,50 @@
   - Created ADR document: [USER_RELATIONSHIPS_ADR.md](./USER_RELATIONSHIPS_ADR.md)
   - Implementation plan documented (~2 weeks, 12 hours dev work)
 
+### Phase 12: User-Level WebSocket Architecture ✓ ⭐ NEW (Feb 22, 2026)
+- [x] **WebSocket Architecture Refactor** ✨
+  - Changed from session-specific to user-level WebSocket connections
+  - One persistent WebSocket connection per user (instead of one per active session)
+  - Endpoint changed from `/api/v1/chats/{sessionId}/ws` to `/api/v1/ws`
+  - Session ID now passed in message payload instead of URL
+- [x] **Backend Hub Refactored** ✨
+  - Changed from `sessions map[string]map[*Client]bool` to `users map[string]*Client`
+  - One client per user with automatic connection replacement
+  - Added participant caching to reduce DB queries
+  - `CacheSessionParticipants()` and `InvalidateSessionCache()` methods
+  - Graceful handling of old connections with context cancellation
+- [x] **Message Broadcasting Updated** ✨
+  - Messages broadcast to all session participants (not just active session)
+  - Uses cached participant list for performance
+  - Session list updates in real-time for all user's sessions
+- [x] **Frontend WebSocket Client Updated** ✨
+  - Removed sessionID from constructor (user-level connection)
+  - Single connection managed in `onMount` of chat page
+  - Messages and typing indicators now pass sessionId as parameter
+  - Connection persists across session switches
+- [x] **Session Pagination Implemented** ✨
+  - Backend: `GetAllByUserIDWithPagination` with limit/offset
+  - Default limit: 20, Max limit: 100
+  - Frontend: Lazy loading of first 20 sessions
+  - Reduces backend workload for users with many sessions
+- [x] **WebSocket Reconnection Loop Bug Fixed** ✨
+  - Added `intentionalClose` flag to prevent unwanted reconnections
+  - Direct WebSocket connection to backend in dev mode (bypasses Vite proxy)
+  - Connection guards to prevent duplicate connections
+  - Proper cleanup in `onDestroy` lifecycle hook
+  - Hub gracefully closes old connections with context cancellation
+  - Fixed infinite reconnection loop issue
+- [x] **Frontend Display Improvements** ✨
+  - Session name shows other user for 1-on-1 chats (excludes current user)
+  - Group chat count excludes current user
+  - Participant list excludes current user for cleaner UX
+  - Fixed async `onMount` linter error (cleanup moved to `onDestroy`)
+- [x] **Session Filtering Verified** ✨
+  - Backend correctly filters sessions by participant
+  - SQL query uses `WHERE csp.user_id = ?` to ensure proper filtering
+  - Users only see sessions they're actually part of
+  - Tested and verified with database queries
+
 ---
 
 ## 🔄 In Progress
@@ -254,9 +298,10 @@ None! All critical features implemented ✅
 
 ### Non-Critical
 - Frontend CSS warnings in `app-sidebar.svelte` (unrelated to chat)
-- Messages don't auto-scroll to bottom on new message
-- No typing indicator display in UI (backend ready)
+- Messages don't auto-scroll to bottom on new message (UX improvement)
+- No typing indicator display in UI (backend ready, frontend displays typing users)
 - No read receipts
+- Session list doesn't auto-refresh when new sessions created by others
 
 ### ✅ Fixed
 - ~~Type mismatch: Backend (string UUIDs) vs Frontend (number IDs)~~ - FIXED
@@ -275,6 +320,11 @@ None! All critical features implemented ✅
 - ~~Error state persisting after successful operations~~ - FIXED (added error clearing in handlers) ✨ NEW
 - ~~Sessions list hidden when message loading fails~~ - FIXED (separated sessionsError and messagesError states) ✨ NEW
 - ~~Empty message array returned as null~~ - FIXED (backend initializes empty slice, frontend handles null gracefully) ✨ NEW
+- ~~WebSocket only updates active session~~ - FIXED (user-level WebSocket + message broadcasting to all sessions) ⭐ NEW (Feb 22, 2026)
+- ~~WebSocket reconnection loop~~ - FIXED (intentionalClose flag + direct connection + proper cleanup) ⭐ NEW (Feb 22, 2026)
+- ~~Async onMount linter error~~ - FIXED (cleanup moved to onDestroy) ⭐ NEW (Feb 22, 2026)
+- ~~Participant display includes current user~~ - FIXED (excluded current user from displays) ⭐ NEW (Feb 22, 2026)
+- ~~Session filtering concerns~~ - VERIFIED (backend correctly filters by participant) ⭐ NEW (Feb 22, 2026)
 
 ---
 
@@ -286,6 +336,10 @@ None! All critical features implemented ✅
 - **Database**: Currently SQLite only, PostgreSQL support planned
 - **Authentication**: All endpoints protected by JWT middleware
 - **User Search**: Real-time search with debouncing for finding users to chat with
+- **WebSocket Architecture**: User-level persistent connections (one per user, not per session) - Feb 22, 2026 ⭐
+- **Session Pagination**: Lazy loading with 20/100 default/max limit
+- **Real-time Updates**: Messages broadcast to all session participants, not just active session
+- **Performance**: Participant caching in Hub reduces DB queries for message broadcasting
 
 ---
 
@@ -296,10 +350,13 @@ None! All critical features implemented ✅
 3. ✅ ~~Implement WebSocket in frontend~~ - COMPLETED
 4. ✅ ~~Add create session UI~~ - COMPLETED ⭐
 5. ✅ ~~Implement user search backend~~ - COMPLETED ⭐
-6. **Add leave session UI** - Backend exists, need frontend button (OPTIONAL)
-7. **Implement typing indicators UI** - Backend ready, show "User is typing..."
-8. **Auto-scroll messages to bottom** - Improve UX when new messages arrive
-9. **Add comprehensive tests** - Unit, integration, and E2E testing
+6. ✅ ~~Refactor to user-level WebSocket~~ - COMPLETED ⭐ (Feb 22, 2026)
+7. ✅ ~~Fix WebSocket reconnection loop~~ - COMPLETED ⭐ (Feb 22, 2026)
+8. ✅ ~~Verify session filtering~~ - COMPLETED ⭐ (Feb 22, 2026)
+9. **Add leave session UI** - Backend exists, need frontend button (OPTIONAL)
+10. **Auto-scroll messages to bottom** - Improve UX when new messages arrive
+11. **Session list real-time updates** - Refresh when new sessions created by others
+12. **Add comprehensive tests** - Unit, integration, and E2E testing
 
 ---
 
@@ -308,6 +365,8 @@ None! All critical features implemented ✅
 - [CHAT_IMPLEMENTATION_PLAN.md](./CHAT_IMPLEMENTATION_PLAN.md) - Original implementation plan
 - [CHAT_SCHEMA_UPDATE.md](./CHAT_SCHEMA_UPDATE.md) - Database schema changes and rationale
 - [WEBSOCKET_IMPLEMENTATION.md](./WEBSOCKET_IMPLEMENTATION.md) - WebSocket architecture and troubleshooting
+- [USER_RELATIONSHIPS_ADR.md](./USER_RELATIONSHIPS_ADR.md) - Architecture decision for user relationships (invite-based system)
+- **User-Level WebSocket Architecture** (Feb 22, 2026) - Single persistent connection per user, session ID in payload
 
 ---
 
