@@ -25,6 +25,14 @@ func NewHandler(storage repository.Storage, config config.Config, hub *websocket
 
 // RegisterAuthenticatedRoutes registers routes that require JWT authentication
 func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
+	// Invite routes – MUST be registered before /chats/{id} to prevent the
+	// gorilla/mux wildcard from swallowing "invites" as an {id} segment.
+	router.HandleFunc("/chats/invites", h.CreateInvite).Methods("POST")
+	router.HandleFunc("/chats/invites/received", h.GetReceivedInvites).Methods("GET")
+	router.HandleFunc("/chats/invites/sent", h.GetSentInvites).Methods("GET")
+	router.HandleFunc("/chats/invites/{inviteID}/respond", h.RespondToInvite).Methods("POST")
+	router.HandleFunc("/chats/invites/{inviteID}", h.CancelInvite).Methods("DELETE")
+
 	// Session management
 	router.HandleFunc("/chats", h.GetSessions).Methods("GET")
 	router.HandleFunc("/chats", h.CreateSession).Methods("POST")

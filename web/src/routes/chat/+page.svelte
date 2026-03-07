@@ -3,18 +3,21 @@
   import { Button } from "$lib/components/ui/button/index";
   import { Input } from "$lib/components/ui/input/index";
   import * as Card from "$lib/components/ui/card/index";
-  import { Search, Send, Users, MoreVertical, Plus } from "@lucide/svelte/icons";
+  import { Search, Send, Users, MoreVertical, Plus, Bell } from "@lucide/svelte/icons";
   import { Separator } from "$lib/components/ui/separator/index";
   import {
     getSessions,
     getMessages,
     sendMessage as sendMessageApi,
+    getReceivedInvites,
+    respondToInvite,
     type ChatSession as ApiChatSession,
     type ChatMessage as ApiChatMessage,
+    type ChatInvite,
   } from "$lib/chat-api";
   import { ChatWebSocketClient } from "$lib/websocket-client";
   import { WebSocketState } from "$lib/websocket-types";
-  import type { MessagePayload, TypingPayload } from "$lib/websocket-types";
+  import type { MessagePayload, TypingPayload, InvitePayload } from "$lib/websocket-types";
   import NewChatDialog from "$components/NewChatDialog.svelte";
 
   // State
@@ -33,6 +36,11 @@
   let typingTimeout: number | null = null;
   let showNewChatDialog = $state(false);
 
+  // Invite state
+  let receivedInvites = $state<ChatInvite[]>([]);
+  let showInviteInbox = $state(false);
+  let inviteActionLoading = $state<string | null>(null);
+
   // Load sessions on mount
   onMount(async () => {
     try {
@@ -50,6 +58,9 @@
       }
       
       chatSessions = await getSessions(20, 0); // Load first 20 sessions
+      
+      // Load pending invites
+      receivedInvites = await getReceivedInvites();
       
       // Connect WebSocket once (user-level connection)
       connectWebSocket();
@@ -122,6 +133,10 @@
       messagesError = errorMsg;
     });
 
+    wsClient.onInvite((payload: InvitePayload) => {
+      handleInviteEvent(payload);
+    });
+
     wsClient.onStateChange((state: WebSocketState) => {
       wsState = state;
       console.log("WebSocket state changed:", state);
@@ -184,6 +199,73 @@
       typingUsers.delete(payload.username);
     }
     typingUsers = new Set(typingUsers); // Trigger reactivity
+  }
+
+  function handleInviteEvent(payload: InvitePayload) {
+    if (payload.status === 'pending') {
+      // New invite received — add to inbox if not already present
+      const exists = receivedInvites.some(i => i.id === payload.invite_id);
+      if (!exists) {
+        const newInvite: ChatInvite = {
+          id: payload.invite_id,
+          batch_id: payload.batch_id,
+          inviter_id: payload.inviter_id,
+          invitee_id: payload.invitee_id,
+          session_id: payload.session_id,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          inviter_username: payload.inviter_username,
+          invitee_username: payload.invitee_username,
+        };
+        receivedInvites = [newInvite, ...receivedInvites];
+      }
+    } else if (payload.status === 'accepted') {
+      // An invite we sent was accepted and a session was created
+      if (payload.session_id) {
+        getSessions(20, 0).then(sessions => {
+          chatSessions = sessions;
+          // Navigate to the new session
+          if (payload.session_id) {
+            selectSession(payload.session_id);
+          }
+        }).catch(console.error);
+      }
+      // Remove from received inbox if present
+      receivedInvites = receivedInvites.filter(i => i.id !== payload.invite_id);
+    } else {
+      // declined or cancelled — remove from inbox
+      receivedInvites = receivedInvites.filter(i => i.id !== payload.invite_id);
+    }
+  }
+
+  async function handleAcceptInvite(invite: ChatInvite) {
+    inviteActionLoading = invite.id;
+    try {
+      const result = await respondToInvite(invite.id, 'accept');
+      receivedInvites = receivedInvites.filter(i => i.id !== invite.id);
+      if (result.session) {
+        chatSessions = await getSessions(20, 0);
+        await selectSession(result.session.id);
+        showInviteInbox = false;
+      }
+    } catch (err) {
+      console.error('Failed to accept invite:', err);
+    } finally {
+      inviteActionLoading = null;
+    }
+  }
+
+  async function handleDeclineInvite(invite: ChatInvite) {
+    inviteActionLoading = invite.id;
+    try {
+      await respondToInvite(invite.id, 'decline');
+      receivedInvites = receivedInvites.filter(i => i.id !== invite.id);
+    } catch (err) {
+      console.error('Failed to decline invite:', err);
+    } finally {
+      inviteActionLoading = null;
+    }
   }
 
   async function loadMessages(sessionId: string) {
@@ -341,9 +423,26 @@
     <div class="p-4 border-b">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold">Chats</h2>
-        <Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => showNewChatDialog = true}>
-          <Plus class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center gap-1">
+          <!-- Invite inbox bell -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 relative"
+            onclick={() => showInviteInbox = !showInviteInbox}
+            aria-label="Invite inbox"
+          >
+            <Bell class="h-4 w-4" />
+            {#if receivedInvites.length > 0}
+              <span class="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                {receivedInvites.length}
+              </span>
+            {/if}
+          </Button>
+          <Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => showNewChatDialog = true}>
+            <Plus class="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       
       <!-- Search -->
@@ -357,6 +456,51 @@
         />
       </div>
     </div>
+
+    <!-- Invite Inbox (collapsible) -->
+    {#if showInviteInbox}
+      <div class="border-b bg-muted/30">
+        <div class="px-4 py-2 flex items-center justify-between">
+          <span class="text-sm font-medium">Pending Invites</span>
+          <button class="text-xs text-muted-foreground hover:text-foreground" onclick={() => showInviteInbox = false}>
+            Close
+          </button>
+        </div>
+        {#if receivedInvites.length === 0}
+          <div class="px-4 py-3 text-xs text-muted-foreground">No pending invites</div>
+        {:else}
+          <div class="max-h-52 overflow-y-auto divide-y">
+            {#each receivedInvites as invite (invite.id)}
+              <div class="px-4 py-3 space-y-2">
+                <div class="text-sm">
+                  <span class="font-medium">{invite.inviter_username ?? invite.inviter_id}</span>
+                  {invite.session_id ? ' invited you to join a chat' : ' wants to chat with you'}
+                </div>
+                <div class="flex gap-2">
+                  <Button
+                    size="sm"
+                    class="h-7 text-xs flex-1"
+                    disabled={inviteActionLoading === invite.id}
+                    onclick={() => handleAcceptInvite(invite)}
+                  >
+                    {inviteActionLoading === invite.id ? '...' : 'Accept'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    class="h-7 text-xs flex-1"
+                    disabled={inviteActionLoading === invite.id}
+                    onclick={() => handleDeclineInvite(invite)}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- Chat Sessions List -->
     <div class="flex-1 overflow-y-auto">

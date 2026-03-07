@@ -67,6 +67,39 @@ type UserSearchResult struct {
 	Name     string `json:"name" db:"name"`
 }
 
+// InviteRepository defines the interface for chat invite storage operations
+type InviteRepository interface {
+	// Create inserts a new invite record
+	Create(ctx context.Context, invite model.ChatInvite) (model.ChatInvite, error)
+
+	// GetByID returns an invite by its ID
+	GetByID(ctx context.Context, id string) (model.ChatInvite, error)
+
+	// GetPendingByInviteeID returns all pending invites received by a user
+	GetPendingByInviteeID(ctx context.Context, inviteeID uuid.UUID) ([]model.ChatInvite, error)
+
+	// GetSentByInviterID returns all invites sent by a user
+	GetSentByInviterID(ctx context.Context, inviterID uuid.UUID) ([]model.ChatInvite, error)
+
+	// GetByBatchID returns all invites sharing the same batch ID
+	GetByBatchID(ctx context.Context, batchID string) ([]model.ChatInvite, error)
+
+	// UpdateStatus updates the status of a single invite
+	UpdateStatus(ctx context.Context, id string, status string) error
+
+	// UpdateBatchSessionID sets the session_id on all invites in a batch.
+	// Called when the first invitee accepts a new-session invite and a session is created.
+	UpdateBatchSessionID(ctx context.Context, batchID string, sessionID string) error
+
+	// HasPendingInvite checks whether inviter already has a pending new-session invite to invitee.
+	// Scoped to session_id IS NULL to avoid conflating new-session invites with session-specific ones.
+	HasPendingInvite(ctx context.Context, inviterID, inviteeID string) (bool, error)
+
+	// HasPendingInviteForSession checks whether there is already a pending invite
+	// for a specific existing session targeting the given invitee.
+	HasPendingInviteForSession(ctx context.Context, sessionID, inviteeID string) (bool, error)
+}
+
 // Storage defines the main storage interface that aggregates all repositories
 type Storage interface {
 	// SessionRepo returns the session repository
@@ -77,6 +110,9 @@ type Storage interface {
 
 	// SearchUsers searches for users by username or name
 	SearchUsers(ctx context.Context, query string, excludeUserID uuid.UUID, limit int) ([]UserSearchResult, error)
+
+	// InviteRepo returns the invite repository
+	InviteRepo() InviteRepository
 
 	// Close closes the storage connection
 	Close() error

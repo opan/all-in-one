@@ -18,6 +18,7 @@ type sqliteStorage struct {
 	db             *sqlx.DB
 	sessionRepo    SessionRepository
 	messageRepo    MessageRepository
+	inviteRepo     InviteRepository
 	log            zerolog.Logger
 	closeOnCleanup bool
 }
@@ -35,6 +36,7 @@ func NewSQLiteStorage(ctx context.Context, config config.Config, log zerolog.Log
 		db:             db,
 		sessionRepo:    sqlite.NewSessionRepository(db, log),
 		messageRepo:    sqlite.NewMessageRepository(db, log),
+		inviteRepo:     sqlite.NewInviteRepository(db, log),
 		log:            log,
 		closeOnCleanup: false, // Don't close DB as it's managed by the main storage
 	}, nil
@@ -48,6 +50,7 @@ func NewSQLiteStorageWithDB(db *sql.DB, log zerolog.Logger) Storage {
 		db:             sqlxDB,
 		sessionRepo:    sqlite.NewSessionRepository(sqlxDB, log),
 		messageRepo:    sqlite.NewMessageRepository(sqlxDB, log),
+		inviteRepo:     sqlite.NewInviteRepository(sqlxDB, log),
 		log:            log,
 		closeOnCleanup: false,
 	}
@@ -61,6 +64,11 @@ func (s *sqliteStorage) SessionRepo() SessionRepository {
 // MessageRepo returns the message repository
 func (s *sqliteStorage) MessageRepo() MessageRepository {
 	return s.messageRepo
+}
+
+// InviteRepo returns the invite repository
+func (s *sqliteStorage) InviteRepo() InviteRepository {
+	return s.inviteRepo
 }
 
 // SearchUsers searches for users by username or name (excluding the current user)

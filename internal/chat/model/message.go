@@ -48,3 +48,16 @@ type TypingPayload struct {
 type ErrorPayload struct {
 	Error string `json:"error"`
 }
+
+// InvitePayload is broadcast via WebSocket for invite lifecycle events:
+// invite_received, invite_accepted, invite_declined, invite_cancelled.
+type InvitePayload struct {
+	InviteID        string `json:"invite_id"`
+	BatchID         string `json:"batch_id"`
+	InviterID       string `json:"inviter_id"`
+	InviterUsername string `json:"inviter_username"`
+	InviteeID       string `json:"invitee_id"`
+	InviteeUsername string `json:"invitee_username"`
+	SessionID       string `json:"session_id,omitempty"`
+	Status          string `json:"status"`
+}

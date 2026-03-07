@@ -1,5 +1,14 @@
 // WebSocket message types matching backend implementation
-export type WebSocketMessageType = "message" | "join" | "leave" | "typing" | "error";
+export type WebSocketMessageType =
+	| "message"
+	| "join"
+	| "leave"
+	| "typing"
+	| "error"
+	| "invite_received"
+	| "invite_accepted"
+	| "invite_declined"
+	| "invite_cancelled";
 
 // WebSocket message envelope
 export interface WebSocketMessage<T = unknown> {
@@ -37,6 +46,19 @@ export interface ParticipantPayload {
 	session_id: string;
 }
 
+// Invite payload for invite lifecycle events:
+// invite_received, invite_accepted, invite_declined, invite_cancelled
+export interface InvitePayload {
+	invite_id: string;
+	batch_id: string;
+	inviter_id: string;
+	inviter_username: string;
+	invitee_id: string;
+	invitee_username: string;
+	session_id?: string;
+	status: string;
+}
+
 // WebSocket connection states
 export enum WebSocketState {
 	CONNECTING = "connecting",
@@ -52,3 +74,4 @@ export type TypingHandler = (payload: TypingPayload) => void;
 export type ParticipantHandler = (payload: ParticipantPayload) => void;
 export type ErrorHandler = (error: string) => void;
 export type StateChangeHandler = (state: WebSocketState) => void;
+export type InviteHandler = (payload: InvitePayload) => void;

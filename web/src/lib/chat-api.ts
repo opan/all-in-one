@@ -180,3 +180,114 @@ export async function searchUsers(query: string): Promise<User[]> {
 
 	return json.data;
 }
+
+// ---------------------------------------------------------------------------
+// Invite types
+// ---------------------------------------------------------------------------
+
+export interface ChatInvite {
+	id: string;
+	batch_id: string;
+	inviter_id: string;
+	invitee_id: string;
+	session_id?: string;
+	status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+	created_at: string;
+	updated_at: string;
+	inviter_username?: string;
+	invitee_username?: string;
+}
+
+export interface CreateInviteRequest {
+	participants: string[];
+	session_id?: string;
+}
+
+export interface RespondInviteRequest {
+	action: 'accept' | 'decline';
+}
+
+export interface RespondInviteResponse {
+	invite: ChatInvite;
+	session?: ChatSession;
+}
+
+// ---------------------------------------------------------------------------
+// Invite API functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Send invite(s) to one or more users.
+ * If session_id is provided the invitees are invited into an existing session.
+ * Otherwise a new session is created when the first invitee accepts.
+ */
+export async function sendInvite(request: CreateInviteRequest): Promise<ChatInvite[]> {
+	const response = await apiPost('/api/v1/chats/invites', request);
+	const json = (await response.json()) as ApiResponse<ChatInvite[]>;
+
+	if (!json.success) {
+		throw new Error(json.error || 'Failed to send invite');
+	}
+
+	return json.data ?? [];
+}
+
+/**
+ * Get all pending invites received by the current user.
+ */
+export async function getReceivedInvites(): Promise<ChatInvite[]> {
+	const response = await apiGet('/api/v1/chats/invites/received');
+	const json = (await response.json()) as ApiResponse<ChatInvite[]>;
+
+	if (!json.success) {
+		throw new Error(json.error || 'Failed to fetch received invites');
+	}
+
+	return json.data ?? [];
+}
+
+/**
+ * Get all invites sent by the current user.
+ */
+export async function getSentInvites(): Promise<ChatInvite[]> {
+	const response = await apiGet('/api/v1/chats/invites/sent');
+	const json = (await response.json()) as ApiResponse<ChatInvite[]>;
+
+	if (!json.success) {
+		throw new Error(json.error || 'Failed to fetch sent invites');
+	}
+
+	return json.data ?? [];
+}
+
+/**
+ * Accept or decline a pending invite.
+ * Returns the updated invite and, on accept, the chat session to navigate to.
+ */
+export async function respondToInvite(
+	inviteId: string,
+	action: 'accept' | 'decline',
+): Promise<RespondInviteResponse> {
+	const response = await apiPost(`/api/v1/chats/invites/${inviteId}/respond`, {
+		action,
+	} satisfies RespondInviteRequest);
+	const json = (await response.json()) as ApiResponse<RespondInviteResponse>;
+
+	if (!json.success || !json.data) {
+		throw new Error(json.error || 'Failed to respond to invite');
+	}
+
+	return json.data;
+}
+
+/**
+ * Cancel a pending invite (inviter only).
+ */
+export async function cancelInvite(inviteId: string): Promise<void> {
+	const response = await apiDelete(`/api/v1/chats/invites/${inviteId}`);
+	const json = (await response.json()) as ApiResponse<null>;
+
+	if (!json.success) {
+		throw new Error(json.error || 'Failed to cancel invite');
+	}
+}

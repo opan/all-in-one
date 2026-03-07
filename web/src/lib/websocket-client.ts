@@ -4,11 +4,13 @@ import type {
 	TypingPayload,
 	ParticipantPayload,
 	ErrorPayload,
+	InvitePayload,
 	MessageHandler,
 	TypingHandler,
 	ParticipantHandler,
 	ErrorHandler,
 	StateChangeHandler,
+	InviteHandler,
 } from "./websocket-types";
 import { WebSocketState } from "./websocket-types";
 
@@ -29,6 +31,7 @@ export class ChatWebSocketClient {
 	private leaveHandlers: Set<ParticipantHandler> = new Set();
 	private errorHandlers: Set<ErrorHandler> = new Set();
 	private stateChangeHandlers: Set<StateChangeHandler> = new Set();
+	private inviteHandlers: Set<InviteHandler> = new Set();
 
 	constructor() {
 		// No sessionId needed - this is a user-level connection
@@ -174,6 +177,15 @@ export class ChatWebSocketClient {
 	}
 
 	/**
+	 * Register a handler for invite lifecycle events:
+	 * invite_received, invite_accepted, invite_declined, invite_cancelled
+	 */
+	public onInvite(handler: InviteHandler): () => void {
+		this.inviteHandlers.add(handler);
+		return () => this.inviteHandlers.delete(handler);
+	}
+
+	/**
 	 * Setup WebSocket event listeners
 	 */
 	private setupEventListeners(): void {
@@ -246,6 +258,14 @@ export class ChatWebSocketClient {
 			case "error": {
 				const payload = wsMessage.payload as ErrorPayload;
 				this.errorHandlers.forEach((handler) => handler(payload.error));
+				break;
+			}
+			case "invite_received":
+			case "invite_accepted":
+			case "invite_declined":
+			case "invite_cancelled": {
+				const payload = wsMessage.payload as InvitePayload;
+				this.inviteHandlers.forEach((handler) => handler(payload));
 				break;
 			}
 			default:

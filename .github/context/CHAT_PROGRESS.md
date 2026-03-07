@@ -1,7 +1,7 @@
 # Chat Feature Implementation Progress
 
-**Last Updated**: February 22, 2026  
-**Overall Completion**: ~100% ✅
+**Last Updated**: March 7, 2026  
+**Overall Completion**: ~96% (invite feature verified working; minor polish + automated tests remain)
 
 ## 📋 Quick Status
 
@@ -18,6 +18,8 @@
 | WebSocket Frontend | ✅ Complete | 100% |
 | Create New Chat | ✅ Complete | 100% |
 | User Search | ✅ Complete | 100% |
+| Chat Invite Feature | ✅ Verified | 100% |
+| Chat Invite Polish | 🟡 Minor nitpick noted | — |
 | Testing | ❌ Not started | 0% |
 
 ---
@@ -206,7 +208,29 @@
 
 ## 🔄 In Progress
 
-*Currently no tasks in progress*
+### Phase 13: Chat Invite Feature ✅ COMPLETE (Mar 7, 2026)
+
+**Goal**: Add a confirmation/consent layer before chats start. Users must accept an invite before being added to a session.
+
+**Status**: ✅ Verified working — manually tested Mar 7, 2026. Core flow confirmed. Minor nitpick noted for follow-up polish.
+
+#### Backend
+- [x] Database migration — `chat_invites` table (`03_create_chat_invites_table.up.sql`)
+- [x] Model — `ChatInvite`, `CreateInviteRequest`, `RespondInviteRequest`, `RespondInviteResponse`, `InvitePayload`
+- [x] Repository — `InviteRepository` interface + SQLite implementation (9 methods)
+- [x] Handlers — `CreateInvite`, `GetReceivedInvites`, `GetSentInvites`, `RespondToInvite`, `CancelInvite`
+- [x] Route registration (invite routes registered before `{id}` routes — ordering preserved)
+- [x] WebSocket invite event types (`invite_received`, `invite_accepted`, `invite_declined`, `invite_cancelled`)
+- [x] `InviteRepo()` method on Storage interface and wired in `sqliteStorage`
+
+#### Frontend
+- [x] API client — `ChatInvite` type, `sendInvite`, `getReceivedInvites`, `getSentInvites`, `respondToInvite`, `cancelInvite`
+- [x] WebSocket types — `InvitePayload`, `InviteHandler`, 4 invite event types added to `WebSocketMessageType`
+- [x] WebSocket client — `onInvite()` handler, invite cases in `handleMessage`
+- [x] `NewChatDialog` — now sends invite via `sendInvite()` with success message; no longer creates session directly
+- [x] Invite inbox UI — collapsible panel in sidebar with badge count, accept/decline per invite, real-time WS updates
+
+**Key design decisions documented in**: [CHAT_INVITE_FEATURE.md](./CHAT_INVITE_FEATURE.md)
 
 ---
 
@@ -214,9 +238,14 @@
 
 ### **HIGH PRIORITY** 🔴
 
-None! Core functionality is complete ✅
+*(No high-priority items outstanding)*
 
 ### **MEDIUM PRIORITY** 🟡
+
+#### Invite Feature Polish
+**Status**: Core feature verified working; minor nitpick to address  
+**Tasks**:
+- TBD — details to be shared by user
 
 #### 3. Leave Session Functionality
 **Status**: Backend exists, frontend missing  
@@ -353,15 +382,17 @@ None! All critical features implemented ✅
 6. ✅ ~~Refactor to user-level WebSocket~~ - COMPLETED ⭐ (Feb 22, 2026)
 7. ✅ ~~Fix WebSocket reconnection loop~~ - COMPLETED ⭐ (Feb 22, 2026)
 8. ✅ ~~Verify session filtering~~ - COMPLETED ⭐ (Feb 22, 2026)
-9. **Add leave session UI** - Backend exists, need frontend button (OPTIONAL)
-10. **Auto-scroll messages to bottom** - Improve UX when new messages arrive
-11. **Session list real-time updates** - Refresh when new sessions created by others
-12. **Add comprehensive tests** - Unit, integration, and E2E testing
+9. **🔴 Implement chat invite feature** - Consent layer before session creation (NEXT)
+10. **Add leave session UI** - Backend exists, need frontend button (OPTIONAL)
+11. **Auto-scroll messages to bottom** - Improve UX when new messages arrive
+12. **Session list real-time updates** - Refresh when new sessions created by others
+13. **Add comprehensive tests** - Unit, integration, and E2E testing
 
 ---
 
 ## 📚 Reference Documents
 
+- [CHAT_INVITE_FEATURE.md](./CHAT_INVITE_FEATURE.md) - Chat invite feature design & implementation plan (Mar 7, 2026) ⭐ NEW
 - [CHAT_IMPLEMENTATION_PLAN.md](./CHAT_IMPLEMENTATION_PLAN.md) - Original implementation plan
 - [CHAT_SCHEMA_UPDATE.md](./CHAT_SCHEMA_UPDATE.md) - Database schema changes and rationale
 - [WEBSOCKET_IMPLEMENTATION.md](./WEBSOCKET_IMPLEMENTATION.md) - WebSocket architecture and troubleshooting

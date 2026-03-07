@@ -2,12 +2,13 @@
 	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "$lib/components/ui/dialog";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
-	import { searchUsers, createSession, type User } from "$lib/chat-api";
+	import { searchUsers, sendInvite, type User } from "$lib/chat-api";
 	import { Skeleton } from "$lib/components/ui/skeleton";
 
 	interface Props {
 		open?: boolean;
 		onOpenChange?: (open: boolean) => void;
+		/** Called when invites have been sent (kept as onSessionCreated for backward compat) */
 		onSessionCreated?: () => void;
 	}
 
@@ -17,8 +18,9 @@
 	let searchResults = $state<User[]>([]);
 	let selectedUsers = $state<Set<string>>(new Set());
 	let searching = $state(false);
-	let creating = $state(false);
+	let sending = $state(false);
 	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 
 	// Debounce search
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -67,40 +69,46 @@
 		} else {
 			newSelected.add(userId);
 		}
-		selectedUsers = newSelected; // Create new Set to trigger reactivity
+		selectedUsers = newSelected;
 	}
 
-	async function handleCreateSession() {
+	async function handleSendInvite() {
 		if (selectedUsers.size === 0) {
 			error = "Please select at least one user";
 			return;
 		}
 
-		creating = true;
+		sending = true;
 		error = null;
+		successMessage = null;
 
 		try {
-			await createSession({
-				participants: Array.from(selectedUsers)
-			});
+			await sendInvite({ participants: Array.from(selectedUsers) });
 
-			// Reset state
+			const count = selectedUsers.size;
+			successMessage = count === 1
+				? "Invite sent! The chat will start when they accept."
+				: `${count} invites sent! The chat will start when they accept.`;
+
+			// Reset selection and search
 			searchQuery = "";
 			searchResults = [];
 			selectedUsers = new Set();
-			
-			// Close dialog and notify parent
-			open = false;
-			if (onOpenChange) {
-				onOpenChange(false);
-			}
+
 			if (onSessionCreated) {
 				onSessionCreated();
 			}
+
+			// Auto-close after brief confirmation
+			setTimeout(() => {
+				open = false;
+				successMessage = null;
+				if (onOpenChange) onOpenChange(false);
+			}, 1800);
 		} catch (err) {
-			error = err instanceof Error ? err.message : "Failed to create chat session";
+			error = err instanceof Error ? err.message : "Failed to send invite";
 		} finally {
-			creating = false;
+			sending = false;
 		}
 	}
 
@@ -110,12 +118,12 @@
 			onOpenChange(newOpen);
 		}
 
-		// Reset state when closing
 		if (!newOpen) {
 			searchQuery = "";
 			searchResults = [];
 			selectedUsers = new Set();
 			error = null;
+			successMessage = null;
 		}
 	}
 </script>
@@ -125,7 +133,7 @@
 		<DialogHeader>
 			<DialogTitle>Start New Chat</DialogTitle>
 			<DialogDescription>
-				Search for users to start a new conversation
+				Search for users to invite — the chat starts when they accept
 			</DialogDescription>
 		</DialogHeader>
 
@@ -137,7 +145,7 @@
 					placeholder="Search users by name, username, or email..."
 					value={searchQuery}
 					oninput={handleSearchInput}
-					disabled={creating}
+					disabled={sending}
 				/>
 			</div>
 
@@ -154,7 +162,9 @@
 									<button
 										onclick={() => toggleUserSelection(userId)}
 										class="ml-1 rounded hover:bg-primary/20"
-										disabled={creating}									aria-label="Remove {user.username}"									>
+										disabled={sending}
+										aria-label="Remove {user.username}"
+									>
 										<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 										</svg>
@@ -179,7 +189,7 @@
 						<button
 							class="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:bg-accent"
 							onclick={() => toggleUserSelection(user.id)}
-							disabled={creating}
+							disabled={sending}
 						>
 							<div class="flex-1">
 								<div class="font-medium">{user.username}</div>
@@ -208,6 +218,13 @@
 				{/if}
 			</div>
 
+			<!-- Success Message -->
+			{#if successMessage}
+				<div class="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+					{successMessage}
+				</div>
+			{/if}
+
 			<!-- Error Message -->
 			{#if error}
 				<div class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -218,14 +235,14 @@
 
 		<!-- Actions -->
 		<div class="flex justify-end gap-2">
-			<Button variant="outline" onclick={() => handleOpenChange(false)} disabled={creating}>
+			<Button variant="outline" onclick={() => handleOpenChange(false)} disabled={sending}>
 				Cancel
 			</Button>
 			<Button
-				onclick={handleCreateSession}
-				disabled={selectedUsers.size === 0 || creating}
+				onclick={handleSendInvite}
+				disabled={selectedUsers.size === 0 || sending}
 			>
-				{creating ? "Creating..." : `Start Chat (${selectedUsers.size})`}
+				{sending ? "Sending..." : `Send Invite${selectedUsers.size > 1 ? 's' : ''} (${selectedUsers.size})`}
 			</Button>
 		</div>
 	</DialogContent>
