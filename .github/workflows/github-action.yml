@@ -75,7 +75,6 @@ jobs:
       - name: Log in to Docker Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.DOCKER_REGISTRY }}  # e.g., docker.io, ghcr.io, your-registry.com
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
@@ -83,7 +82,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/all-in-one
+          images: ${{ secrets.DOCKER_USERNAME }}/all-in-one
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
