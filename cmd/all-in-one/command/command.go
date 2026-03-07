@@ -74,9 +74,64 @@ func New() *cobra.Command {
 		},
 	}
 
+	migrateCmd := &cobra.Command{
+		Use:   "db:migrate",
+		Short: "run database migrations",
+		Long:  "Manage database schema migrations",
+	}
+
+	migrateUpCmd := &cobra.Command{
+		Use:   "up",
+		Short: "apply all pending migrations",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			log, err := logging.New(cfg.Logging)
+			if err != nil {
+				return fmt.Errorf("failed to initialize logger: %w", err)
+			}
+
+			return seed.RunMigrateUp(seed.MigrateOpts{
+				Config: *cfg,
+				Logger: log,
+			})
+		},
+	}
+
+	var downSteps int
+	migrateDownCmd := &cobra.Command{
+		Use:   "down",
+		Short: "roll back migrations",
+		Long:  "Roll back migrations. Use --steps to specify how many steps to roll back (default 0 = all)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			log, err := logging.New(cfg.Logging)
+			if err != nil {
+				return fmt.Errorf("failed to initialize logger: %w", err)
+			}
+
+			return seed.RunMigrateDown(seed.MigrateOpts{
+				Config: *cfg,
+				Logger: log,
+			}, downSteps)
+		},
+	}
+	migrateDownCmd.Flags().IntVar(&downSteps, "steps", 0, "number of steps to roll back (0 = all)")
+
+	migrateCmd.AddCommand(migrateUpCmd)
+	migrateCmd.AddCommand(migrateDownCmd)
+
 	root := Root()
 	root.AddCommand(serverCmd)
 	root.AddCommand(seedCmd)
+	root.AddCommand(migrateCmd)
 
 	return root
 }

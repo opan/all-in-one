@@ -7,7 +7,8 @@ import (
 
 type Storage interface {
 	DB() *sqlx.DB
-	Migrate()
+	MigrateUp() error
+	MigrateDown(steps int) error
 }
 
 func NewStorage(config config.Config) (Storage, error) {

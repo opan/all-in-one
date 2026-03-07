@@ -8,6 +8,15 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
 - **Frontend:** Svelte 5+ with TypeScript 5.9+, source under `web/`.
 
+
+## General instructions
+
+- When I said "we are working on a feature" or something similar:
+  - create a tracker file to track the progress, e.g.: `CHAT_PROGRESS.md`
+  - the file can be used by you when I create new chat session so you don't miss context and start from scratch.
+  - at the end once we finish the feature, create an ADR file to document the design decision, e.g.: `CHAT_IMPLEMENTATION_PLAN.md`    
+  - put all the files under `.github/context/`
+
 ## Tech stacks
 
 ### Backend (Go) Guidelines
@@ -28,6 +37,8 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - Current database supports
   - SQLite (via `github.com/mattn/go-sqlite3`)
   - PostgreSQL (via `github.com/lib/pq`)
+- Don't use comments too excessively, add comment when it is really necessary. Code should be self-explanatory by default, as much as possible.
+- IMPORTANT: do not delete existing database, all-in-one.db, because it persist some data not coming from seed. ask me first before tries to delete it.
 
 #### Project structure
 In general, organize code:
@@ -40,9 +51,12 @@ In general, organize code:
   - `internal/<app-name>/service/` for business logic
   - `internal/<app-name>/model/` for domain models
   - `internal/<app-name>/repository/` for data access. 
+  - `internal/<app-name>/seed/` for database seeding (if applicable).
   - `internal/<app-name>/<any>/` for other sub-packages as needed (e.g., authnz, middleware, util).
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
   - `web/` for frontend source code.
+  - `deployments/` for Kubernetes manifests (if applicable).
+
 
 Each app will have its own package under `internal/` (e.g., `internal/todo`, `internal/note`).
 

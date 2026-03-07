@@ -71,13 +71,21 @@ func (m *JWTMiddleware) tryDirectAuth(ctx context.Context, r *http.Request) (aut
 func (m *JWTMiddleware) validateJWT(ctx context.Context, r *http.Request) (auth.UserClaims, error) {
 	log := logging.GetLoggerFromContext(ctx)
 
+	// Try to get token from cookie first
+	var tokenString string
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
-		log.Error().Err(err).Msg("cannot find JWT token")
-		return auth.UserClaims{}, fmt.Errorf("Unauthorized: missing or invalid token: %v", err)
+		// If cookie not found, try query parameter (for WebSocket connections)
+		tokenString = r.URL.Query().Get("token")
+		if tokenString == "" {
+			log.Error().Err(err).Msg("cannot find JWT token in cookie or query")
+			return auth.UserClaims{}, fmt.Errorf("Unauthorized: missing or invalid token: %v", err)
+		}
+	} else {
+		tokenString = cookie.Value
 	}
 
-	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			log.Error().Err(jwt.ErrSignatureInvalid).Msg("invalid JWT signature")
 			return nil, jwt.ErrSignatureInvalid

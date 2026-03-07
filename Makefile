@@ -1,6 +1,12 @@
 run-backend:
 	@go run cmd/all-in-one/main.go server
 
+db-migrate-up:
+	@go run cmd/all-in-one/main.go db:migrate up
+
+db-migrate-down:
+	@go run cmd/all-in-one/main.go db:migrate down
+
 db-seed:
 	@go run cmd/all-in-one/main.go db:seed
 
@@ -18,4 +24,4 @@ test:
 test-handler:
 	@go test -v ./internal/authnz/handler/...
 
-.PHONY: run-backend db-seed gen-swagger gen-mocks test test-handler
+.PHONY: run-backend db-migrate-up db-migrate-down db-seed gen-swagger gen-mocks test test-handler

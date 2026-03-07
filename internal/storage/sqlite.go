@@ -1,11 +1,12 @@
 package storage
 
 import (
+	"fmt"
+
 	"github.com/all-in-one/internal/config"
 	"github.com/golang-migrate/migrate/v4"
 	sqlite3Migrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/jmoiron/sqlx"
-	"github.com/rs/zerolog/log"
 )
 
 type sqliteStorage struct {
@@ -27,11 +28,10 @@ func (s *sqliteStorage) DB() *sqlx.DB {
 	return s.db
 }
 
-func (s *sqliteStorage) Migrate() {
+func (s *sqliteStorage) newMigrator() (*migrate.Migrate, error) {
 	driver, err := sqlite3Migrate.WithInstance(s.db.DB, &sqlite3Migrate.Config{})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create migration driver")
-		s.db.Close()
+		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
@@ -40,9 +40,41 @@ func (s *sqliteStorage) Migrate() {
 		driver,
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create migrate instance")
-		s.db.Close()
+		return nil, fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	m.Up()
+	return m, nil
+}
+
+func (s *sqliteStorage) MigrateUp() error {
+	m, err := s.newMigrator()
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration up failed: %w", err)
+	}
+
+	return nil
+}
+
+func (s *sqliteStorage) MigrateDown(steps int) error {
+	m, err := s.newMigrator()
+	if err != nil {
+		return err
+	}
+
+	if steps == 0 {
+		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
+			return fmt.Errorf("migration down failed: %w", err)
+		}
+		return nil
+	}
+
+	if err := m.Steps(-steps); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration down %d step(s) failed: %w", steps, err)
+	}
+
+	return nil
 }

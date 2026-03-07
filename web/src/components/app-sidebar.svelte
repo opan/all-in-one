@@ -9,6 +9,7 @@
     SquareUser,
     Table,
     LogOut,
+    MessageSquare,
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
@@ -82,6 +83,12 @@
       title: "Listings",
       url: "/listing/topics",
       icon: Table,
+      isExpandable: false,
+    },
+    {
+      title: "Chats",
+      url: "/chat",
+      icon: MessageSquare,
       isExpandable: false,
     },
   ];
