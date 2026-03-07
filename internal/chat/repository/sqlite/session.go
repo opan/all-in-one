@@ -99,7 +99,7 @@ func (r *sessionRepository) GetAllByUserIDWithPagination(ctx context.Context, us
 		LIMIT ? OFFSET ?
 	`
 
-	var sessions []model.ChatSession
+	sessions := make([]model.ChatSession, 0)
 	err := r.db.SelectContext(ctx, &sessions, query, userID.String(), limit, offset)
 	if err != nil {
 		r.log.Error().Err(err).Str("user_id", userID.String()).Msg("Failed to get sessions by user ID with pagination")

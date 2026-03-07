@@ -63,11 +63,11 @@ export async function getSessions(limit?: number, offset?: number): Promise<Chat
 	const response = await apiGet(url);
 	const json = (await response.json()) as ApiResponse<ChatSession[]>;
 
-	if (!json.success || !json.data) {
+	if (!json.success) {
 		throw new Error(json.error || "Failed to fetch sessions");
 	}
 
-	return json.data;
+	return json.data ?? [];
 }
 
 /**
