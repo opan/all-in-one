@@ -57,7 +57,10 @@ func (s *server) Start() error {
 
 	db := store.DB()
 	s.log.Info().Msg("Running database migrations...")
-	store.Migrate()
+	if err := store.MigrateUp(); err != nil {
+		s.log.Error().Err(err).Msg("Database migration failed")
+		return err
+	}
 	s.log.Info().Msg("Database connection established")
 
 	asvc, err := authnzSvc.NewService(ctx, db, s.config, s.log)
