@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: all-in-one-config
+data:
+  config.yml: |
+    server:
+      port: 8080
+    
+    database:
+      path: "/data/all-in-one.db"
+    
+    jwt:
+      secret: "${JWT_SECRET}"  # Override via environment variable
+      expiration: 24h
+    
+    logging:
+      level: "info"
+      format: "json"

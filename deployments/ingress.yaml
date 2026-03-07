@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: all-in-one
+  annotations:
+    # Uncomment and modify based on your ingress controller
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx  # Change to your ingress class
+  rules:
+  - host: all-in-one.yourdomain.com  # Update with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: all-in-one
+            port:
+              number: 80
+  # Uncomment for TLS/HTTPS
+  # tls:
+  # - hosts:
+  #   - all-in-one.yourdomain.com
+  #   secretName: all-in-one-tls

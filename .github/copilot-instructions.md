@@ -55,6 +55,8 @@ In general, organize code:
   - `internal/<app-name>/<any>/` for other sub-packages as needed (e.g., authnz, middleware, util).
   - `pkg/` for any reusable packages that could be shared across multiple projects outside of this project (if applicable).
   - `web/` for frontend source code.
+  - `deployments/` for Kubernetes manifests (if applicable).
+
 
 Each app will have its own package under `internal/` (e.g., `internal/todo`, `internal/note`).
 
