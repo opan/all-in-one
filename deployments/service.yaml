@@ -5,7 +5,8 @@ metadata:
   labels:
     app: all-in-one
 spec:
-  type: ClusterIP
+  type: LoadBalancer
+  # loadBalancerIP: 192.168.68.91  # Uncomment and set your MetalLB IP
   ports:
   - port: 80
     targetPort: 8080

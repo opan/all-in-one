@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -128,6 +129,11 @@ func (s *server) Start() error {
 
 	// Wrap router with CORS
 	handler := c.Handler(r)
+	// Serve frontend static files — must be registered last as a catch-all.
+	// Requests for known static assets are served directly; all other paths
+	// fall back to index.html so SvelteKit's client-side router takes over.
+	r.PathPrefix("/").Handler(spaFileServer("./web/build"))
+
 	port := s.config.Server.Port
 
 	// Create HTTP server
@@ -179,4 +185,19 @@ func (s *server) Start() error {
 	}
 
 	return nil
+}
+
+// spaFileServer serves static files from dir. If the requested path does not
+// exist on disk it falls back to index.html, allowing SvelteKit's client-side
+// router to handle the route in the browser.
+func spaFileServer(dir string) http.Handler {
+	fs := http.FileServer(http.Dir(dir))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(dir, filepath.Clean("/"+r.URL.Path))
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 }

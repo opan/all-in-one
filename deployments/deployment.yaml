@@ -5,7 +5,7 @@ metadata:
   labels:
     app: all-in-one
 spec:
-  replicas: 2
+  replicas: 1  # SQLite does not support concurrent multi-process writes; keep at 1
   selector:
     matchLabels:
       app: all-in-one

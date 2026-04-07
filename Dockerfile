@@ -55,8 +55,8 @@ COPY config/config.yml /app/config/config.yml
 # Copy database migrations
 COPY db/migrations /app/db/migrations
 
-# Copy the built frontend (static assets from SvelteKit)
-COPY --from=frontend-builder /app/web/.svelte-kit/output /app/web/build
+# Copy the built frontend static files (adapter-static output)
+COPY --from=frontend-builder /app/web/build /app/web/build
 
 # Expose the application port
 EXPOSE 8080
