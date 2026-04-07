@@ -6,14 +6,19 @@ data:
   config.yml: |
     server:
       port: 8080
-    
-    database:
-      path: "/data/all-in-one.db"
-    
-    jwt:
-      secret: "${JWT_SECRET}"  # Override via environment variable
-      expiration: 24h
-    
-    logging:
+
+    storage:
+      type: "sqlite"
+      sqlite:
+        db_path: "/data/all-in-one.db"
+
+    log:
       level: "info"
-      format: "json"
+
+    http:
+      timeout: 30
+
+    auth:
+      direct_auth_enabled: false
+      secure_cookie: true
+      # jwt_secret is intentionally omitted here; set via AUTH_JWT_SECRET env var

@@ -44,6 +44,30 @@ kubectl kustomize deployments/
 
 ## Configuration Steps
 
+### 1.a. Configure secrets
+
+To generate the JWT secrets, use command below:
+
+```
+openssl rand -base64 32
+```
+
+Create a secret for sensitive data:
+```bash
+kubectl create secret generic all-in-one-secrets \
+  --from-literal=jwt-secret=YOUR_JWT_SECRET
+```
+
+Update deployment to use the secret:
+```yaml
+env:
+- name: ALLINONE_AUTH_JWT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: all-in-one-secrets
+      key: jwt-secret
+```
+
 ### 1. Update Image Registry
 
 Edit `deployments/deployment.yaml`:
@@ -75,23 +99,6 @@ spec:
   storageClassName: standard  # or your storage class name
 ```
 
-### 4. Set Secrets (Optional)
-
-Create a secret for sensitive data:
-```bash
-kubectl create secret generic all-in-one-secrets \
-  --from-literal=jwt-secret=YOUR_JWT_SECRET
-```
-
-Update deployment to use the secret:
-```yaml
-env:
-- name: JWT_SECRET
-  valueFrom:
-    secretKeyRef:
-      name: all-in-one-secrets
-      key: jwt-secret
-```
 
 ## Health Checks
 

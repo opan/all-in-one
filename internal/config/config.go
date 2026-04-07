@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -58,8 +59,11 @@ func Load() (*Config, error) {
 	viper.SetDefault("log.level", "debug")
 
 	// Enable environment variable support
+	// Viper maps nested keys to env vars by replacing dots with underscores and
+	// uppercasing, then prepends the prefix. e.g. auth.jwt_secret → ALLINONE_AUTH_JWT_SECRET.
+	viper.SetEnvPrefix("ALLINONE")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
-	viper.SetEnvPrefix("ALLINONE_LISTING")
 
 	// Try to read config file (it's okay if it doesn't exist)
 	if err := viper.ReadInConfig(); err != nil {

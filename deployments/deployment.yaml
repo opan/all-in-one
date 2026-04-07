@@ -23,10 +23,13 @@ spec:
           name: http
           protocol: TCP
         env:
-        - name: SERVER_PORT
+        - name: ALLINONE_SERVER_PORT
           value: "8080"
-        - name: DATABASE_PATH
-          value: "/data/all-in-one.db"
+        - name: ALLINONE_AUTH_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: all-in-one-secrets
+              key: jwt-secret
         resources:
           requests:
             memory: "128Mi"
