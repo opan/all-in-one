@@ -33,10 +33,13 @@ RUN go mod download && go mod verify
 # Copy source code
 COPY . .
 
-# Build the application with CGO enabled
+# Build the application with CGO enabled and static linking
+# Static linking (-extldflags '-static') ensures the binary has no dynamic
+# dependencies on musl (Alpine) or glibc, making it compatible with the
+# distroless/base-debian12 runtime image.
 ENV CGO_ENABLED=1
 ENV GOOS=linux
-RUN go build -ldflags="-w -s" -o /app/bin/all-in-one cmd/all-in-one/main.go
+RUN go build -ldflags="-w -s -extldflags '-static'" -o /app/bin/all-in-one cmd/all-in-one/main.go
 
 # Stage 3: Final runtime image
 FROM gcr.io/distroless/base-debian12:latest
