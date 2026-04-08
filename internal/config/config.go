@@ -57,6 +57,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("server.port", ":8080")
 	viper.SetDefault("storage.type", "memory")
 	viper.SetDefault("log.level", "debug")
+	viper.SetDefault("http.timeout", 30)
 
 	// Enable environment variable support
 	// Viper maps nested keys to env vars by replacing dots with underscores and
