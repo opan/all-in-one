@@ -45,17 +45,20 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.storage.UserRepo().FindByUsername(ctx, rl.Username)
 	if err != nil {
+		log.Error().Err(err).Str("username", rl.Username).Msg("failed to find user by username")
 		httpHelper.SendError(w, "invalid username or password", http.StatusNotFound)
 		return
 	}
 
 	if u.ID == uuid.Nil {
+		log.Debug().Str("username", rl.Username).Msg("user not found")
 		httpHelper.SendError(w, "invalid username or password", http.StatusNotFound)
 		return
 	}
 
 	ok, err := auth.CheckPassword(rl.Password, u.PasswordHash)
 	if err != nil || !ok {
+		log.Debug().Err(err).Str("username", rl.Username).Bool("password_match", ok).Msg("password check failed")
 		httpHelper.SendError(w, "invalid username or password", http.StatusUnauthorized)
 		return
 	}
