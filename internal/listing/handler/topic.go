@@ -121,6 +121,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+	log.Info().Str("uid", cu.UserID).Msg("creating new topic for user: " + cu.UserID)
 
 	var newTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&newTopic); err != nil {
