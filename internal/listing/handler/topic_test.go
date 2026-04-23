@@ -301,8 +301,13 @@ func TestCreateTopic_Success(t *testing.T) {
 	userID := uuid.New()
 	now := time.Now().UTC()
 
-	newTopic := model.Topic{
+	newTopicInput := model.Topic{
 		Name: "New Topic",
+	}
+
+	newTopicWithUser := model.Topic{
+		Name:   "New Topic",
+		UserID: userID,
 	}
 
 	createdTopic := model.Topic{
@@ -315,7 +320,7 @@ func TestCreateTopic_Success(t *testing.T) {
 	mockItemRepo := mocks.NewMockItemRepository(t)
 	mockTopicRepo := mocks.NewMockTopicRepository(t)
 
-	mockTopicRepo.On("Create", mock.Anything, newTopic).Return(createdTopic, nil)
+	mockTopicRepo.On("Create", mock.Anything, newTopicWithUser).Return(createdTopic, nil)
 
 	storage := &MockStorage{
 		itemRepo:  mockItemRepo,
@@ -324,9 +329,9 @@ func TestCreateTopic_Success(t *testing.T) {
 
 	handler := NewHandler(storage, config.Config{})
 
-	body, _ := json.Marshal(newTopic)
+	body, _ := json.Marshal(newTopicInput)
 	req := httptest.NewRequest(http.MethodPost, "/topics", bytes.NewBuffer(body))
-	ctx := tester.ContextWithLogger()
+	ctx := tester.ContextWithUser(userID.String(), "testuser", "test@example.com", uuid.New().String())
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -353,6 +358,56 @@ func TestCreateTopic_Success(t *testing.T) {
 	mockTopicRepo.AssertExpectations(t)
 }
 
+func TestCreateTopic_NoUserInContext(t *testing.T) {
+	storage := &MockStorage{
+		itemRepo:  mocks.NewMockItemRepository(t),
+		topicRepo: mocks.NewMockTopicRepository(t),
+	}
+
+	handler := NewHandler(storage, config.Config{})
+
+	body, _ := json.Marshal(model.Topic{Name: "New Topic"})
+	req := httptest.NewRequest(http.MethodPost, "/topics", bytes.NewBuffer(body))
+	ctx := tester.ContextWithLogger()
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	handler.CreateTopic(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+
+	var response httpHelper.Response
+	err := json.NewDecoder(rr.Body).Decode(&response)
+	assert.NoError(t, err)
+	assert.False(t, response.Success)
+}
+
+func TestCreateTopic_InvalidUserID(t *testing.T) {
+	storage := &MockStorage{
+		itemRepo:  mocks.NewMockItemRepository(t),
+		topicRepo: mocks.NewMockTopicRepository(t),
+	}
+
+	handler := NewHandler(storage, config.Config{})
+
+	body, _ := json.Marshal(model.Topic{Name: "New Topic"})
+	req := httptest.NewRequest(http.MethodPost, "/topics", bytes.NewBuffer(body))
+	ctx := tester.ContextWithUser("invalid-uuid", "testuser", "test@example.com", uuid.New().String())
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	handler.CreateTopic(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+
+	var response httpHelper.Response
+	err := json.NewDecoder(rr.Body).Decode(&response)
+	assert.NoError(t, err)
+	assert.False(t, response.Success)
+}
+
 func TestCreateTopic_InvalidJSON(t *testing.T) {
 	storage := &MockStorage{
 		itemRepo:  mocks.NewMockItemRepository(t),
@@ -362,7 +417,7 @@ func TestCreateTopic_InvalidJSON(t *testing.T) {
 	handler := NewHandler(storage, config.Config{})
 
 	req := httptest.NewRequest(http.MethodPost, "/topics", bytes.NewBufferString("invalid json"))
-	ctx := tester.ContextWithLogger()
+	ctx := tester.ContextWithUser(uuid.New().String(), "testuser", "test@example.com", uuid.New().String())
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -391,7 +446,7 @@ func TestCreateTopic_MissingName(t *testing.T) {
 
 	body, _ := json.Marshal(newTopic)
 	req := httptest.NewRequest(http.MethodPost, "/topics", bytes.NewBuffer(body))
-	ctx := tester.ContextWithLogger()
+	ctx := tester.ContextWithUser(uuid.New().String(), "testuser", "test@example.com", uuid.New().String())
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -407,14 +462,21 @@ func TestCreateTopic_MissingName(t *testing.T) {
 }
 
 func TestCreateTopic_DatabaseError(t *testing.T) {
-	newTopic := model.Topic{
+	userID := uuid.New()
+
+	newTopicInput := model.Topic{
 		Name: "New Topic",
+	}
+
+	newTopicWithUser := model.Topic{
+		Name:   "New Topic",
+		UserID: userID,
 	}
 
 	mockItemRepo := mocks.NewMockItemRepository(t)
 	mockTopicRepo := mocks.NewMockTopicRepository(t)
 
-	mockTopicRepo.On("Create", mock.Anything, newTopic).Return(model.Topic{}, errors.New("database error"))
+	mockTopicRepo.On("Create", mock.Anything, newTopicWithUser).Return(model.Topic{}, errors.New("database error"))
 
 	storage := &MockStorage{
 		itemRepo:  mockItemRepo,
@@ -423,9 +485,9 @@ func TestCreateTopic_DatabaseError(t *testing.T) {
 
 	handler := NewHandler(storage, config.Config{})
 
-	body, _ := json.Marshal(newTopic)
+	body, _ := json.Marshal(newTopicInput)
 	req := httptest.NewRequest(http.MethodPost, "/topics", bytes.NewBuffer(body))
-	ctx := tester.ContextWithLogger()
+	ctx := tester.ContextWithUser(userID.String(), "testuser", "test@example.com", uuid.New().String())
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
