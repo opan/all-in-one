@@ -108,6 +108,20 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
+	cu, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		log.Error().Msg("failed to get user from context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	uid, err := uuid.Parse(cu.UserID)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("invalid user ID in context")
+		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var newTopic model.Topic
 	if err := json.NewDecoder(r.Body).Decode(&newTopic); err != nil {
 		log.Error().Err(err).Msg("invalid JSON data")
@@ -115,7 +129,8 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields
+	newTopic.UserID = uid
+
 	if newTopic.Name == "" {
 		httpHelper.SendError(w, "Name is required", http.StatusBadRequest)
 		return
