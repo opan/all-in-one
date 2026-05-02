@@ -443,6 +443,8 @@
                           <span class="text-muted-foreground italic">Not set</span>
                         {:else if Array.isArray(value)}
                           {value.join(', ')}
+                        {:else if prop?.format === 'uri' || prop?.format === 'url'}
+                          <a href={String(value)} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">{String(value)}</a>
                         {:else}
                           {value}
                         {/if}
