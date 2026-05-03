@@ -112,6 +112,53 @@ func (_c *MockStorage_SessionRepo_Call) RunAndReturn(run func() repository.Sessi
 	return _c
 }
 
+// TOTPRepo provides a mock function with no fields
+func (_m *MockStorage) TOTPRepo() repository.TOTPRepository {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for TOTPRepo")
+	}
+
+	var r0 repository.TOTPRepository
+	if rf, ok := ret.Get(0).(func() repository.TOTPRepository); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(repository.TOTPRepository)
+		}
+	}
+
+	return r0
+}
+
+// MockStorage_TOTPRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TOTPRepo'
+type MockStorage_TOTPRepo_Call struct {
+	*mock.Call
+}
+
+// TOTPRepo is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) TOTPRepo() *MockStorage_TOTPRepo_Call {
+	return &MockStorage_TOTPRepo_Call{Call: _e.mock.On("TOTPRepo")}
+}
+
+func (_c *MockStorage_TOTPRepo_Call) Run(run func()) *MockStorage_TOTPRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockStorage_TOTPRepo_Call) Return(_a0 repository.TOTPRepository) *MockStorage_TOTPRepo_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_TOTPRepo_Call) RunAndReturn(run func() repository.TOTPRepository) *MockStorage_TOTPRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UserRepo provides a mock function with no fields
 func (_m *MockStorage) UserRepo() repository.UserRepository {
 	ret := _m.Called()

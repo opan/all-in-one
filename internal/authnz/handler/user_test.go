@@ -26,6 +26,7 @@ import (
 type MockStorage struct {
 	userRepo    repository.UserRepository
 	sessionRepo repository.SessionRepository
+	totpRepo    repository.TOTPRepository
 }
 
 func (m *MockStorage) UserRepo() repository.UserRepository {
@@ -34,6 +35,10 @@ func (m *MockStorage) UserRepo() repository.UserRepository {
 
 func (m *MockStorage) SessionRepo() repository.SessionRepository {
 	return m.sessionRepo
+}
+
+func (m *MockStorage) TOTPRepo() repository.TOTPRepository {
+	return m.totpRepo
 }
 
 func (m *MockStorage) Close() error {

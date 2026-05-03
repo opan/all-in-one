@@ -63,6 +63,12 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If user has 2FA enabled, create a challenge instead of a session
+	if u.TOTPEnabled {
+		h.handle2FAChallenge(w, r, u)
+		return
+	}
+
 	sid, err := uuid.NewUUID()
 	if err != nil {
 		httpHelper.SendError(w, fmt.Sprintf("failed to generate session id: %v", err), http.StatusInternalServerError)
@@ -395,4 +401,47 @@ func (h *Handler) VerifySession(w http.ResponseWriter, r *http.Request) {
 		Message: "session verified successfully",
 	}
 	httpHelper.SendJSON(w, res, http.StatusOK)
+}
+
+func (h *Handler) handle2FAChallenge(w http.ResponseWriter, r *http.Request, user model.User) {
+	ctx := r.Context()
+	log := logging.GetLoggerFromContext(ctx)
+
+	// Clean up any existing expired challenges
+	h.storage.TOTPRepo().DeleteExpiredChallenges(ctx)
+
+	expiresAt := time.Now().Add(challengeTTL)
+	challenge := model.TOTPChallenge{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		CreatedAt: time.Now(),
+		ExpiresAt: expiresAt,
+		Attempts:  0,
+		UserAgent: r.UserAgent(),
+	}
+
+	if err := h.storage.TOTPRepo().CreateChallenge(ctx, challenge); err != nil {
+		log.Error().Err(err).Msg("failed to create 2FA challenge")
+		httpHelper.SendError(w, "Failed to initiate 2FA", http.StatusInternalServerError)
+		return
+	}
+
+	challengeToken, err := h.createChallengeToken(challenge.ID, expiresAt)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create challenge token")
+		httpHelper.SendError(w, "Failed to initiate 2FA", http.StatusInternalServerError)
+		return
+	}
+
+	log.Info().Str("user_id", user.ID.String()).Msg("2FA challenge created")
+
+	resp := httpHelper.Response{
+		Success: true,
+		Data: model.TOTPChallengeResponse{
+			Requires2FA:    true,
+			ChallengeToken: challengeToken,
+			ExpiresAt:      expiresAt.Unix(),
+		},
+	}
+	httpHelper.SendJSON(w, resp, http.StatusOK)
 }
