@@ -17,6 +17,7 @@ func NewRepo(db *sqlx.DB, config config.Config) (Storage, error) {
 		return &sqliteStoreAdapter{
 			userRepo:    storage.UserRepo(),
 			sessionRepo: storage.SessionRepo(),
+			totpRepo:    storage.TOTPRepo(),
 		}, nil
 	default:
 		panic("unsupported storage type: " + config.Storage.Type)

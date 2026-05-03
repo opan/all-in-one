@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
@@ -45,6 +46,7 @@ type Auth struct {
 	JWTSecret         string `mapstructure:"jwt_secret"`
 	DirectAuthEnabled bool   `mapstructure:"direct_auth_enabled"`
 	SecureCookie      bool   `mapstructure:"secure_cookie"`
+	TOTPEncryptionKey string `mapstructure:"totp_encryption_key"`
 }
 
 func Load() (*Config, error) {
@@ -78,6 +80,16 @@ func Load() (*Config, error) {
 	// make sure jwt_secret is set
 	if !viper.IsSet("auth.jwt_secret") {
 		return nil, fmt.Errorf("missing required configuration: auth.jwt_secret")
+	}
+
+	if !viper.IsSet("auth.totp_encryption_key") {
+		return nil, fmt.Errorf("missing required configuration: auth.totp_encryption_key (32-byte hex-encoded key for 2FA secret encryption)")
+	}
+
+	totpKey := viper.GetString("auth.totp_encryption_key")
+	keyBytes, err := hex.DecodeString(totpKey)
+	if err != nil || len(keyBytes) != 32 {
+		return nil, fmt.Errorf("auth.totp_encryption_key must be a valid 64-character hex string (32 bytes)")
 	}
 
 	var config Config

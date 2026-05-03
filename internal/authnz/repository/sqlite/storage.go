@@ -9,6 +9,7 @@ type storage struct {
 	db          *sqlx.DB
 	userRepo    *userRepository
 	sessionRepo *sessionRepository
+	totpRepo    *totpRepository
 }
 
 func NewStorage(db *sqlx.DB, config config.Config) *storage {
@@ -16,6 +17,7 @@ func NewStorage(db *sqlx.DB, config config.Config) *storage {
 		db:          db,
 		userRepo:    newUserRepository(db),
 		sessionRepo: newSessionRepository(db),
+		totpRepo:    newTOTPRepository(db),
 	}
 }
 
@@ -25,6 +27,10 @@ func (s *storage) UserRepo() *userRepository {
 
 func (s *storage) SessionRepo() *sessionRepository {
 	return s.sessionRepo
+}
+
+func (s *storage) TOTPRepo() *totpRepository {
+	return s.totpRepo
 }
 
 func (s *storage) Close() error {

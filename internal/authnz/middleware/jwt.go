@@ -109,6 +109,12 @@ func (m *JWTMiddleware) validateJWT(ctx context.Context, r *http.Request) (auth.
 		return auth.UserClaims{}, fmt.Errorf("Unauthorized: invalid token claims")
 	}
 
+	// Reject 2FA challenge tokens — they must NEVER grant access to protected resources
+	if tokenType, exists := claims["type"]; exists && tokenType == "2fa_challenge" {
+		log.Warn().Msg("rejected 2fa_challenge token on protected endpoint")
+		return auth.UserClaims{}, fmt.Errorf("Unauthorized: invalid token type")
+	}
+
 	return auth.UserClaims{
 		SessionID: claims["sub"].(string),
 		Email:     claims["email"].(string),

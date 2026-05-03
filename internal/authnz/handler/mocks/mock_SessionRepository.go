@@ -193,6 +193,101 @@ func (_c *MockSessionRepository_Delete_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// DeleteByUserID provides a mock function with given fields: ctx, userID
+func (_m *MockSessionRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
+	ret := _m.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteByUserID")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = rf(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSessionRepository_DeleteByUserID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteByUserID'
+type MockSessionRepository_DeleteByUserID_Call struct {
+	*mock.Call
+}
+
+// DeleteByUserID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockSessionRepository_Expecter) DeleteByUserID(ctx interface{}, userID interface{}) *MockSessionRepository_DeleteByUserID_Call {
+	return &MockSessionRepository_DeleteByUserID_Call{Call: _e.mock.On("DeleteByUserID", ctx, userID)}
+}
+
+func (_c *MockSessionRepository_DeleteByUserID_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockSessionRepository_DeleteByUserID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockSessionRepository_DeleteByUserID_Call) Return(_a0 error) *MockSessionRepository_DeleteByUserID_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSessionRepository_DeleteByUserID_Call) RunAndReturn(run func(context.Context, uuid.UUID) error) *MockSessionRepository_DeleteByUserID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteByUserIDExcept provides a mock function with given fields: ctx, userID, exceptSessionID
+func (_m *MockSessionRepository) DeleteByUserIDExcept(ctx context.Context, userID uuid.UUID, exceptSessionID uuid.UUID) error {
+	ret := _m.Called(ctx, userID, exceptSessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteByUserIDExcept")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = rf(ctx, userID, exceptSessionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSessionRepository_DeleteByUserIDExcept_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteByUserIDExcept'
+type MockSessionRepository_DeleteByUserIDExcept_Call struct {
+	*mock.Call
+}
+
+// DeleteByUserIDExcept is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - exceptSessionID uuid.UUID
+func (_e *MockSessionRepository_Expecter) DeleteByUserIDExcept(ctx interface{}, userID interface{}, exceptSessionID interface{}) *MockSessionRepository_DeleteByUserIDExcept_Call {
+	return &MockSessionRepository_DeleteByUserIDExcept_Call{Call: _e.mock.On("DeleteByUserIDExcept", ctx, userID, exceptSessionID)}
+}
+
+func (_c *MockSessionRepository_DeleteByUserIDExcept_Call) Run(run func(ctx context.Context, userID uuid.UUID, exceptSessionID uuid.UUID)) *MockSessionRepository_DeleteByUserIDExcept_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockSessionRepository_DeleteByUserIDExcept_Call) Return(_a0 error) *MockSessionRepository_DeleteByUserIDExcept_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSessionRepository_DeleteByUserIDExcept_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) error) *MockSessionRepository_DeleteByUserIDExcept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function with given fields: ctx, id
 func (_m *MockSessionRepository) Get(ctx context.Context, id uuid.UUID) (*model.Session, error) {
 	ret := _m.Called(ctx, id)

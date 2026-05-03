@@ -13,9 +13,12 @@ type User struct {
 	Name      string     `json:"name" db:"name"`
 	LastLogin *time.Time `json:"last_login,omitempty" db:"last_login"`
 
-	PasswordHash string     `json:"-" db:"password_hash"`
-	CreatedAt    *time.Time `json:"created_at,omitempty" db:"created_at"`
-	UpdatedAt    *time.Time `json:"updated_at,omitempty" db:"updated_at"`
+	PasswordHash        string     `json:"-" db:"password_hash"`
+	TOTPEnabled         bool       `json:"totp_enabled" db:"totp_enabled"`
+	TOTPSecretEncrypted *string    `json:"-" db:"totp_secret_encrypted"`
+	TOTPVerifiedAt      *time.Time `json:"-" db:"totp_verified_at"`
+	CreatedAt           *time.Time `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt           *time.Time `json:"updated_at,omitempty" db:"updated_at"`
 }
 
 type UserPasswordReset struct {

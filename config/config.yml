@@ -19,6 +19,7 @@ auth:
   jwt_secret: "replace-this-on-production"
   direct_auth_enabled: false  # Enable direct authentication via x-direct-auth-username header (for development/testing only)
   secure_cookie: false # Set to true in production with HTTPS
+  totp_encryption_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"  # 32-byte hex key - REPLACE in production!
 
 listing:
   port: 8080

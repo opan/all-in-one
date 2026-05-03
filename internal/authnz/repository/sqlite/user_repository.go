@@ -73,9 +73,10 @@ func (u *userRepository) Update(ctx context.Context, id uuid.UUID, user model.Us
 	now := time.Now().UTC()
 	user.UpdatedAt = &now
 
-	_, err := exec.NamedExecContext(ctx, `UPDATE users SET email = :email, username = :username,  password_hash = :password_hash
-	, updated_at = :updated_at
-	WHERE id = :id`, user)
+	_, err := exec.NamedExecContext(ctx, `UPDATE users SET email = :email, username = :username, password_hash = :password_hash,
+		totp_enabled = :totp_enabled, totp_secret_encrypted = :totp_secret_encrypted, totp_verified_at = :totp_verified_at,
+		updated_at = :updated_at
+		WHERE id = :id`, user)
 	if err != nil {
 		return err
 	}

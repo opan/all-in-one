@@ -98,6 +98,28 @@ func (s *sessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (s *sessionRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("store", "SessionRepository").Str("action", "DeleteByUserID").Msg("delete all sessions for user")
+
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID.String())
+	if err != nil {
+		return fmt.Errorf("unable to delete sessions for user %s: %w", userID, err)
+	}
+	return nil
+}
+
+func (s *sessionRepository) DeleteByUserIDExcept(ctx context.Context, userID uuid.UUID, exceptSessionID uuid.UUID) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("store", "SessionRepository").Str("action", "DeleteByUserIDExcept").Msg("delete all sessions for user except current")
+
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ? AND id != ?`, userID.String(), exceptSessionID.String())
+	if err != nil {
+		return fmt.Errorf("unable to delete sessions for user %s except %s: %w", userID, exceptSessionID, err)
+	}
+	return nil
+}
+
 func (s *sessionRepository) Get(ctx context.Context, id uuid.UUID) (*model.Session, error) {
 	log := logging.GetLoggerFromContext(ctx)
 	log.Info().Str("store", "SessionRepository").Str("action", "Get").Msg("get session")
