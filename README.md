@@ -134,6 +134,53 @@ export ALLINONE_AUTH_JWT_SECRET="$(openssl rand -hex 32)"
 export ALLINONE_AUTH_TOTP_ENCRYPTION_KEY="$(openssl rand -hex 32)"
 ```
 
+### Kubernetes Secrets
+
+When deploying to Kubernetes, store secrets in a `Secret` resource. Use `--from-literal` so `kubectl` handles base64 encoding correctly (avoids trailing newline issues).
+
+```bash
+# fish shell
+set JWT (openssl rand -hex 32)
+set TOTP (openssl rand -hex 32)
+
+kubectl create secret generic all-in-one-secrets \
+  -n app \
+  --from-literal=jwt-secret="$JWT" \
+  --from-literal=totp_encryption_secret="$TOTP" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+```bash
+# bash/zsh
+kubectl create secret generic all-in-one-secrets \
+  -n app \
+  --from-literal=jwt-secret="$(openssl rand -hex 32)" \
+  --from-literal=totp_encryption_secret="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Using `--dry-run=client -o yaml | kubectl apply -f -` patches the existing secret in-place without deleting it. To update a single key without touching others, fetch the existing value first:
+
+```fish
+# fish — update only totp_encryption_secret, preserve jwt-secret
+set JWT (kubectl get secret all-in-one-secrets -n app -o jsonpath='{.data.jwt-secret}' | base64 -d)
+set TOTP (openssl rand -hex 32)
+
+kubectl create secret generic all-in-one-secrets \
+  -n app \
+  --from-literal=jwt-secret="$JWT" \
+  --from-literal=totp_encryption_secret="$TOTP" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Verify the value is exactly 64 characters:
+
+```bash
+kubectl get secret all-in-one-secrets -n app \
+  -o jsonpath='{.data.totp_encryption_secret}' | base64 -d | wc -c
+# Must print 64
+```
+
 ## API Endpoints
 
 All endpoints are under `/api/v1/`.
