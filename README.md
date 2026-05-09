@@ -1,218 +1,214 @@
-# All-in-One API Server
+# All-in-One
 
-A modular Go API server with multiple domain packages and flexible storage backends.
+A multi-functional full-stack web application built for learning purposes.
 
-## Architecture
-
-This project demonstrates a modular, domain-driven design approach for a Go API server:
-
-- Each domain (e.g., `listing`) is in its own package
-- Each domain has its own storage interface with multiple implementations
-- Main application wires everything together with dependency injection
-
-### Project Structure
-
-```
-all-in-one/
-├── main.go              # Application entry point
-├── go.mod               # Go module definition
-├── internal/            # Internal packages (not for external use)
-│   ├── common/          # Shared code across domains
-│   │   └── common.go    # Common response types and errors
-│   └── listing/         # Listing domain
-│       ├── service.go   # Main service integration point
-│       └── pkg/         # Domain-specific packages
-│           ├── model/   # Data models and interfaces
-│           │   └── model.go
-│           ├── storage/ # Storage implementations
-│           │   ├── memory.go
-│           │   └── sqlite.go
-│           └── handler/ # HTTP handlers
-│               └── handler.go
-└── data/                # Database files (created at runtime)
-```
+- **Backend:** Go 1.25+, REST API
+- **Frontend:** Svelte 5+, TypeScript 5.9+, Vite 7+
 
 ## Features
 
-- RESTful API with JSON responses
-- Multiple storage backends (in-memory and SQLite)
-- Domain-driven design with separate modules
-- CORS support for frontend integration
-- Easily extensible with new domains
+- **Listing** — Create topics with custom JSON schemas, manage items within topics
+- **Chat** — Real-time chat with WebSocket support, invite system
+- **Authentication** — JWT-based auth (username/password) with session management
+- **Two-Factor Authentication (2FA)** — Opt-in TOTP-based 2FA (Google Authenticator, Authy, etc.)
 
-## Available Endpoints
-
-- Health Check:
-  - `GET /api/v1/health` - API health status
-
-- Listing API:
-  - `GET /api/v1/items` - Get all items
-  - `POST /api/v1/items` - Create new item
-  - `GET /api/v1/items/{id}` - Get item by ID
-  - `PUT /api/v1/items/{id}` - Update item
-  - `DELETE /api/v1/items/{id}` - Delete item
-
-## API Documentation (Swagger)
-
-The API includes interactive Swagger/OpenAPI documentation for easy testing and exploration.
-
-### Accessing Swagger UI
-
-Once the server is running, access the Swagger UI at:
+## Project Structure
 
 ```
-http://localhost:8080/swagger/index.html
+all-in-one/
+├── cmd/all-in-one/         # CLI entrypoints (server, migrate, seed)
+├── config/config.yml       # Default configuration
+├── db/migrations/          # SQL migration files
+├── internal/
+│   ├── auth/               # Password hashing, TOTP crypto utilities
+│   ├── authnz/             # Authentication & authorization (handlers, middleware, repository)
+│   ├── chat/               # Chat app (WebSocket, sessions, invites)
+│   ├── listing/            # Listing app (topics, items, JSON schema forms)
+│   ├── config/             # Configuration loading (Viper)
+│   ├── http/               # Shared HTTP helpers and middleware
+│   └── storage/            # Database connection and migration runner
+└── web/                    # Frontend (SvelteKit, Tailwind, shadcn-svelte)
 ```
 
-The Swagger UI provides:
-- Interactive API documentation
-- Try-it-out functionality for all endpoints
-- Request/response schemas
-- Example values and responses
+## Prerequisites
 
-### Regenerating Documentation
+- Go 1.25+
+- Node.js 22.19+, npm 10+
+- SQLite (via `go-sqlite3`, requires CGO — `gcc` must be installed)
 
-If you modify API endpoints or add new ones:
+## Quick Start
 
-1. Install swag CLI tool (if not already installed):
-   ```bash
-   go install github.com/swaggo/swag/cmd/swag@latest
-   ```
-
-2. Regenerate documentation:
-   ```bash
-   swag init -g cmd/listing/main.go -o docs --parseDependency --parseInternal
-   ```
-
-3. Rebuild and restart the server:
-   ```bash
-   go run main.go
-   ```
-
-See `docs/README.md` for more details about the Swagger integration.
-
-## Configuration
-
-The application uses Viper for configuration management with the following priority order:
-1. Environment variables (highest priority)
-2. Configuration file (`config.yaml`)
-3. Default values (lowest priority)
-
-### Configuration Options
-
-| Setting | Environment Variable | Default | Description |
-|---------|---------------------|---------|-------------|
-| Server Port | `ALLINONE_SERVER_PORT` | `:8080` | Port for the HTTP server |
-| Storage Type | `ALLINONE_STORAGE_TYPE` | `memory` | Storage backend (`memory` or `sqlite`) |
-| Storage Path | `ALLINONE_STORAGE_PATH` | `./data/listings.db` | SQLite database file path |
-
-### Configuration File
-
-Create a `config.yaml` file in the project root:
-
-```yaml
-server:
-  port: ":8080"
-
-storage:
-  type: "memory"  # Options: "memory" or "sqlite"
-  path: "./data/listings.db"  # Only used when type is "sqlite"
-```
-
-## Storage Options
-
-The application supports multiple storage backends:
-
-1. **In-memory Storage** (default)
-   - Stores data in memory, resets on server restart
-   - Fast but not persistent
-
-2. **SQLite Storage** 
-   - Stores data in SQLite database files
-   - Persistent between server restarts
-   - Configurable via config file or environment variables
-
-## Running the Server
-
-### Basic Usage
+### 1. Backend
 
 ```bash
-# Install dependencies
+# Install Go dependencies
 go mod tidy
 
-# Run with default settings (memory storage, port 8080)
-go run main.go
+# Run database migrations
+go run ./cmd/all-in-one db:migrate up
+
+# (Optional) Seed with sample data
+go run ./cmd/all-in-one db:seed
+
+# Start the server
+go run ./cmd/all-in-one server
 ```
 
-### With Configuration File
+The API is available at `http://localhost:8080`.
 
-1. Create `config.yaml` (see Configuration section above)
-2. Run the server:
-```bash
-go run main.go
-```
-
-### With Environment Variables
+### 2. Frontend
 
 ```bash
-# Use SQLite storage
-ALLINONE_STORAGE_TYPE=sqlite go run main.go
-
-# Use custom port
-ALLINONE_SERVER_PORT=:9000 go run main.go
-
-# Use both custom storage and port
-ALLINONE_STORAGE_TYPE=sqlite ALLINONE_STORAGE_PATH=./custom.db ALLINONE_SERVER_PORT=:3000 go run main.go
-```
-
-### Running the Frontend (Svelte)
-
-```bash
-# Navigate to UI directory
-cd ui
-
-# Install dependencies
+cd web
 npm install
-
-# Start development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173` and automatically proxy API requests to the backend.
+The frontend dev server runs at `http://localhost:5173` and proxies API requests to the backend automatically.
 
-## Frontend Integration
+## CLI Commands
 
-The API is CORS-enabled and includes:
-- Vite proxy configuration for seamless frontend-backend communication
-- Svelte routes for listing data at `/listing`
-- Automatic data loading and table display
+```bash
+go run ./cmd/all-in-one server            # Start the HTTP server
+go run ./cmd/all-in-one db:migrate up     # Apply all pending migrations
+go run ./cmd/all-in-one db:migrate down   # Roll back migrations
+go run ./cmd/all-in-one db:seed           # Seed sample users, topics, and chat data
+```
 
-## Adding a New Domain
+## Configuration
 
-To add a new domain (e.g., `user`):
+Configuration is loaded from `config/config.yml`. All values can be overridden via environment variables using the prefix `ALLINONE_` and replacing `.` with `_` (e.g., `auth.jwt_secret` → `ALLINONE_AUTH_JWT_SECRET`).
 
-1. Create a new directory structure under `internal/user/`:
-   ```
-   internal/user/
-   ├── service.go        # Main service integration point
-   └── pkg/              # Domain-specific packages
-       ├── model/        # Data models and interfaces
-       │   └── model.go
-       ├── storage/      # Storage implementations
-       │   ├── memory.go
-       │   └── sqlite.go
-       └── handler/      # HTTP handlers
-           └── handler.go
-   ```
+### Full config reference
 
-2. Implement the required components:
-   - `model.go` - Define the entity and storage interface
-   - `memory.go` and `sqlite.go` - Implement storage backends
-   - `handler.go` - Implement HTTP handlers
-   - `service.go` - Create the service that ties everything together
+```yaml
+server:
+  port: 8080
 
-3. Update `main.go` to initialize and wire up the new domain service
+storage:
+  type: "sqlite"          # "sqlite" or "postgres" (postgres is stubbed)
+  sqlite:
+    db_path: "all-in-one.db"
 
-## Frontend Integration
+log:
+  level: "debug"          # "debug", "info", "warn", "error"
 
-The API is CORS-enabled for integration with a frontend application (e.g., Svelte).
+http:
+  timeout: 30             # Request timeout in seconds
+
+auth:
+  jwt_secret: ""                  # REQUIRED — secret for signing JWT tokens
+  totp_encryption_key: ""         # REQUIRED — 64-char hex string (32 bytes) for encrypting 2FA secrets
+  secure_cookie: false            # Set to true in production (requires HTTPS)
+  direct_auth_enabled: false      # Dev only — bypass auth via x-direct-auth-username header
+```
+
+### Environment variable reference
+
+| Variable | Description |
+|---|---|
+| `ALLINONE_AUTH_JWT_SECRET` | JWT signing secret |
+| `ALLINONE_AUTH_TOTP_ENCRYPTION_KEY` | 32-byte hex key for 2FA secret encryption |
+| `ALLINONE_AUTH_SECURE_COOKIE` | `true` in production with HTTPS |
+| `ALLINONE_SERVER_PORT` | HTTP server port (default: `8080`) |
+| `ALLINONE_STORAGE_TYPE` | `sqlite` (default) |
+| `ALLINONE_STORAGE_SQLITE_DB_PATH` | Path to SQLite file (default: `all-in-one.db`) |
+| `ALLINONE_LOG_LEVEL` | Log level (default: `debug`) |
+
+### Generating secrets
+
+Both `jwt_secret` and `totp_encryption_key` must be set before the server starts. Generate them with:
+
+```bash
+# JWT secret (any strong random string works)
+openssl rand -hex 32
+
+# TOTP encryption key (must be exactly 64 hex chars / 32 bytes)
+openssl rand -hex 32
+```
+
+Use different values for each. For production, set them as environment variables rather than committing them to `config.yml`:
+
+```bash
+export ALLINONE_AUTH_JWT_SECRET="$(openssl rand -hex 32)"
+export ALLINONE_AUTH_TOTP_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+```
+
+## API Endpoints
+
+All endpoints are under `/api/v1/`.
+
+### Public
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `POST` | `/users` | Register a new user |
+| `POST` | `/sessions` | Login (returns JWT cookies) |
+| `POST` | `/sessions/refresh` | Refresh access token |
+| `GET` | `/sessions/verify` | Verify current session |
+| `POST` | `/sessions/2fa/verify` | Verify TOTP code during login |
+| `POST` | `/sessions/2fa/recovery` | Use a recovery code during login |
+
+### Authenticated (requires valid session)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/users/me` | Get current user profile |
+| `POST` | `/users/reset_password` | Change password |
+| `DELETE` | `/sessions` | Logout |
+| `GET` | `/users/2fa/status` | Get 2FA status and remaining recovery codes |
+| `POST` | `/users/2fa/setup` | Begin 2FA setup (returns QR code + secret + recovery codes) |
+| `POST` | `/users/2fa/verify-setup` | Confirm 2FA setup with a TOTP code |
+| `DELETE` | `/users/2fa` | Disable 2FA (requires current password) |
+| `POST` | `/users/2fa/recovery-codes/regenerate` | Regenerate recovery codes (requires current password) |
+| `GET` | `/listing/topics` | List topics |
+| `POST` | `/listing/topics` | Create topic |
+| `GET` | `/listing/topics/{id}` | Get topic |
+| `PUT` | `/listing/topics/{id}` | Update topic |
+| `DELETE` | `/listing/topics/{id}` | Delete topic |
+| `GET` | `/listing/topics/{id}/items` | List items in topic |
+| `POST` | `/listing/topics/{id}/items` | Create item |
+| `PUT` | `/listing/topics/{id}/items/{itemId}` | Update item |
+| `DELETE` | `/listing/topics/{id}/items/{itemId}` | Delete item |
+| `GET` | `/chats` | List chat sessions |
+| `POST` | `/chats` | Create chat session |
+| `DELETE` | `/chats/{id}` | Delete chat session |
+| `GET` | `/chats/{id}/messages` | Get messages |
+| `POST` | `/chats/{id}/messages` | Send message |
+| `POST` | `/chats/invites` | Send chat invite |
+| `GET` | `/chats/invites/received` | List received invites |
+| `GET` | `/chats/invites/sent` | List sent invites |
+| `POST` | `/chats/invites/{id}/respond` | Accept or decline invite |
+| `DELETE` | `/chats/invites/{id}` | Cancel invite |
+
+WebSocket: `ws://localhost:8080/api/v1/ws?token=<access_token>`
+
+## API Documentation (Swagger)
+
+Swagger UI is available at `http://localhost:8080/swagger/index.html` when the server is running.
+
+To regenerate after modifying endpoints:
+
+```bash
+# Install swag
+go install github.com/swaggo/swag/cmd/swag@latest
+
+# Regenerate
+swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
+```
+
+## Production Checklist
+
+- [ ] Set `ALLINONE_AUTH_JWT_SECRET` to a strong random value (never commit it)
+- [ ] Set `ALLINONE_AUTH_TOTP_ENCRYPTION_KEY` to a strong random value (never commit it)
+- [ ] Set `ALLINONE_AUTH_SECURE_COOKIE=true` (requires HTTPS — use a reverse proxy like Nginx or Caddy)
+- [ ] Set `ALLINONE_LOG_LEVEL=info`
+- [ ] Put the Go server behind a reverse proxy (Nginx / Caddy) for TLS termination
+- [ ] Build the frontend: `cd web && npm run build` (output in `web/build/`, served by the Go server)
+
+## Development Notes
+
+- SQLite database file is `all-in-one.db` in the project root — do not delete it as it may contain unseeded data
+- `direct_auth_enabled: true` skips JWT validation by passing `x-direct-auth-username: <username>` header — only use in development
+- The frontend dev server proxies `/api` to `localhost:8080` via Vite config
