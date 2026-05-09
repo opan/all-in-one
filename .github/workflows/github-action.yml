@@ -64,6 +64,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
       - name: Checkout code
@@ -103,3 +106,20 @@ jobs:
       
       - name: Image digest
         run: echo "Image pushed with digest ${{ steps.build-push.outputs.digest }}"
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKER_USERNAME }}/all-in-one@${{ steps.build-push.outputs.digest }}'
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+
+      - name: Upload Trivy image scan SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+          category: trivy-image
