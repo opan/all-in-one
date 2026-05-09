@@ -276,3 +276,47 @@ This causes a brief downtime during deploys, which is acceptable for a single-re
 - SQLite database file is `all-in-one.db` in the project root — do not delete it as it may contain unseeded data
 - `direct_auth_enabled: true` skips JWT validation by passing `x-direct-auth-username: <username>` header — only use in development
 - The frontend dev server proxies `/api` to `localhost:8080` via Vite config
+
+### Querying the SQLite Database in a Pod
+
+Since the image is distroless, there is no shell inside the container. Use `kubectl cp` to copy the database file to your local machine, query it there, then copy it back if you made changes.
+
+**1. Get the pod name:**
+
+```bash
+kubectl get pod -n app -l app=all-in-one
+```
+
+**2. Copy the database file out:**
+
+```bash
+kubectl cp -n app <pod-name>:/app/all-in-one.db ./all-in-one-remote.db
+```
+
+**3. Query locally:**
+
+```bash
+sqlite3 ./all-in-one-remote.db "SELECT * FROM users;"
+```
+
+Or open an interactive session:
+
+```bash
+sqlite3 ./all-in-one-remote.db
+```
+
+**4. Copy back if you made changes:**
+
+> Only do this if you ran `INSERT`, `UPDATE`, or `DELETE` queries. Skip if read-only.
+> The app must not be writing to the database at the same time — consider scaling the deployment to 0 replicas first.
+
+```bash
+# Scale down to avoid concurrent writes
+kubectl scale deployment all-in-one -n app --replicas=0
+
+# Copy the modified file back
+kubectl cp -n app ./all-in-one-remote.db <pod-name>:/app/all-in-one.db
+
+# Scale back up
+kubectl scale deployment all-in-one -n app --replicas=1
+```
