@@ -253,6 +253,23 @@ swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
 - [ ] Set `ALLINONE_LOG_LEVEL=info`
 - [ ] Put the Go server behind a reverse proxy (Nginx / Caddy) for TLS termination
 - [ ] Build the frontend: `cd web && npm run build` (output in `web/build/`, served by the Go server)
+- [ ] If using SQLite, set the Kubernetes deployment strategy to `Recreate` (see note below)
+
+### SQLite and Kubernetes Deployment Strategy
+
+SQLite uses file-level locking that only works on a local filesystem. Running two pods against the same SQLite file simultaneously — even briefly — risks write corruption and data loss.
+
+The default Kubernetes deployment strategy is `RollingUpdate`, which keeps the old pod running until the new one is ready. This means **two pods will be running at the same time during every deploy**, which is unsafe with SQLite.
+
+Set the strategy to `Recreate` to terminate the old pod before the new one starts:
+
+```yaml
+spec:
+  strategy:
+    type: Recreate
+```
+
+This causes a brief downtime during deploys, which is acceptable for a single-replica SQLite setup. If zero-downtime deploys are required, migrate to PostgreSQL.
 
 ## Development Notes
 
