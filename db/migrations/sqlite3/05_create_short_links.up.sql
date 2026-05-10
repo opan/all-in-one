@@ -2,7 +2,7 @@ CREATE TABLE short_links (
     id               TEXT PRIMARY KEY,
     code             TEXT NOT NULL UNIQUE,
     target_url       TEXT NOT NULL,
-    owner_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    owner_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at       DATETIME,
     is_active        BOOLEAN NOT NULL DEFAULT 1,

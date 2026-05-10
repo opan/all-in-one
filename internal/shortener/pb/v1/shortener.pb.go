@@ -27,7 +27,7 @@ type ShortLink struct {
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Code           string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
 	TargetUrl      string                 `protobuf:"bytes,3,opt,name=target_url,json=targetUrl,proto3" json:"target_url,omitempty"`
-	OwnerId        *int64                 `protobuf:"varint,4,opt,name=owner_id,json=ownerId,proto3,oneof" json:"owner_id,omitempty"`
+	OwnerId        *string                `protobuf:"bytes,4,opt,name=owner_id,json=ownerId,proto3,oneof" json:"owner_id,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	IsActive       bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
@@ -88,11 +88,11 @@ func (x *ShortLink) GetTargetUrl() string {
 	return ""
 }
 
-func (x *ShortLink) GetOwnerId() int64 {
+func (x *ShortLink) GetOwnerId() string {
 	if x != nil && x.OwnerId != nil {
 		return *x.OwnerId
 	}
-	return 0
+	return ""
 }
 
 func (x *ShortLink) GetCreatedAt() *timestamppb.Timestamp {
@@ -621,7 +621,7 @@ const file_shortener_v1_shortener_proto_rawDesc = "" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1d\n" +
 	"\n" +
 	"target_url\x18\x03 \x01(\tR\ttargetUrl\x12\x1e\n" +
-	"\bowner_id\x18\x04 \x01(\x03H\x00R\aownerId\x88\x01\x01\x129\n" +
+	"\bowner_id\x18\x04 \x01(\tH\x00R\aownerId\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +

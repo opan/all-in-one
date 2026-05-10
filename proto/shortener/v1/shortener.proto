@@ -10,7 +10,7 @@ message ShortLink {
   string id = 1;
   string code = 2;
   string target_url = 3;
-  optional int64 owner_id = 4;
+  optional string owner_id = 4;
   google.protobuf.Timestamp created_at = 5;
   optional google.protobuf.Timestamp expires_at = 6;
   bool is_active = 7;

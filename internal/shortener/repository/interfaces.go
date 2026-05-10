@@ -9,9 +9,9 @@ import (
 type ShortLinkRepository interface {
 	Create(ctx context.Context, link model.ShortLink) (model.ShortLink, error)
 	GetByCode(ctx context.Context, code string) (model.ShortLink, error)
-	ListByOwner(ctx context.Context, ownerID int64, page, pageSize uint32) ([]model.ShortLink, uint32, error)
+	ListByOwner(ctx context.Context, ownerID string, page, pageSize uint32) ([]model.ShortLink, uint32, error)
 	Update(ctx context.Context, link model.ShortLink) (model.ShortLink, error)
-	Delete(ctx context.Context, code string, ownerID int64) error
+	Delete(ctx context.Context, code string, ownerID string) error
 
 	// IncrementClick atomically bumps click_count and sets last_accessed_at.
 	// Returns ErrNotFound when no active, non-expired link matches the code.

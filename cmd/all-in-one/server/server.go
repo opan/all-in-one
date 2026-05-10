@@ -133,10 +133,14 @@ func (s *server) Start() error {
 		httpSwagger.DomID("swagger-ui"),
 	)).Methods("GET")
 
-	// Setup CORS for frontend integration
+	// Setup CORS — allowed origins configured via server.allowed_origins in config.yml
+	allowedOrigins := s.config.Server.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"*"}
+	}
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"}, // In production, specify your frontend domain
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedOrigins: allowedOrigins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
 

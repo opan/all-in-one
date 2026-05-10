@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/shortener/model"
@@ -35,12 +36,15 @@ func (r *shortLinkRepository) GetByCode(ctx context.Context, code string) (model
 		WHERE code = ?
 	`, code)
 	if err != nil {
-		return model.ShortLink{}, httpHelper.ErrNotFound
+		if err == sql.ErrNoRows {
+			return model.ShortLink{}, httpHelper.ErrNotFound
+		}
+		return model.ShortLink{}, err
 	}
 	return link, nil
 }
 
-func (r *shortLinkRepository) ListByOwner(ctx context.Context, ownerID int64, page, pageSize uint32) ([]model.ShortLink, uint32, error) {
+func (r *shortLinkRepository) ListByOwner(ctx context.Context, ownerID string, page, pageSize uint32) ([]model.ShortLink, uint32, error) {
 	if page == 0 {
 		page = 1
 	}
@@ -70,7 +74,7 @@ func (r *shortLinkRepository) ListByOwner(ctx context.Context, ownerID int64, pa
 }
 
 func (r *shortLinkRepository) Update(ctx context.Context, link model.ShortLink) (model.ShortLink, error) {
-	_, err := r.db.ExecContext(ctx, `
+	result, err := r.db.ExecContext(ctx, `
 		UPDATE short_links
 		SET is_active = ?, expires_at = ?
 		WHERE code = ? AND owner_id = ?
@@ -78,10 +82,14 @@ func (r *shortLinkRepository) Update(ctx context.Context, link model.ShortLink) 
 	if err != nil {
 		return model.ShortLink{}, err
 	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return model.ShortLink{}, httpHelper.ErrNotFound
+	}
 	return r.GetByCode(ctx, link.Code)
 }
 
-func (r *shortLinkRepository) Delete(ctx context.Context, code string, ownerID int64) error {
+func (r *shortLinkRepository) Delete(ctx context.Context, code string, ownerID string) error {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM short_links WHERE code = ? AND owner_id = ?`, code, ownerID)
 	if err != nil {

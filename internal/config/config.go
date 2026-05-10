@@ -40,7 +40,8 @@ type ShortenerURLConfig struct {
 }
 
 type ServerConfig struct {
-	Port string `mapstructure:"port"`
+	Port           string   `mapstructure:"port"`
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
 type StorageConfig struct {
@@ -78,6 +79,7 @@ func Load() (*Config, error) {
 
 	// Set default values
 	viper.SetDefault("server.port", ":8080")
+	viper.SetDefault("server.allowed_origins", []string{"*"})
 	viper.SetDefault("storage.type", "memory")
 	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("http.timeout", 30)

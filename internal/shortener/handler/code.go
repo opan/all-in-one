@@ -1,10 +1,12 @@
-package service
+package handler
 
 import (
 	"crypto/rand"
+	"errors"
 	"math/big"
 	"strings"
 
+	"github.com/mattn/go-sqlite3"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -34,4 +36,12 @@ func newShortCode(length int) (string, error) {
 func isReserved(code string) bool {
 	_, ok := reservedCodes[strings.ToLower(code)]
 	return ok
+}
+
+func isUniqueConstraintError(err error) bool {
+	var sqliteErr sqlite3.Error
+	if errors.As(err, &sqliteErr) {
+		return sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique
+	}
+	return false
 }
