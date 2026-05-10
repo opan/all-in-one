@@ -14,7 +14,7 @@
 	let { items, activeSection, onSelect }: Props = $props();
 </script>
 
-<nav class="w-56 space-y-1">
+<nav class="w-full md:w-56 space-y-1">
 	{#each items as item}
 		<button
 			type="button"

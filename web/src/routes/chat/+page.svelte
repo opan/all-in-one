@@ -418,7 +418,7 @@
 
 <div class="flex h-screen bg-background">
   <!-- Left Panel: Chat Sessions List -->
-  <div class="w-80 border-r flex flex-col">
+  <div class="w-full md:w-80 border-r flex flex-col {activeSessionId ? 'hidden md:flex' : 'flex'}">
     <!-- Header -->
     <div class="p-4 border-b">
       <div class="flex items-center justify-between mb-3">
@@ -546,18 +546,27 @@
   </div>
 
   <!-- Right Panel: Chat Conversation -->
-  <div class="flex-1 flex flex-col">
+  <div class="flex-1 flex-col {activeSessionId ? 'flex' : 'hidden md:flex'}">
     {#if activeSession}
       <!-- Chat Header -->
       <div class="p-4 border-b flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-semibold">{getSessionName(activeSession)}</h2>
-          <div class="flex items-center text-sm text-muted-foreground">
-            <Users class="h-3 w-3 mr-1" />
-            <span>{getParticipantNames(activeSession)}</span>
+        <div class="flex items-center gap-2 min-w-0">
+          <button
+            class="md:hidden text-muted-foreground hover:text-foreground shrink-0"
+            onclick={() => activeSessionId = null}
+            aria-label="Back to chats"
+          >
+            ←
+          </button>
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold truncate">{getSessionName(activeSession)}</h2>
+            <div class="flex items-center text-sm text-muted-foreground">
+              <Users class="h-3 w-3 mr-1 shrink-0" />
+              <span class="truncate">{getParticipantNames(activeSession)}</span>
+            </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" class="h-8 w-8">
+        <Button variant="ghost" size="icon" class="h-8 w-8 shrink-0">
           <MoreVertical class="h-4 w-4" />
         </Button>
       </div>

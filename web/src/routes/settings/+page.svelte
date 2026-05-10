@@ -17,6 +17,7 @@
 	let password = $state('');
 	let passwordConfirmation = $state('');
 	let activeSection = $state('account');
+	let mobileShowNav = $state(true);
 
 	const navItems = [
 		{ id: 'account', label: 'Account', icon: '🔧' },
@@ -230,6 +231,7 @@
 
 	function handleSectionChange(id: string) {
 		activeSection = id;
+		mobileShowNav = false;
 	}
 </script>
 
@@ -246,16 +248,25 @@
 		<Separator />
 
 		<!-- Main Content with Sidebar Navigation -->
-		<div class="flex gap-8">
-			<!-- Sidebar Navigation -->
-			<SettingsNav
-				items={navItems}
-				activeSection={activeSection}
-				onSelect={handleSectionChange}
-			/>
+		<div class="flex flex-col md:flex-row md:gap-8">
+			<!-- Sidebar Navigation: full-width on mobile, fixed on desktop -->
+			<div class="{mobileShowNav ? 'block' : 'hidden'} md:block">
+				<SettingsNav
+					items={navItems}
+					activeSection={activeSection}
+					onSelect={handleSectionChange}
+				/>
+			</div>
 
 			<!-- Content Area -->
-			<div class="flex-1">
+			<div class="{mobileShowNav ? 'hidden' : 'block'} md:block flex-1">
+				<!-- Back button: mobile only -->
+				<button
+					class="md:hidden flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+					onclick={() => mobileShowNav = true}
+				>
+					← Back
+				</button>
 				{#if activeSection === 'account'}
 					<div class="space-y-6">
 						<div class="space-y-2">
