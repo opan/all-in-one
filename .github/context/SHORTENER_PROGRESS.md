@@ -1,7 +1,7 @@
 # Shortener feature-app — progress tracker
 
 Started: 2026-05-10
-Status: **P0 complete — ready for P1**
+Status: **P1 complete — ready for P2**
 
 ## Decisions locked in
 
@@ -174,7 +174,7 @@ shortener:
 | Phase | Scope | Depends on | Status |
 |-------|-------|------------|--------|
 | **P0 — Proto & codegen** | `buf.yaml`, `buf.gen.yaml`, first `.proto`, `make proto`, `.gitignore`, commit generated stubs. | — | ✓ |
-| **P1 — Backend skeleton** | `internal/shortener/{model,repository,service,handler,codec}` packages compiling; migration 05; routes wired in `server.go` (stubs returning 501). | P0 | ☐ |
+| **P1 — Backend skeleton** | `internal/shortener/{model,repository,service,handler,codec}` packages compiling; migration 05; routes wired in `server.go` (stubs returning 501). | P0 | ✓ |
 | **P2 — Create + Resolve** | `POST /links` (auth) + `GET /r/{code}` (public). URL validator + base62 generator + collision retry. Atomic click-count update. | P1 | ☐ |
 | **P3 — List/Get/Update/Delete** | Owner-scoped management endpoints; pagination. | P2 | ☐ |
 | **P4 — Security hardening** | Rate-limit middleware; reserved-code list; private-IP rejection; CORS config. | P3 | ☐ |

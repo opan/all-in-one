@@ -11,11 +11,32 @@ import (
 )
 
 type Config struct {
-	Server  ServerConfig  `mapstructure:"server"`
-	Storage StorageConfig `mapstructure:"storage"`
-	Logging LoggingConfig `mapstructure:"log"`
-	Http    HTTPConfig    `mapstructure:"http"`
-	Auth    Auth          `mapstructure:"auth"`
+	Server    ServerConfig    `mapstructure:"server"`
+	Storage   StorageConfig   `mapstructure:"storage"`
+	Logging   LoggingConfig   `mapstructure:"log"`
+	Http      HTTPConfig      `mapstructure:"http"`
+	Auth      Auth            `mapstructure:"auth"`
+	Shortener ShortenerConfig `mapstructure:"shortener"`
+}
+
+type ShortenerConfig struct {
+	CodeLength          int                 `mapstructure:"code_length"`
+	MaxCreateRetries    int                 `mapstructure:"max_create_retries"`
+	PublicCreateEnabled bool                `mapstructure:"public_create_enabled"`
+	RateLimit           ShortenerRateLimit  `mapstructure:"rate_limit"`
+	URL                 ShortenerURLConfig  `mapstructure:"url"`
+}
+
+type ShortenerRateLimit struct {
+	CreatesPerWindow       int `mapstructure:"creates_per_window"`
+	WindowMinutes          int `mapstructure:"window_minutes"`
+	PublicCreatesPerWindow int `mapstructure:"public_creates_per_window"`
+}
+
+type ShortenerURLConfig struct {
+	MaxLength      int      `mapstructure:"max_length"`
+	AllowedSchemes []string `mapstructure:"allowed_schemes"`
+	BlockedHosts   []string `mapstructure:"blocked_hosts"`
 }
 
 type ServerConfig struct {
@@ -60,6 +81,15 @@ func Load() (*Config, error) {
 	viper.SetDefault("storage.type", "memory")
 	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("http.timeout", 30)
+	viper.SetDefault("shortener.code_length", 7)
+	viper.SetDefault("shortener.max_create_retries", 5)
+	viper.SetDefault("shortener.public_create_enabled", false)
+	viper.SetDefault("shortener.rate_limit.creates_per_window", 100)
+	viper.SetDefault("shortener.rate_limit.window_minutes", 15)
+	viper.SetDefault("shortener.rate_limit.public_creates_per_window", 20)
+	viper.SetDefault("shortener.url.max_length", 2048)
+	viper.SetDefault("shortener.url.allowed_schemes", []string{"http", "https"})
+	viper.SetDefault("shortener.url.blocked_hosts", []string{})
 
 	// Enable environment variable support
 	// Viper maps nested keys to env vars by replacing dots with underscores and
