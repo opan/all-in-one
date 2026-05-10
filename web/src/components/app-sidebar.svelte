@@ -2,9 +2,9 @@
   import type { Component } from 'svelte';
   import * as Sidebar from "$lib/components/ui/sidebar/index";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
-  import { 
-    SquareTerminal, 
-    Settings, 
+  import {
+    SquareTerminal,
+    Settings,
     ChevronDown,
     SquareUser,
     Table,
@@ -15,7 +15,9 @@
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
   import { apiDelete, apiGet, isLoggedIn } from '$lib/api';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 
   interface Props {
     currentPath?: string;
@@ -35,6 +37,13 @@
 
   let { currentPath = "/" }: Props = $props();
   let playgroundOpen = $state(true);
+
+  const sidebar = useSidebar();
+
+  $effect(() => {
+    page.url.pathname;
+    sidebar.setOpenMobile(false);
+  });
   let userLoggedIn = $state(false);
   let isSigningOut = $state(false);
   let currentUser = $state<{ name?: string; username?: string; email?: string } | null>(null);

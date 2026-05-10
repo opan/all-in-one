@@ -380,15 +380,13 @@
 
   <!-- Items Table -->
   <div class="space-y-4">
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex-1 max-w-sm">
-        <Input 
-          type="text" 
-          placeholder="Filter items..." 
-          bind:value={searchQuery}
-          class="w-full"
-        />
-      </div>
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <Input
+        type="text"
+        placeholder="Filter items..."
+        bind:value={searchQuery}
+        class="w-full sm:max-w-sm"
+      />
       <div class="flex gap-2">
         <Button variant="outline" size="sm" onclick={reloadItems} disabled={loading}>
           {loading ? 'Reloading...' : 'Reload'}

@@ -2,6 +2,7 @@
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
+	import { fade, fly } from "svelte/transition";
 	import { SIDEBAR_WIDTH_MOBILE } from "./constants.js";
 	import { useSidebar } from "./context.svelte.js";
 
@@ -34,27 +35,24 @@
 		{@render children?.()}
 	</div>
 {:else if sidebar.isMobile}
-	<Sheet.Root
-		bind:open={() => sidebar.openMobile, (v) => sidebar.setOpenMobile(v)}
-		{...restProps}
-	>
-		<Sheet.Content
+	{#if sidebar.openMobile}
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 bg-black/50"
+			transition:fade={{ duration: 200 }}
+			onclick={() => sidebar.setOpenMobile(false)}
+		></div>
+		<div
 			data-sidebar="sidebar"
 			data-slot="sidebar"
 			data-mobile="true"
-			class="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
-			style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
-			{side}
+			class="bg-sidebar text-sidebar-foreground fixed inset-y-0 z-50 flex h-full flex-col"
+			style="width: {SIDEBAR_WIDTH_MOBILE}; {side === 'right' ? 'right: 0' : 'left: 0'};"
+			transition:fly={{ x: side === 'right' ? '100%' : '-100%', duration: 200 }}
 		>
-			<Sheet.Header class="sr-only">
-				<Sheet.Title>Sidebar</Sheet.Title>
-				<Sheet.Description>Displays the mobile sidebar.</Sheet.Description>
-			</Sheet.Header>
-			<div class="flex h-full w-full flex-col">
-				{@render children?.()}
-			</div>
-		</Sheet.Content>
-	</Sheet.Root>
+			{@render children?.()}
+		</div>
+	{/if}
 {:else}
 	<div
 		bind:this={ref}

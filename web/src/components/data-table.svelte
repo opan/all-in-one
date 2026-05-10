@@ -83,17 +83,17 @@
 
 <div class="space-y-4">
   {#if showFilter || showColumnVisibility || actions.length > 0}
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       {#if showFilter}
         <Input
           placeholder={filterPlaceholder}
           value={filtering}
           oninput={(e) => filtering = e.currentTarget.value}
-          class="max-w-sm"
+          class="w-full sm:max-w-sm"
         />
       {/if}
-      
-      <div class="flex items-center gap-2 ml-auto">
+
+      <div class="flex items-center gap-2 {showFilter ? '' : 'ml-auto'}">
         {#if onReload}
           <Button variant="outline" size="icon" onclick={onReload} title="Reload">
             <RotateCw class="h-4 w-4" />
