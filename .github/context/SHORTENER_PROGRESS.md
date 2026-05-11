@@ -191,5 +191,5 @@ shortener:
 ## Notes for future sessions
 
 - This file is the resume point. Update phase statuses as work progresses.
-- ADR (`SHORTENER_IMPLEMENTATION_PLAN.md`) to be written under `.github/context/` once feature ships.
+- ADR written: `.github/context/SHORTENER_IMPLEMENTATION_PLAN.md`.
 - Generated proto files will be committed; do not regenerate without `make proto`.
