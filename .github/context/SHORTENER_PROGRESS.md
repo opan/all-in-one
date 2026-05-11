@@ -1,7 +1,7 @@
 # Shortener feature-app — progress tracker
 
 Started: 2026-05-10
-Status: **P4 complete — ready for P5 (frontend)**
+Status: **Complete — all phases P0–P6 done**
 
 ## Decisions locked in
 
@@ -178,8 +178,8 @@ shortener:
 | **P2 — Create + Resolve** | `POST /links` (auth) + `GET /r/{code}` (public). URL validator + base62 generator + collision retry. Atomic click-count update. | P1 | ✓ |
 | **P3 — List/Get/Update/Delete** | Owner-scoped management endpoints; pagination. | P2 | ✓ |
 | **P4 — Security hardening** | Rate-limit middleware; reserved-code list; private-IP rejection; CORS config. | P3 | ✓ |
-| **P5 — Frontend** | `web/src/routes/shortener/` (list + create + edit), typed client `shortener-api.ts` using generated TS, sidebar entry. | P3 | ☐ |
-| **P6 — Tests** | Table-driven service tests with mockery; repo tests on in-memory sqlite; handler integration test for redirect path. | alongside P2–P5 | ☐ |
+| **P5 — Frontend** | `web/src/routes/shortener/` (list + create + edit), typed client `shortener-api.ts` using generated TS, sidebar entry. | P3 | ✓ |
+| **P6 — Tests** | Table-driven service tests with mockery; repo tests on in-memory sqlite; handler integration test for redirect path. | alongside P2–P5 | ✓ |
 
 ## Resolved questions (2026-05-10)
 

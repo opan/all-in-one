@@ -6,6 +6,7 @@ import (
 
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/shortener/repository/sqlite"
+	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 )
 
@@ -20,6 +21,15 @@ func (a *sqliteStorageAdapter) ShortLinkRepo() ShortLinkRepository {
 
 func (a *sqliteStorageAdapter) Close() error {
 	return a.base.Close()
+}
+
+// NewStorageFromDB creates a Storage backed by an existing sqlx.DB — intended for tests.
+func NewStorageFromDB(db *sqlx.DB) Storage {
+	s := sqlite.NewFromDB(db)
+	return &sqliteStorageAdapter{
+		shortLinkRepo: s.ShortLinkRepo(),
+		base:          s,
+	}
 }
 
 func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (Storage, error) {
