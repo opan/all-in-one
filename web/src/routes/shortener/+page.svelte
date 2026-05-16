@@ -2,6 +2,7 @@
   import { Button } from '$lib/components/ui/button/index';
   import { Input } from '$lib/components/ui/input/index';
   import { Label } from '$lib/components/ui/label/index';
+  import { Switch } from '$lib/components/ui/switch/index';
   import * as Dialog from '$lib/components/ui/dialog/index';
   import * as AlertDialog from '$lib/components/ui/alert-dialog/index';
   import * as Table from '$lib/components/ui/table/index';
@@ -12,8 +13,6 @@
     Trash2,
     Plus,
     ExternalLink,
-    ToggleLeft,
-    ToggleRight,
     Loader2
   } from '@lucide/svelte/icons';
   import {
@@ -144,13 +143,12 @@
   }
 </script>
 
-<div class="flex flex-col gap-6 p-6">
+<div class="container mx-auto p-6">
   <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <Link2 class="size-5" />
-      <h1 class="text-xl font-semibold">URL Shortener</h1>
-      <span class="text-sm text-muted-foreground">({total} links)</span>
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">URL Shortener</h1>
+      <p class="text-muted-foreground">{total} {total === 1 ? 'link' : 'links'}</p>
     </div>
     <Button onclick={() => { createOpen = true; createError = ''; }}>
       <Plus class="mr-1 size-4" />
@@ -159,7 +157,7 @@
   </div>
 
   {#if error}
-    <div class="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+    <div class="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
       {error}
       <button class="ml-2 underline" onclick={() => error = ''}>dismiss</button>
     </div>
@@ -181,7 +179,7 @@
             <Table.Head class="w-20 text-right">Clicks</Table.Head>
             <Table.Head class="w-20">Status</Table.Head>
             <Table.Head class="w-32">Expires</Table.Head>
-            <Table.Head class="w-28 text-right">Actions</Table.Head>
+            <Table.Head class="w-24 text-right">Actions</Table.Head>
           </Table.Row>
         </Table.Header>
         <Table.Body>
@@ -191,8 +189,10 @@
               <Table.Cell class="font-mono text-sm">
                 <div class="flex items-center gap-1.5">
                   <span>{link.code}</span>
-                  <button
-                    class="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-6 text-muted-foreground hover:text-foreground"
                     onclick={() => copyToClipboard(link.code)}
                     title="Copy short URL"
                   >
@@ -201,16 +201,19 @@
                     {:else}
                       <Copy class="size-3.5" />
                     {/if}
-                  </button>
-                  <a
-                    href={shortURL(link.code)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-muted-foreground hover:text-foreground"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-6 text-muted-foreground hover:text-foreground"
                     title="Open short link"
                   >
-                    <ExternalLink class="size-3.5" />
-                  </a>
+                    {#snippet child({ props })}
+                      <a href={shortURL(link.code)} target="_blank" rel="noopener noreferrer" {...props}>
+                        <ExternalLink class="size-3.5" />
+                      </a>
+                    {/snippet}
+                  </Button>
                 </div>
               </Table.Cell>
 
@@ -249,28 +252,25 @@
 
               <!-- Actions -->
               <Table.Cell class="text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <button
-                    class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                    onclick={() => handleToggleActive(link)}
-                    disabled={toggling[link.code]}
-                    title={link.is_active ? 'Disable link' : 'Enable link'}
-                  >
-                    {#if toggling[link.code]}
-                      <Loader2 class="size-4 animate-spin" />
-                    {:else if link.is_active}
-                      <ToggleRight class="size-4" />
-                    {:else}
-                      <ToggleLeft class="size-4" />
-                    {/if}
-                  </button>
-                  <button
-                    class="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                <div class="flex items-center justify-end gap-2">
+                  {#if toggling[link.code]}
+                    <Loader2 class="size-4 animate-spin text-muted-foreground" />
+                  {:else}
+                    <Switch
+                      checked={link.is_active}
+                      disabled={toggling[link.code]}
+                      onCheckedChange={() => handleToggleActive(link)}
+                    />
+                  {/if}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     onclick={() => confirmDelete(link)}
                     title="Delete link"
                   >
                     <Trash2 class="size-4" />
-                  </button>
+                  </Button>
                 </div>
               </Table.Cell>
             </Table.Row>
