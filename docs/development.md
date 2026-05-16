@@ -68,6 +68,16 @@ sqlite3 all-in-one.db "SELECT * FROM users;"
 
 > Do not delete `all-in-one.db` — it may contain data not reproducible from seed.
 
+### Disable 2FA for a local account
+
+If you locked yourself out after enabling 2FA, reset it directly in the database:
+
+```bash
+sqlite3 all-in-one.db "UPDATE users SET totp_enabled=0, totp_secret_encrypted=NULL, totp_verified_at=NULL WHERE username='your_username';"
+```
+
+No restart required — the next login will skip the 2FA challenge.
+
 ---
 
 ## Copying the SQLite Database from a Running Pod
