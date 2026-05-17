@@ -139,16 +139,16 @@ CREATE INDEX idx_short_links_expires   ON short_links(expires_at) WHERE expires_
    - Retry up to 5x on UNIQUE collision; then 500.
 3. **Open-redirect hardening**: 302 (not 301), `Cache-Control: private, no-store`, so disabled/expired links aren't cached by intermediaries.
 4. **Rate limiting** (`internal/shortener/middleware/ratelimit.go`):
-   - Token bucket, in-memory (single-instance AIO is fine).
-   - 100 creates / 15 min per `(owner_id || ip)`.
-   - 429 + `Retry-After`.
-   - Applied only to create/update — resolve has a much higher cap (e.g. 600/min/IP).
-5. **Authorization**: management handlers assert `link.owner_id == ctxUserID`; mismatch returns 404 (not 403) to avoid existence leak.
+   - Fixed-window in-memory limiter, in-memory (single-instance AIO is fine).
+   - Create: 100 creates / 15 min per user ID (authenticated) or IP (anonymous).
+   - Resolve: 300 redirects / 1 min **per short code** — each code has its own bucket so a flood on one link doesn't affect others.
+   - 429 + `Retry-After` on both.
+5. **Authorization**: management handlers use `GetByCodeOwned` (JOIN with `short_link_owners`) — mismatch returns 404 (not 403) to avoid existence leak.
 6. **Click-count update**: single atomic SQL —
    `UPDATE short_links SET click_count=click_count+1, last_accessed_at=? WHERE code=? AND is_active=1 AND (expires_at IS NULL OR expires_at > ?)`.
    RowsAffected==0 → 404/410. No select-then-update race.
 7. **CORS**: extend `server.go` CORS config with a `cors.allowed_origins` list in `config.yml`; empty default = same-origin only. Standalone app's domain added later.
-8. **Logging**: zerolog fields `module=shortener`, `code`, `owner_id`, `request_id`. Host only at info level; full URL at debug.
+8. **Logging**: zerolog fields `module=shortener`, `code`, `request_id`. Host only at info level; full URL at debug.
 9. **Future**: introduce `X-Client` header (`aio-web`, `shortener-web`) for analytics segmentation and a future API-key path distinct from JWT.
 
 ## Config additions
@@ -159,14 +159,15 @@ shortener:
   max_create_retries: 5
   public_create_enabled: false      # flip true when standalone app goes live
   rate_limit:
-    creates_per_window: 100         # authenticated bucket
+    creates_per_window: 100         # authenticated create bucket
     window_minutes: 15
     public_creates_per_window: 20   # stricter bucket when public_create_enabled=true
+    resolve_per_window: 300         # per-code resolve bucket
+    resolve_window_minutes: 1
   url:
     max_length: 2048
     allowed_schemes: ["http", "https"]
     blocked_hosts: []
-  redirect_path: "/r"
 ```
 
 ## Phases
@@ -180,7 +181,7 @@ shortener:
 | **P4 — Security hardening** | Rate-limit middleware; reserved-code list; private-IP rejection; CORS config. | P3 | ✓ |
 | **P5 — Frontend** | `web/src/routes/shortener/` (list + create + edit), typed client `shortener-api.ts` using generated TS, sidebar entry. | P3 | ✓ |
 | **P6 — Tests** | Table-driven service tests with mockery; repo tests on in-memory sqlite; handler integration test for redirect path. | alongside P2–P5 | ✓ |
-| **P7 — Ownership refactoring** | Replace `short_links.owner_id` with `short_link_owners` mapping table. Migration 06. Atomic `Create(ctx, link, ownerID)`. JOIN-in-WHERE for ownership checks. Anonymous links supported (ownerID=""→no ownership row). PRAGMA foreign_keys=ON via DSN. Updated all tests, mock, handler, codec, proto, frontend. | P6 | ✓ |
+| **P7 — Ownership refactoring** | Replace `short_links.owner_id` with `short_link_owners` mapping table (consolidated into migration 05). Atomic `Create(ctx, link, ownerID)`. JOIN-in-WHERE for ownership checks. Anonymous links supported (ownerID=""→no ownership row). PRAGMA foreign_keys=ON via DSN. Updated all tests, mock, handler, codec, proto, frontend. | P6 | ✓ |
 | **P8 — Resolve rate limiting** | Per-code fixed-window rate limit on `GET /r/{code}`. `WrapWithKey` added to `RateLimiter` for custom key functions. Key = `resolve:<code>`, default 300 req/min per code. Config: `resolve_per_window`, `resolve_window_minutes`. | P7 | ✓ |
 
 ## Resolved questions (2026-05-10)

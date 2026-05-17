@@ -207,12 +207,11 @@
                     size="icon"
                     class="size-6 text-muted-foreground hover:text-foreground"
                     title="Open short link"
+                    href={shortURL(link.code)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    {#snippet child({ props })}
-                      <a href={shortURL(link.code)} target="_blank" rel="noopener noreferrer" {...props}>
-                        <ExternalLink class="size-3.5" />
-                      </a>
-                    {/snippet}
+                    <ExternalLink class="size-3.5" />
                   </Button>
                 </div>
               </Table.Cell>

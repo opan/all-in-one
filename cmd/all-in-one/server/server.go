@@ -23,7 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
-	_ "github.com/all-in-one/docs" // Import generated docs
+	_ "github.com/all-in-one/docs"
 )
 
 type server struct {
@@ -124,14 +124,15 @@ func (s *server) Start() error {
 	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
 
-	// Swagger documentation
-	s.log.Info().Msg("Register swagger...")
-	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("/swagger/doc.json"),
-		httpSwagger.DeepLinking(true),
-		httpSwagger.DocExpansion("list"),
-		httpSwagger.DomID("swagger-ui"),
-	)).Methods("GET")
+	if s.config.Server.SwaggerEnabled {
+		s.log.Info().Msg("Register swagger...")
+		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
+			httpSwagger.DeepLinking(true),
+			httpSwagger.DocExpansion("list"),
+			httpSwagger.DomID("swagger-ui"),
+		)).Methods("GET")
+	}
 
 	// Setup CORS — allowed origins configured via server.allowed_origins in config.yml
 	allowedOrigins := s.config.Server.AllowedOrigins
