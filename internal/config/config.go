@@ -31,6 +31,8 @@ type ShortenerRateLimit struct {
 	CreatesPerWindow       int `mapstructure:"creates_per_window"`
 	WindowMinutes          int `mapstructure:"window_minutes"`
 	PublicCreatesPerWindow int `mapstructure:"public_creates_per_window"`
+	ResolvePerWindow       int `mapstructure:"resolve_per_window"`
+	ResolveWindowMinutes   int `mapstructure:"resolve_window_minutes"`
 }
 
 type ShortenerURLConfig struct {
@@ -42,6 +44,7 @@ type ShortenerURLConfig struct {
 type ServerConfig struct {
 	Port           string   `mapstructure:"port"`
 	AllowedOrigins []string `mapstructure:"allowed_origins"`
+	SwaggerEnabled bool     `mapstructure:"swagger_enabled"`
 }
 
 type StorageConfig struct {
@@ -80,6 +83,7 @@ func Load() (*Config, error) {
 	// Set default values
 	viper.SetDefault("server.port", ":8080")
 	viper.SetDefault("server.allowed_origins", []string{"*"})
+	viper.SetDefault("server.swagger_enabled", false)
 	viper.SetDefault("storage.type", "memory")
 	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("http.timeout", 30)
@@ -89,6 +93,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("shortener.rate_limit.creates_per_window", 100)
 	viper.SetDefault("shortener.rate_limit.window_minutes", 15)
 	viper.SetDefault("shortener.rate_limit.public_creates_per_window", 20)
+	viper.SetDefault("shortener.rate_limit.resolve_per_window", 300)
+	viper.SetDefault("shortener.rate_limit.resolve_window_minutes", 1)
 	viper.SetDefault("shortener.url.max_length", 2048)
 	viper.SetDefault("shortener.url.allowed_schemes", []string{"http", "https"})
 	viper.SetDefault("shortener.url.blocked_hosts", []string{})

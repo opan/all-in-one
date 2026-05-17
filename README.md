@@ -84,6 +84,8 @@ Configuration is loaded from `config/config.yml`. All values can be overridden v
 ```yaml
 server:
   port: 8080
+  swagger_enabled: false          # Set to true locally to enable /swagger/index.html
+  allowed_origins: []             # CORS allowed origins. Defaults to ["*"] when empty
 
 storage:
   type: "sqlite"          # "sqlite" or "postgres" (postgres is stubbed)
@@ -101,6 +103,21 @@ auth:
   totp_encryption_key: ""         # REQUIRED — 64-char hex string (32 bytes) for encrypting 2FA secrets
   secure_cookie: false            # Set to true in production (requires HTTPS)
   direct_auth_enabled: false      # Dev only — bypass auth via x-direct-auth-username header
+
+shortener:
+  code_length: 7                  # Length of generated short codes
+  max_create_retries: 5           # Retries on UNIQUE collision before giving up
+  public_create_enabled: false    # Allow unauthenticated link creation (not yet wired)
+  rate_limit:
+    creates_per_window: 100       # Max authenticated creates per window
+    window_minutes: 15            # Window size for create rate limit
+    public_creates_per_window: 20 # Max anonymous creates per window (when public_create_enabled=true)
+    resolve_per_window: 300       # Max redirects per short code per window
+    resolve_window_minutes: 1     # Window size for resolve rate limit
+  url:
+    max_length: 2048              # Max target URL length
+    allowed_schemes: ["http", "https"]
+    blocked_hosts: []             # Hostnames to reject (e.g. internal services)
 ```
 
 ### Environment variable reference
@@ -111,6 +128,7 @@ auth:
 | `ALLINONE_AUTH_TOTP_ENCRYPTION_KEY` | 32-byte hex key for 2FA secret encryption |
 | `ALLINONE_AUTH_SECURE_COOKIE` | `true` in production with HTTPS |
 | `ALLINONE_SERVER_PORT` | HTTP server port (default: `8080`) |
+| `ALLINONE_SERVER_SWAGGER_ENABLED` | `true` to enable Swagger UI (default: `false`) |
 | `ALLINONE_STORAGE_TYPE` | `sqlite` (default) |
 | `ALLINONE_STORAGE_SQLITE_DB_PATH` | Path to SQLite file (default: `all-in-one.db`) |
 | `ALLINONE_LOG_LEVEL` | Log level (default: `debug`) |
@@ -233,7 +251,18 @@ WebSocket: `ws://localhost:8080/api/v1/ws?token=<access_token>`
 
 ## API Documentation (Swagger)
 
-Swagger UI is available at `http://localhost:8080/swagger/index.html` when the server is running.
+Swagger UI is disabled by default and not exposed in production. Enable it locally:
+
+```bash
+# via config
+server:
+  swagger_enabled: true
+
+# or via env var
+ALLINONE_SERVER_SWAGGER_ENABLED=true go run ./cmd/all-in-one server
+```
+
+Once enabled, Swagger UI is available at `http://localhost:8080/swagger/index.html`.
 
 To regenerate after modifying endpoints:
 
@@ -251,6 +280,7 @@ swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
 - [ ] Set `ALLINONE_AUTH_TOTP_ENCRYPTION_KEY` to a strong random value (never commit it)
 - [ ] Set `ALLINONE_AUTH_SECURE_COOKIE=true` (requires HTTPS — use a reverse proxy like Nginx or Caddy)
 - [ ] Set `ALLINONE_LOG_LEVEL=info`
+- [ ] Ensure `ALLINONE_SERVER_SWAGGER_ENABLED` is unset or `false` (default)
 - [ ] Put the Go server behind a reverse proxy (Nginx / Caddy) for TLS termination
 - [ ] Build the frontend: `cd web && npm run build` (output in `web/build/`, served by the Go server)
 - [ ] If using SQLite, set the Kubernetes deployment strategy to `Recreate` (see note below)

@@ -55,11 +55,15 @@ func (rl *RateLimiter) allow(key string) (bool, time.Duration) {
 	return true, 0
 }
 
-// Wrap returns a HandlerFunc that enforces the rate limit before calling next.
+// Wrap returns a HandlerFunc that enforces the rate limit, keyed by user ID or IP.
 func (rl *RateLimiter) Wrap(next http.HandlerFunc) http.HandlerFunc {
+	return rl.WrapWithKey(next, rateLimitKey)
+}
+
+// WrapWithKey is like Wrap but uses keyFn to derive the bucket key from the request.
+func (rl *RateLimiter) WrapWithKey(next http.HandlerFunc, keyFn func(*http.Request) string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		key := rateLimitKey(r)
-		ok, retryAfter := rl.allow(key)
+		ok, retryAfter := rl.allow(keyFn(r))
 		if !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
 			httpHelper.SendError(w, "rate limit exceeded", http.StatusTooManyRequests)

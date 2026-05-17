@@ -1,5 +1,6 @@
 server:
   port: 8080
+  swagger_enabled: false  # Set to true locally for API docs at /swagger/index.html
   # allowed_origins: ["https://your-frontend.com", "https://shortener.yourapp.com"]
   # Defaults to ["*"] when omitted. Set explicitly in production.
 
@@ -31,6 +32,8 @@ shortener:
     creates_per_window: 100
     window_minutes: 15
     public_creates_per_window: 20
+    resolve_per_window: 300
+    resolve_window_minutes: 1
   url:
     max_length: 2048
     allowed_schemes: ["http", "https"]
