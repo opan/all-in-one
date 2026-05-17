@@ -17,9 +17,6 @@ func ShortLinkToProto(link model.ShortLink) *shortenerv1.ShortLink {
 		ClickCount: link.ClickCount,
 		CreatedAt:  timestamppb.New(link.CreatedAt),
 	}
-	if link.OwnerID != nil {
-		pb.OwnerId = link.OwnerID
-	}
 	if link.ExpiresAt != nil {
 		pb.ExpiresAt = timestamppb.New(*link.ExpiresAt)
 	}

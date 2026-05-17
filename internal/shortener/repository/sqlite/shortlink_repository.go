@@ -17,24 +17,61 @@ func newShortLinkRepository(db *sqlx.DB) *shortLinkRepository {
 	return &shortLinkRepository{db: db}
 }
 
-func (r *shortLinkRepository) Create(ctx context.Context, link model.ShortLink) (model.ShortLink, error) {
-	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO short_links (id, code, target_url, owner_id, created_at, expires_at, is_active, click_count)
-		VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-	`, link.ID, link.Code, link.TargetURL, link.OwnerID, link.CreatedAt, link.ExpiresAt, link.IsActive)
+func (r *shortLinkRepository) Create(ctx context.Context, link model.ShortLink, ownerID string) (model.ShortLink, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return model.ShortLink{}, err
 	}
+	defer tx.Rollback() //nolint:errcheck
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO short_links (id, code, target_url, created_at, expires_at, is_active, click_count)
+		VALUES (?, ?, ?, ?, ?, ?, 0)
+	`, link.ID, link.Code, link.TargetURL, link.CreatedAt, link.ExpiresAt, link.IsActive)
+	if err != nil {
+		return model.ShortLink{}, err
+	}
+
+	if ownerID != "" {
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO short_link_owners (code, user_id) VALUES (?, ?)`,
+			link.Code, ownerID)
+		if err != nil {
+			return model.ShortLink{}, err
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return model.ShortLink{}, err
+	}
+
 	return r.GetByCode(ctx, link.Code)
 }
 
 func (r *shortLinkRepository) GetByCode(ctx context.Context, code string) (model.ShortLink, error) {
 	var link model.ShortLink
 	err := r.db.GetContext(ctx, &link, `
-		SELECT id, code, target_url, owner_id, created_at, expires_at, is_active, click_count, last_accessed_at
+		SELECT id, code, target_url, created_at, expires_at, is_active, click_count, last_accessed_at
 		FROM short_links
 		WHERE code = ?
 	`, code)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return model.ShortLink{}, httpHelper.ErrNotFound
+		}
+		return model.ShortLink{}, err
+	}
+	return link, nil
+}
+
+func (r *shortLinkRepository) GetByCodeOwned(ctx context.Context, code, ownerID string) (model.ShortLink, error) {
+	var link model.ShortLink
+	err := r.db.GetContext(ctx, &link, `
+		SELECT sl.id, sl.code, sl.target_url, sl.created_at, sl.expires_at, sl.is_active, sl.click_count, sl.last_accessed_at
+		FROM short_links sl
+		JOIN short_link_owners slo ON sl.code = slo.code
+		WHERE sl.code = ? AND slo.user_id = ?
+	`, code, ownerID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return model.ShortLink{}, httpHelper.ErrNotFound
@@ -54,17 +91,21 @@ func (r *shortLinkRepository) ListByOwner(ctx context.Context, ownerID string, p
 	offset := (page - 1) * pageSize
 
 	var total uint32
-	if err := r.db.GetContext(ctx, &total,
-		`SELECT COUNT(*) FROM short_links WHERE owner_id = ?`, ownerID); err != nil {
+	if err := r.db.GetContext(ctx, &total, `
+		SELECT COUNT(*) FROM short_links sl
+		JOIN short_link_owners slo ON sl.code = slo.code
+		WHERE slo.user_id = ?
+	`, ownerID); err != nil {
 		return nil, 0, err
 	}
 
 	var links []model.ShortLink
 	err := r.db.SelectContext(ctx, &links, `
-		SELECT id, code, target_url, owner_id, created_at, expires_at, is_active, click_count, last_accessed_at
-		FROM short_links
-		WHERE owner_id = ?
-		ORDER BY created_at DESC
+		SELECT sl.id, sl.code, sl.target_url, sl.created_at, sl.expires_at, sl.is_active, sl.click_count, sl.last_accessed_at
+		FROM short_links sl
+		JOIN short_link_owners slo ON sl.code = slo.code
+		WHERE slo.user_id = ?
+		ORDER BY sl.created_at DESC
 		LIMIT ? OFFSET ?
 	`, ownerID, pageSize, offset)
 	if err != nil {
@@ -73,12 +114,13 @@ func (r *shortLinkRepository) ListByOwner(ctx context.Context, ownerID string, p
 	return links, total, nil
 }
 
-func (r *shortLinkRepository) Update(ctx context.Context, link model.ShortLink) (model.ShortLink, error) {
+func (r *shortLinkRepository) Update(ctx context.Context, link model.ShortLink, ownerID string) (model.ShortLink, error) {
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE short_links
 		SET is_active = ?, expires_at = ?
-		WHERE code = ? AND owner_id = ?
-	`, link.IsActive, link.ExpiresAt, link.Code, link.OwnerID)
+		WHERE code = ?
+		  AND EXISTS (SELECT 1 FROM short_link_owners WHERE code = ? AND user_id = ?)
+	`, link.IsActive, link.ExpiresAt, link.Code, link.Code, ownerID)
 	if err != nil {
 		return model.ShortLink{}, err
 	}
@@ -89,9 +131,12 @@ func (r *shortLinkRepository) Update(ctx context.Context, link model.ShortLink) 
 	return r.GetByCode(ctx, link.Code)
 }
 
-func (r *shortLinkRepository) Delete(ctx context.Context, code string, ownerID string) error {
-	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM short_links WHERE code = ? AND owner_id = ?`, code, ownerID)
+func (r *shortLinkRepository) Delete(ctx context.Context, code, ownerID string) error {
+	result, err := r.db.ExecContext(ctx, `
+		DELETE FROM short_links
+		WHERE code = ?
+		  AND EXISTS (SELECT 1 FROM short_link_owners WHERE code = ? AND user_id = ?)
+	`, code, code, ownerID)
 	if err != nil {
 		return err
 	}

@@ -26,17 +26,24 @@ func newIntegDB(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
+
+	_, err = db.Exec(`PRAGMA foreign_keys = ON`)
+	require.NoError(t, err)
+
 	_, err = db.Exec(`
 		CREATE TABLE short_links (
 			id               TEXT PRIMARY KEY,
 			code             TEXT NOT NULL UNIQUE,
 			target_url       TEXT NOT NULL,
-			owner_id         TEXT,
 			created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			expires_at       DATETIME,
 			is_active        BOOLEAN NOT NULL DEFAULT 1,
 			click_count      INTEGER NOT NULL DEFAULT 0,
 			last_accessed_at DATETIME
+		);
+		CREATE TABLE short_link_owners (
+			code    TEXT NOT NULL PRIMARY KEY REFERENCES short_links(code) ON DELETE CASCADE,
+			user_id TEXT NOT NULL
 		)
 	`)
 	require.NoError(t, err)
@@ -158,20 +165,18 @@ func TestInteg_ResolveExpiredLink(t *testing.T) {
 	router := integRouter(h)
 
 	past := time.Now().Add(-time.Hour).UTC()
-	ownerID := "user-exp-1"
 	link := model.ShortLink{
 		ID:        newULID(),
 		Code:      "exp1234",
 		TargetURL: "https://example.com/exp",
-		OwnerID:   &ownerID,
 		CreatedAt: time.Now().UTC(),
 		ExpiresAt: &past,
 		IsActive:  true,
 	}
 	_, err := db.Exec(`
-		INSERT INTO short_links (id, code, target_url, owner_id, created_at, expires_at, is_active, click_count)
-		VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-	`, link.ID, link.Code, link.TargetURL, link.OwnerID, link.CreatedAt, link.ExpiresAt, link.IsActive)
+		INSERT INTO short_links (id, code, target_url, created_at, expires_at, is_active, click_count)
+		VALUES (?, ?, ?, ?, ?, ?, 0)
+	`, link.ID, link.Code, link.TargetURL, link.CreatedAt, link.ExpiresAt, link.IsActive)
 	require.NoError(t, err)
 
 	rr := doRequest(t, router, http.MethodGet, "/r/exp1234", nil, "")

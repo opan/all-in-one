@@ -2,7 +2,6 @@ CREATE TABLE short_links (
     id               TEXT PRIMARY KEY,
     code             TEXT NOT NULL UNIQUE,
     target_url       TEXT NOT NULL,
-    owner_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at       DATETIME,
     is_active        BOOLEAN NOT NULL DEFAULT 1,
@@ -10,5 +9,10 @@ CREATE TABLE short_links (
     last_accessed_at DATETIME
 );
 
-CREATE INDEX idx_short_links_owner_id ON short_links(owner_id);
-CREATE INDEX idx_short_links_expires  ON short_links(expires_at) WHERE expires_at IS NOT NULL;
+CREATE TABLE short_link_owners (
+    code    TEXT NOT NULL PRIMARY KEY REFERENCES short_links(code) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_short_links_expires        ON short_links(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX idx_short_link_owners_user_id  ON short_link_owners(user_id);

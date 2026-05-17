@@ -47,12 +47,10 @@ func newHandler(repo repository.ShortLinkRepository) *Handler {
 }
 
 func makeLink(code string) model.ShortLink {
-	ownerID := testUserID
 	return model.ShortLink{
 		ID:        newULID(),
 		Code:      code,
 		TargetURL: "https://example.com",
-		OwnerID:   &ownerID,
 		CreatedAt: time.Now().UTC(),
 		IsActive:  true,
 	}
@@ -67,7 +65,7 @@ func TestCreateShortLink_Success(t *testing.T) {
 	expected := makeLink("abc1234")
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(l model.ShortLink) bool {
 		return l.TargetURL == "https://example.com" && l.IsActive
-	})).Return(expected, nil)
+	}), testUserID).Return(expected, nil)
 
 	body, _ := json.Marshal(createShortLinkRequest{TargetURL: "https://example.com"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/shortener/links", bytes.NewReader(body))
@@ -114,7 +112,7 @@ func TestCreateShortLink_DBError(t *testing.T) {
 	mockRepo := mocks.NewMockShortLinkRepository(t)
 	h := newHandler(mockRepo)
 
-	mockRepo.On("Create", mock.Anything, mock.Anything).
+	mockRepo.On("Create", mock.Anything, mock.Anything, mock.Anything).
 		Return(model.ShortLink{}, errors.New("db error"))
 
 	body, _ := json.Marshal(createShortLinkRequest{TargetURL: "https://example.com"})
@@ -158,7 +156,7 @@ func TestGetShortLink_Success(t *testing.T) {
 	h := newHandler(mockRepo)
 
 	link := makeLink("abc1234")
-	mockRepo.On("GetByCode", mock.Anything, "abc1234").Return(link, nil)
+	mockRepo.On("GetByCodeOwned", mock.Anything, "abc1234", testUserID).Return(link, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shortener/links/abc1234", nil)
 	req = req.WithContext(tester.ContextWithUser(testUserID, "user", "u@e.com", "sess"))
@@ -175,9 +173,7 @@ func TestGetShortLink_OwnershipMismatch(t *testing.T) {
 	mockRepo := mocks.NewMockShortLinkRepository(t)
 	h := newHandler(mockRepo)
 
-	otherOwner := "OTHER_USER_ID"
-	link := model.ShortLink{Code: "abc1234", OwnerID: &otherOwner, IsActive: true}
-	mockRepo.On("GetByCode", mock.Anything, "abc1234").Return(link, nil)
+	mockRepo.On("GetByCodeOwned", mock.Anything, "abc1234", testUserID).Return(model.ShortLink{}, httpHelper.ErrNotFound)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shortener/links/abc1234", nil)
 	req = req.WithContext(tester.ContextWithUser(testUserID, "user", "u@e.com", "sess"))
@@ -194,7 +190,7 @@ func TestGetShortLink_NotFound(t *testing.T) {
 	mockRepo := mocks.NewMockShortLinkRepository(t)
 	h := newHandler(mockRepo)
 
-	mockRepo.On("GetByCode", mock.Anything, "notexist").Return(model.ShortLink{}, httpHelper.ErrNotFound)
+	mockRepo.On("GetByCodeOwned", mock.Anything, "notexist", testUserID).Return(model.ShortLink{}, httpHelper.ErrNotFound)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shortener/links/notexist", nil)
 	req = req.WithContext(tester.ContextWithUser(testUserID, "user", "u@e.com", "sess"))

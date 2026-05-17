@@ -1,7 +1,7 @@
 # Shortener feature-app — progress tracker
 
 Started: 2026-05-10
-Status: **Complete — all phases P0–P6 done**
+Status: **Complete — all phases P0–P6 done + ownership refactoring (P7) done**
 
 ## Decisions locked in
 
@@ -180,6 +180,7 @@ shortener:
 | **P4 — Security hardening** | Rate-limit middleware; reserved-code list; private-IP rejection; CORS config. | P3 | ✓ |
 | **P5 — Frontend** | `web/src/routes/shortener/` (list + create + edit), typed client `shortener-api.ts` using generated TS, sidebar entry. | P3 | ✓ |
 | **P6 — Tests** | Table-driven service tests with mockery; repo tests on in-memory sqlite; handler integration test for redirect path. | alongside P2–P5 | ✓ |
+| **P7 — Ownership refactoring** | Replace `short_links.owner_id` with `short_link_owners` mapping table. Migration 06. Atomic `Create(ctx, link, ownerID)`. JOIN-in-WHERE for ownership checks. Anonymous links supported (ownerID=""→no ownership row). PRAGMA foreign_keys=ON via DSN. Updated all tests, mock, handler, codec, proto, frontend. | P6 | ✓ |
 
 ## Resolved questions (2026-05-10)
 

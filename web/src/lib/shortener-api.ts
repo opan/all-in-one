@@ -5,7 +5,6 @@ export interface ShortLink {
 	id: string;
 	code: string;
 	target_url: string;
-	owner_id?: string;
 	created_at: string;
 	expires_at?: string | null;
 	is_active: boolean;

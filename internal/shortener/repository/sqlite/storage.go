@@ -24,7 +24,7 @@ func NewFromDB(db *sqlx.DB) *storage {
 }
 
 func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (*storage, error) {
-	db, err := sqlx.Open("sqlite3", config.Storage.SQLite.DBPath)
+	db, err := sqlx.Open("sqlite3", config.Storage.SQLite.DBPath+"?_foreign_keys=on")
 	if err != nil {
 		return nil, err
 	}

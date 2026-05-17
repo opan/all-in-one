@@ -86,11 +86,9 @@ func (h *Handler) CreateShortLink(w http.ResponseWriter, r *http.Request) {
 		codeLength = 7
 	}
 
-	ownerID := user.UserID
 	link := model.ShortLink{
 		ID:        newULID(),
 		TargetURL: req.TargetURL,
-		OwnerID:   &ownerID,
 		CreatedAt: time.Now().UTC(),
 		ExpiresAt: expiresAt,
 		IsActive:  true,
@@ -109,7 +107,7 @@ func (h *Handler) CreateShortLink(w http.ResponseWriter, r *http.Request) {
 		}
 		link.Code = code
 
-		created, err = h.storage.ShortLinkRepo().Create(ctx, link)
+		created, err = h.storage.ShortLinkRepo().Create(ctx, link, user.UserID)
 		if err == nil {
 			break
 		}
@@ -167,7 +165,6 @@ func (h *Handler) ListShortLinks(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetShortLink(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := logging.GetLoggerFromContext(ctx)
 
 	user, ok := auth.GetUserFromContext(ctx)
 	if !ok {
@@ -176,13 +173,8 @@ func (h *Handler) GetShortLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := mux.Vars(r)["code"]
-	link, err := h.storage.ShortLinkRepo().GetByCode(ctx, code)
+	link, err := h.storage.ShortLinkRepo().GetByCodeOwned(ctx, code, user.UserID)
 	if err != nil {
-		httpHelper.SendError(w, "not found", http.StatusNotFound)
-		return
-	}
-	if link.OwnerID == nil || *link.OwnerID != user.UserID {
-		log.Warn().Str("code", code).Msg("ownership mismatch on GetShortLink")
 		httpHelper.SendError(w, "not found", http.StatusNotFound)
 		return
 	}
@@ -201,13 +193,8 @@ func (h *Handler) UpdateShortLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := mux.Vars(r)["code"]
-	link, err := h.storage.ShortLinkRepo().GetByCode(ctx, code)
+	link, err := h.storage.ShortLinkRepo().GetByCodeOwned(ctx, code, user.UserID)
 	if err != nil {
-		httpHelper.SendError(w, "not found", http.StatusNotFound)
-		return
-	}
-	if link.OwnerID == nil || *link.OwnerID != user.UserID {
-		log.Warn().Str("code", code).Msg("ownership mismatch on UpdateShortLink")
 		httpHelper.SendError(w, "not found", http.StatusNotFound)
 		return
 	}
@@ -234,7 +221,7 @@ func (h *Handler) UpdateShortLink(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	updated, err := h.storage.ShortLinkRepo().Update(ctx, link)
+	updated, err := h.storage.ShortLinkRepo().Update(ctx, link, user.UserID)
 	if err != nil {
 		log.Error().Err(err).Str("code", code).Msg("failed to update short link")
 		httpHelper.SendError(w, "failed to update short link", http.StatusInternalServerError)
