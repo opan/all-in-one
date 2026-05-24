@@ -16,7 +16,6 @@ type bucket struct {
 	resetAt time.Time
 }
 
-// RateLimiter is a fixed-window in-memory rate limiter keyed by user ID or IP.
 type RateLimiter struct {
 	mu       sync.Mutex
 	buckets  map[string]*bucket
@@ -37,7 +36,6 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 	return rl
 }
 
-// allow checks the rate limit for key and returns (allowed, retryAfter).
 func (rl *RateLimiter) allow(key string) (bool, time.Duration) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -55,12 +53,10 @@ func (rl *RateLimiter) allow(key string) (bool, time.Duration) {
 	return true, 0
 }
 
-// Wrap returns a HandlerFunc that enforces the rate limit, keyed by user ID or IP.
 func (rl *RateLimiter) Wrap(next http.HandlerFunc) http.HandlerFunc {
 	return rl.WrapWithKey(next, rateLimitKey)
 }
 
-// WrapWithKey is like Wrap but uses keyFn to derive the bucket key from the request.
 func (rl *RateLimiter) WrapWithKey(next http.HandlerFunc, keyFn func(*http.Request) string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ok, retryAfter := rl.allow(keyFn(r))
@@ -77,7 +73,7 @@ func (rl *RateLimiter) Stop() {
 	rl.stopOnce.Do(func() { close(rl.stop) })
 }
 
-// cleanup removes expired buckets every window duration to prevent unbounded growth.
+// cleanup runs every window to evict expired buckets and prevent unbounded map growth.
 func (rl *RateLimiter) cleanup() {
 	ticker := time.NewTicker(rl.window)
 	defer ticker.Stop()

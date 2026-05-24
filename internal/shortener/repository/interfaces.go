@@ -7,25 +7,21 @@ import (
 )
 
 type ShortLinkRepository interface {
-	// Create inserts the link and, when ownerID is non-empty, records ownership atomically.
+	// Create inserts the link; when ownerID is non-empty, records ownership in the same transaction.
 	Create(ctx context.Context, link model.ShortLink, ownerID string) (model.ShortLink, error)
 
-	// GetByCode finds a link by its short code regardless of ownership (used for redirects).
 	GetByCode(ctx context.Context, code string) (model.ShortLink, error)
 
-	// GetByCodeOwned finds a link only if the given user owns it; returns ErrNotFound otherwise.
+	// GetByCodeOwned returns ErrNotFound when the link exists but is not owned by ownerID (no 403 leak).
 	GetByCodeOwned(ctx context.Context, code, ownerID string) (model.ShortLink, error)
 
 	ListByOwner(ctx context.Context, ownerID string, page, pageSize uint32) ([]model.ShortLink, uint32, error)
 
-	// Update sets is_active and expires_at; returns ErrNotFound if code not found or not owned by ownerID.
 	Update(ctx context.Context, link model.ShortLink, ownerID string) (model.ShortLink, error)
 
-	// Delete removes the link; returns ErrNotFound if code not found or not owned by ownerID.
 	Delete(ctx context.Context, code, ownerID string) error
 
-	// IncrementClick atomically bumps click_count and sets last_accessed_at.
-	// Returns ErrNotFound when no active, non-expired link matches the code.
+	// IncrementClick atomically updates click_count and last_accessed_at in a single statement — no select-then-update race.
 	IncrementClick(ctx context.Context, code string, now string) error
 }
 

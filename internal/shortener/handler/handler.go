@@ -63,7 +63,6 @@ func (h *Handler) RegisterRedirectRoute(router *mux.Router) {
 	router.Handle("/r/{code}", h.resolveLimiter.WrapWithKey(h.ResolveShortLink, resolveKey)).Methods(http.MethodGet)
 }
 
-// resolveKey keys the resolve rate limiter by short code so each link has its own bucket.
 func resolveKey(r *http.Request) string {
 	return "resolve:" + mux.Vars(r)["code"]
 }

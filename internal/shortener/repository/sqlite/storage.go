@@ -15,7 +15,6 @@ type storage struct {
 	shortLinkRepo *shortLinkRepository
 }
 
-// NewFromDB creates a storage backed by an existing *sqlx.DB — intended for tests.
 func NewFromDB(db *sqlx.DB) *storage {
 	return &storage{
 		db:            db,

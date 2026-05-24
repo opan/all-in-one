@@ -23,7 +23,6 @@ func (a *sqliteStorageAdapter) Close() error {
 	return a.base.Close()
 }
 
-// NewStorageFromDB creates a Storage backed by an existing sqlx.DB — intended for tests.
 func NewStorageFromDB(db *sqlx.DB) Storage {
 	s := sqlite.NewFromDB(db)
 	return &sqliteStorageAdapter{
