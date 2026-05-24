@@ -39,3 +39,12 @@ shortener:
     allowed_schemes: ["http", "https"]
     blocked_hosts: []
 
+telemetry:
+  enabled: false           # Toggle OTel SDK on/off without rebuilding
+  service_name: "all-in-one"
+  service_version: "1.0.0"
+  environment: "local"     # local | staging | production
+  otlp_endpoint: "localhost:4318"  # host:port (no scheme) of OTLP/HTTP collector
+  otlp_insecure: true      # set false in production with TLS
+  sample_ratio: 1.0        # 0.0–1.0. Use 0.1 in production.
+

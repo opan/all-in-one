@@ -17,6 +17,17 @@ type Config struct {
 	Http      HTTPConfig      `mapstructure:"http"`
 	Auth      Auth            `mapstructure:"auth"`
 	Shortener ShortenerConfig `mapstructure:"shortener"`
+	Telemetry TelemetryConfig `mapstructure:"telemetry"`
+}
+
+type TelemetryConfig struct {
+	Enabled        bool    `mapstructure:"enabled"`
+	ServiceName    string  `mapstructure:"service_name"`
+	ServiceVersion string  `mapstructure:"service_version"`
+	Environment    string  `mapstructure:"environment"`
+	OTLPEndpoint   string  `mapstructure:"otlp_endpoint"`
+	OTLPInsecure   bool    `mapstructure:"otlp_insecure"`
+	SampleRatio    float64 `mapstructure:"sample_ratio"`
 }
 
 type ShortenerConfig struct {
@@ -98,6 +109,13 @@ func Load() (*Config, error) {
 	viper.SetDefault("shortener.url.max_length", 2048)
 	viper.SetDefault("shortener.url.allowed_schemes", []string{"http", "https"})
 	viper.SetDefault("shortener.url.blocked_hosts", []string{})
+	viper.SetDefault("telemetry.enabled", false)
+	viper.SetDefault("telemetry.service_name", "all-in-one")
+	viper.SetDefault("telemetry.service_version", "1.0.0")
+	viper.SetDefault("telemetry.environment", "local")
+	viper.SetDefault("telemetry.otlp_endpoint", "localhost:4318")
+	viper.SetDefault("telemetry.otlp_insecure", true)
+	viper.SetDefault("telemetry.sample_ratio", 1.0)
 
 	// Enable environment variable support
 	// Viper maps nested keys to env vars by replacing dots with underscores and
@@ -114,6 +132,13 @@ func Load() (*Config, error) {
 	viper.BindEnv("auth.direct_auth_enabled", "ALLINONE_AUTH_DIRECT_AUTH_ENABLED")
 	viper.BindEnv("auth.secure_cookie", "ALLINONE_AUTH_SECURE_COOKIE")
 	viper.BindEnv("storage.sqlite.db_path", "ALLINONE_STORAGE_SQLITE_DB_PATH")
+	viper.BindEnv("telemetry.enabled", "ALLINONE_TELEMETRY_ENABLED")
+	viper.BindEnv("telemetry.service_name", "ALLINONE_TELEMETRY_SERVICE_NAME")
+	viper.BindEnv("telemetry.service_version", "ALLINONE_TELEMETRY_SERVICE_VERSION")
+	viper.BindEnv("telemetry.environment", "ALLINONE_TELEMETRY_ENVIRONMENT")
+	viper.BindEnv("telemetry.otlp_endpoint", "ALLINONE_TELEMETRY_OTLP_ENDPOINT")
+	viper.BindEnv("telemetry.otlp_insecure", "ALLINONE_TELEMETRY_OTLP_INSECURE")
+	viper.BindEnv("telemetry.sample_ratio", "ALLINONE_TELEMETRY_SAMPLE_RATIO")
 
 	// Try to read config file (it's okay if it doesn't exist)
 	if err := viper.ReadInConfig(); err != nil {

@@ -1,0 +1,24 @@
+# Local-dev observability stack for OpenTelemetry phase 1.
+#
+# Starts Jaeger all-in-one with its built-in OTLP receiver. The Go app
+# pushes traces to localhost:4318 (OTLP/HTTP) and you view them at
+# http://localhost:16686. No collector needed for traces only.
+#
+# Run:
+#   docker compose -f docker-compose.otel.yml up -d
+#   ALLINONE_TELEMETRY_ENABLED=true go run main.go all-in-one server
+#
+# Stop:
+#   docker compose -f docker-compose.otel.yml down
+
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: all-in-one-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4318:4318"    # OTLP/HTTP receiver (used by the Go app)
+      - "4317:4317"    # OTLP/gRPC receiver (unused for now, exposed for future)
+    restart: unless-stopped
