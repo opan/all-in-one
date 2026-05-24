@@ -3,3 +3,6 @@ vendor/
 bin/
 
 .DS_Store
+
+# buf lock (regenerated on buf dep update)
+buf.lock

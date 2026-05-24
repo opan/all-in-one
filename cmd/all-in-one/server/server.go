@@ -15,6 +15,7 @@ import (
 	"github.com/all-in-one/internal/config"
 	httpHelper "github.com/all-in-one/internal/http"
 	listingSvc "github.com/all-in-one/internal/listing/service"
+	shortenerSvc "github.com/all-in-one/internal/shortener/service"
 	"github.com/all-in-one/internal/storage"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog"
@@ -22,7 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
-	_ "github.com/all-in-one/docs" // Import generated docs
+	_ "github.com/all-in-one/docs"
 )
 
 type server struct {
@@ -83,6 +84,13 @@ func (s *server) Start() error {
 	}
 	defer csvc.Close()
 
+	ssvc, err := shortenerSvc.NewService(ctx, s.config, s.log)
+	if err != nil {
+		s.log.Error().Err(err).Msg("Failed to create shortener service")
+		return err
+	}
+	defer ssvc.Close()
+
 	// Initialize HTTP helper
 	h := httpHelper.NewHTTP(s.log, s.config)
 
@@ -99,6 +107,7 @@ func (s *server) Start() error {
 	publicRoutes := api.NewRoute().Subrouter()
 	lsvc.RegisterRoutes(publicRoutes)
 	asvc.RegisterPublicRoutes(publicRoutes)
+	ssvc.RegisterPublicRoutes(publicRoutes)
 
 	// Authenticated routes (JWT required)
 	jwtMiddleware := middleware.NewJWTMiddleware(s.config)
@@ -107,23 +116,32 @@ func (s *server) Start() error {
 	lsvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
 	asvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
 	csvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
+	ssvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
+
+	// Shortener public redirect: /r/{code} — lives outside /api/v1
+	ssvc.Handler.RegisterRedirectRoute(r)
 
 	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
 
-	// Swagger documentation
-	s.log.Info().Msg("Register swagger...")
-	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("/swagger/doc.json"),
-		httpSwagger.DeepLinking(true),
-		httpSwagger.DocExpansion("list"),
-		httpSwagger.DomID("swagger-ui"),
-	)).Methods("GET")
+	if s.config.Server.SwaggerEnabled {
+		s.log.Info().Msg("Register swagger...")
+		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
+			httpSwagger.DeepLinking(true),
+			httpSwagger.DocExpansion("list"),
+			httpSwagger.DomID("swagger-ui"),
+		)).Methods("GET")
+	}
 
-	// Setup CORS for frontend integration
+	// Setup CORS — allowed origins configured via server.allowed_origins in config.yml
+	allowedOrigins := s.config.Server.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"*"}
+	}
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"}, // In production, specify your frontend domain
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedOrigins: allowedOrigins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
 

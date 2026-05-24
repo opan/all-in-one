@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package shortener.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/all-in-one/internal/shortener/pb/v1;shortenerv1";
+
+message ShortLink {
+  string id = 1;
+  string code = 2;
+  string target_url = 3;
+  reserved 4;
+  reserved "owner_id";
+  google.protobuf.Timestamp created_at = 5;
+  optional google.protobuf.Timestamp expires_at = 6;
+  bool is_active = 7;
+  uint64 click_count = 8;
+  optional google.protobuf.Timestamp last_accessed_at = 9;
+}
+
+message CreateShortLinkRequest {
+  string target_url = 1;
+  optional google.protobuf.Timestamp expires_at = 2;
+  // Reserved for M2 custom-slug feature; server returns 400 if set.
+  optional string custom_code = 3;
+}
+
+message CreateShortLinkResponse {
+  ShortLink link = 1;
+}
+
+message ListShortLinksRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+}
+
+message ListShortLinksResponse {
+  repeated ShortLink links = 1;
+  uint32 total = 2;
+}
+
+message GetShortLinkRequest {
+  string code = 1;
+}
+
+message GetShortLinkResponse {
+  ShortLink link = 1;
+}
+
+message UpdateShortLinkRequest {
+  string code = 1;
+  optional bool is_active = 2;
+  optional google.protobuf.Timestamp expires_at = 3;
+}
+
+message UpdateShortLinkResponse {
+  ShortLink link = 1;
+}
+
+message DeleteShortLinkRequest {
+  string code = 1;
+}
+
+message DeleteShortLinkResponse {}
