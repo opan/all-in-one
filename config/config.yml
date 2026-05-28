@@ -47,4 +47,5 @@ telemetry:
   otlp_endpoint: "localhost:4318"  # host:port (no scheme) of OTLP/HTTP collector
   otlp_insecure: true      # set false in production with TLS
   sample_ratio: 1.0        # 0.0–1.0. Use 0.1 in production.
+  metric_interval: 15s     # how often metrics are pushed to the collector
 

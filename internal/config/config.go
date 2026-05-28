@@ -21,13 +21,14 @@ type Config struct {
 }
 
 type TelemetryConfig struct {
-	Enabled        bool    `mapstructure:"enabled"`
-	ServiceName    string  `mapstructure:"service_name"`
-	ServiceVersion string  `mapstructure:"service_version"`
-	Environment    string  `mapstructure:"environment"`
-	OTLPEndpoint   string  `mapstructure:"otlp_endpoint"`
-	OTLPInsecure   bool    `mapstructure:"otlp_insecure"`
-	SampleRatio    float64 `mapstructure:"sample_ratio"`
+	Enabled        bool          `mapstructure:"enabled"`
+	ServiceName    string        `mapstructure:"service_name"`
+	ServiceVersion string        `mapstructure:"service_version"`
+	Environment    string        `mapstructure:"environment"`
+	OTLPEndpoint   string        `mapstructure:"otlp_endpoint"`
+	OTLPInsecure   bool          `mapstructure:"otlp_insecure"`
+	SampleRatio    float64       `mapstructure:"sample_ratio"`
+	MetricInterval time.Duration `mapstructure:"metric_interval"`
 }
 
 type ShortenerConfig struct {
@@ -116,6 +117,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("telemetry.otlp_endpoint", "localhost:4318")
 	viper.SetDefault("telemetry.otlp_insecure", true)
 	viper.SetDefault("telemetry.sample_ratio", 1.0)
+	viper.SetDefault("telemetry.metric_interval", 15*time.Second)
 
 	// Enable environment variable support
 	// Viper maps nested keys to env vars by replacing dots with underscores and
@@ -139,6 +141,7 @@ func Load() (*Config, error) {
 	viper.BindEnv("telemetry.otlp_endpoint", "ALLINONE_TELEMETRY_OTLP_ENDPOINT")
 	viper.BindEnv("telemetry.otlp_insecure", "ALLINONE_TELEMETRY_OTLP_INSECURE")
 	viper.BindEnv("telemetry.sample_ratio", "ALLINONE_TELEMETRY_SAMPLE_RATIO")
+	viper.BindEnv("telemetry.metric_interval", "ALLINONE_TELEMETRY_METRIC_INTERVAL")
 
 	// Try to read config file (it's okay if it doesn't exist)
 	if err := viper.ReadInConfig(); err != nil {

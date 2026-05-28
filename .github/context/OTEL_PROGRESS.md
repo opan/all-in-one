@@ -1,7 +1,7 @@
 # OpenTelemetry Integration — Progress Tracker
 
 **Started**: 2026-05-24
-**Current phase**: Phase 1 — Backend traces (HTTP + DB)
+**Current phase**: Phase 3 — Metrics (DONE)
 **Spec**: [OTEL_IMPLEMENTATION_PLAN.md](./OTEL_IMPLEMENTATION_PLAN.md)
 
 ---
@@ -50,11 +50,17 @@
 - [x] Thread context through Hub: `BroadcastMessage.Ctx`, updated `Broadcast`/`BroadcastToUsers` signatures
 - [x] Updated all callers in `message.go` and `invite.go`
 
-## Phase 3 — Metrics (NOT STARTED)
-- [ ] Extend bootstrap with `MeterProvider`
-- [ ] DB pool metrics via `otelsql.RegisterDBStatsMetrics`
-- [ ] WebSocket gauges (active connections, messages by type)
-- [ ] Add `prometheus` to docker-compose; collector exposes `:8889/metrics`
+## Phase 3 — Metrics (DONE)
+- [x] Add `sdk/metric` + `otlpmetrichttp` deps (`v1.43.0`)
+- [x] Add `MetricInterval` to `TelemetryConfig` (config.go + config.yml + viper default + BindEnv)
+- [x] Extend `observability.Init` with `MeterProvider` + dual shutdown + `Meter()` helper
+- [x] `otelsql.RegisterDBStatsMetrics` in `storage/sqlite.go` (connection-pool metrics)
+- [x] WebSocket metrics in `hub.go`: `chat.websocket.connections.active` (gauge), `chat.websocket.messages.received` (counter by type), `chat.websocket.messages.sent` (counter)
+- [x] Increment counters in `client.go` (`RecordMessageReceived` in ReadPump, `RecordMessageSent` in WritePump)
+- [x] Upgrade `docker-compose.otel.yml` to Collector + Jaeger + Prometheus stack
+- [x] Create `.docker/otel-collector-config.yml`
+- [x] Create `.docker/prometheus.yml`
+- [ ] **PENDING (requires Docker):** run stack, hit endpoints, verify metrics in Prometheus UI (:9090)
 
 ## Phase 4 — Frontend (OPTIONAL, NOT STARTED)
 - [ ] Browser SDK in `web/src/lib/otel.ts`

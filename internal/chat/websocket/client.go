@@ -130,6 +130,8 @@ func (c *Client) ReadPump() {
 			Str("user_id", c.userID.String()).
 			Msg("Received WebSocket message")
 
+		c.hub.RecordMessageReceived(c.ctx, wsMsg.Type)
+
 		// Start a per-message span for the full receive+process cycle.
 		msgCtx, span := observability.Tracer("chat").Start(c.ctx,
 			"chat.message.receive",
@@ -193,6 +195,7 @@ func (c *Client) WritePump() {
 				return
 			}
 
+			c.hub.RecordMessageSent(context.Background())
 			sendSpan.End()
 			c.log.Debug().
 				Str("type", om.msg.Type).

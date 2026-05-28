@@ -28,6 +28,13 @@ func NewSQLite(config config.Config) (*sqliteStorage, error) {
 
 	db := sqlx.NewDb(sqlDB, "sqlite3")
 
+	// Export connection-pool metrics (open, idle, wait counts) via the global
+	// MeterProvider. observability.Init runs before NewStorage in server.go so
+	// the provider is already set when this line executes.
+	otelsql.RegisterDBStatsMetrics(sqlDB,
+		otelsql.WithAttributes(attribute.String("db.system", "sqlite")),
+	)
+
 	return &sqliteStorage{
 		db: db,
 	}, nil
