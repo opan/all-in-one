@@ -62,6 +62,11 @@
 - [x] Create `.docker/prometheus.yml`
 - [ ] **PENDING (requires Docker):** run stack, hit endpoints, verify metrics in Prometheus UI (:9090)
 
+## Docker Compose (observability stack) — DONE
+- [x] `docker-compose.yml` — single file: Collector + Jaeger + Prometheus (`docker compose up -d`)
+- [x] Removed `docker-compose.otel.yml` (was redundant duplicate)
+- [x] App runs locally with `ALLINONE_TELEMETRY_ENABLED=true go run main.go all-in-one server`
+
 ## Phase 4 — Frontend (OPTIONAL, NOT STARTED)
 - [ ] Browser SDK in `web/src/lib/otel.ts`
 - [ ] Auto-instrument fetch in `api.ts`
