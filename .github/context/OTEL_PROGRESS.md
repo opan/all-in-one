@@ -39,11 +39,16 @@
 
 ---
 
-## Phase 2 — Log correlation + WebSocket tracing (NOT STARTED)
-- [ ] Enrich `LoggingMiddleware` with `trace_id` / `span_id`
-- [ ] Wrap `ResponseWriter` to capture status code
-- [ ] Attach `user.id`, `session.id` span attributes in JWT middleware (no PII)
-- [ ] WebSocket: per-message spans in `ReadPump` / `WritePump`; thread context through Hub
+## Phase 2 — Log correlation + WebSocket tracing (DONE)
+- [x] Enrich `LoggingMiddleware` with `trace_id` / `span_id`
+- [x] Wrap `ResponseWriter` to capture status code (`statusResponseWriter` in `internal/http/http.go`)
+- [x] Fix completion log to use context logger + add `status_code` field
+- [x] Attach `user.id`, `session.id` span attributes in JWT middleware (no PII)
+- [x] `HandleWebSocket`: mark otelmux span with `ws.upgrade=true`, `user.id`, `username`
+- [x] `ReadPump`: per-message `chat.message.receive` spans with `messaging.system`, `chat.message.type`, `user.id`
+- [x] `WritePump`: per-message `chat.message.send` spans linked to producer span via `trace.WithLinks`
+- [x] Thread context through Hub: `BroadcastMessage.Ctx`, updated `Broadcast`/`BroadcastToUsers` signatures
+- [x] Updated all callers in `message.go` and `invite.go`
 
 ## Phase 3 — Metrics (NOT STARTED)
 - [ ] Extend bootstrap with `MeterProvider`

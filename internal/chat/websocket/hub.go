@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"sync"
 
 	"github.com/all-in-one/internal/chat/model"
@@ -38,6 +39,7 @@ type BroadcastMessage struct {
 	SessionID    string
 	Message      model.WebSocketMessage
 	Participants []string // Optional: userIDs to send to (if known)
+	Ctx          context.Context
 }
 
 // NewHub creates a new Hub
@@ -140,7 +142,7 @@ func (h *Hub) broadcastMessage(bm *BroadcastMessage) {
 	for _, userID := range participants {
 		if client, ok := h.users[userID]; ok {
 			select {
-			case client.send <- bm.Message:
+			case client.send <- outboundMessage{msg: bm.Message, ctx: bm.Ctx}:
 				sentCount++
 			default:
 				// Client's send channel is full, unregister the client
@@ -163,19 +165,21 @@ func (h *Hub) broadcastMessage(bm *BroadcastMessage) {
 }
 
 // Broadcast sends a message to all participants in a session
-func (h *Hub) Broadcast(sessionID string, message model.WebSocketMessage) {
+func (h *Hub) Broadcast(ctx context.Context, sessionID string, message model.WebSocketMessage) {
 	h.broadcast <- &BroadcastMessage{
 		SessionID: sessionID,
 		Message:   message,
+		Ctx:       ctx,
 	}
 }
 
 // BroadcastToUsers sends a message to specific users
-func (h *Hub) BroadcastToUsers(sessionID string, message model.WebSocketMessage, participants []string) {
+func (h *Hub) BroadcastToUsers(ctx context.Context, sessionID string, message model.WebSocketMessage, participants []string) {
 	h.broadcast <- &BroadcastMessage{
 		SessionID:    sessionID,
 		Message:      message,
 		Participants: participants,
+		Ctx:          ctx,
 	}
 }
 

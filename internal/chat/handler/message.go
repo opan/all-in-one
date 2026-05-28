@@ -17,6 +17,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	ws "github.com/gorilla/websocket"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var upgrader = ws.Upgrader{
@@ -161,8 +163,16 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Get username
 	username := s.Username
 
+	// Mark the otelmux span for this upgrade request with WS-specific attributes.
+	// The handler returns immediately after starting the pumps, so the span
+	// lifetime correctly covers just the connection-establishment phase.
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.Bool("ws.upgrade", true),
+		attribute.String("user.id", userID),
+		attribute.String("username", username),
+	)
+
 	// Create a new context for the WebSocket connection that's not tied to the HTTP request
-	// Copy important values from the request context
 	wsCtx, wsCancel := context.WithCancel(context.Background())
 
 	// Copy request_id and other important values to the new context
@@ -253,7 +263,7 @@ func (h *Handler) handleWebSocketMessage(ctx context.Context, client *websocket.
 		}
 
 		// Broadcast typing indicator to all participants
-		h.hub.BroadcastToUsers(sessionID, wsMsg, participants)
+		h.hub.BroadcastToUsers(ctx, sessionID, wsMsg, participants)
 		return nil
 
 	default:
@@ -273,7 +283,7 @@ func (h *Handler) handleClientMessages(client *websocket.Client) {
 
 // BroadcastMessage broadcasts a message to all participants in a session
 // This is called when a message is persisted to the database
-func (h *Handler) BroadcastMessage(sessionID string, chat model.ChatMessage) {
+func (h *Handler) BroadcastMessage(ctx context.Context, sessionID string, chat model.ChatMessage) {
 	payload := model.MessagePayload{
 		ID:            chat.ID,
 		ChatSessionID: chat.ChatSessionID,
@@ -290,10 +300,9 @@ func (h *Handler) BroadcastMessage(sessionID string, chat model.ChatMessage) {
 	}
 
 	// Get session participants
-	ctx := context.Background()
 	session, err := h.storage.SessionRepo().Get(ctx, sessionID)
 	if err != nil {
-		h.hub.Broadcast(sessionID, wsMsg) // Fallback to cached participants
+		h.hub.Broadcast(ctx, sessionID, wsMsg) // Fallback to cached participants
 		return
 	}
 
@@ -307,7 +316,7 @@ func (h *Handler) BroadcastMessage(sessionID string, chat model.ChatMessage) {
 	h.hub.CacheSessionParticipants(sessionID, participants)
 
 	// Broadcast to all participants
-	h.hub.BroadcastToUsers(sessionID, wsMsg, participants)
+	h.hub.BroadcastToUsers(ctx, sessionID, wsMsg, participants)
 }
 
 // CreateMessage creates a new message (called via WebSocket or REST)
@@ -351,7 +360,7 @@ func (h *Handler) CreateMessage(ctx context.Context, sessionID string, userID uu
 	}
 
 	// Broadcast to all clients in the session
-	h.BroadcastMessage(sessionID, createdChat)
+	h.BroadcastMessage(ctx, sessionID, createdChat)
 
 	log.Info().Str("message_id", createdChat.ID).Str("session_id", sessionID).Msg("Message created and broadcast")
 

@@ -159,7 +159,7 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		invites = append(invites, created)
 
 		// Notify invitee via WebSocket if online
-		h.hub.BroadcastToUsers("", model.WebSocketMessage{
+		h.hub.BroadcastToUsers(ctx, "", model.WebSocketMessage{
 			Type: "invite_received",
 			Payload: model.InvitePayload{
 				InviteID:        created.ID,
@@ -329,7 +329,7 @@ func (h *Handler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 		invite.Status = model.InviteStatusDeclined
 		invitePayload.Status = invite.Status
 
-		h.hub.BroadcastToUsers("", model.WebSocketMessage{
+		h.hub.BroadcastToUsers(ctx, "", model.WebSocketMessage{
 			Type:      "invite_declined",
 			Payload:   invitePayload,
 			Timestamp: time.Now(),
@@ -441,7 +441,7 @@ func (h *Handler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 		invitePayload.SessionID = session.ID
 	}
 
-	h.hub.BroadcastToUsers("", model.WebSocketMessage{
+	h.hub.BroadcastToUsers(ctx, "", model.WebSocketMessage{
 		Type:      "invite_accepted",
 		Payload:   invitePayload,
 		Timestamp: time.Now(),
@@ -505,7 +505,7 @@ func (h *Handler) CancelInvite(w http.ResponseWriter, r *http.Request) {
 
 	invite.Status = model.InviteStatusCancelled
 
-	h.hub.BroadcastToUsers("", model.WebSocketMessage{
+	h.hub.BroadcastToUsers(ctx, "", model.WebSocketMessage{
 		Type: "invite_cancelled",
 		Payload: model.InvitePayload{
 			InviteID:        invite.ID,

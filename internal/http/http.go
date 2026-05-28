@@ -11,6 +11,7 @@ import (
 	"github.com/all-in-one/internal/logging"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Common storage errors
@@ -42,11 +43,21 @@ func NewHTTP(log zerolog.Logger, config config.Config) *HTTP {
 	}
 }
 
+// statusResponseWriter wraps http.ResponseWriter to capture the response status code.
+type statusResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (rw *statusResponseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		// Create context with request ID and timeout
 		ctx := r.Context()
 		reqID := uuid.NewString()
 		ctx = context.WithValue(ctx, requestIDKey, reqID)
@@ -55,18 +66,27 @@ func (h *HTTP) LoggingMiddleware(next http.Handler) http.Handler {
 		ctx, cancel := context.WithTimeout(ctx, timeout*time.Second)
 		defer cancel()
 
-		// Create logger with request_id
-		logger := h.log.With().Str("request_id", reqID).Logger()
+		// Build per-request logger with request_id; add trace/span IDs when
+		// otelmux has already attached a span to the context (registered before
+		// this middleware in server.go).
+		logCtx := h.log.With().Str("request_id", reqID)
+		if spanCtx := trace.SpanContextFromContext(ctx); spanCtx.IsValid() {
+			logCtx = logCtx.
+				Str("trace_id", spanCtx.TraceID().String()).
+				Str("span_id", spanCtx.SpanID().String())
+		}
+		logger := logCtx.Logger()
 
-		// Store logger in the context for downstream
 		ctx = context.WithValue(ctx, logging.LoggerKey, &logger)
 
-		next.ServeHTTP(w, r.WithContext(ctx))
+		srw := &statusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(srw, r.WithContext(ctx))
 
-		h.log.Info().
+		logger.Info().
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Str("ip", r.RemoteAddr).
+			Int("status_code", srw.status).
 			Dur("duration_ms", time.Since(start)).
 			Msg("Request completed")
 	})
