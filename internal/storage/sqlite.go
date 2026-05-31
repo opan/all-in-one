@@ -7,6 +7,8 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	sqlite3Migrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/jmoiron/sqlx"
+	"github.com/XSAM/otelsql"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type sqliteStorage struct {
@@ -14,10 +16,24 @@ type sqliteStorage struct {
 }
 
 func NewSQLite(config config.Config) (*sqliteStorage, error) {
-	db, err := sqlx.Open("sqlite3", config.Storage.SQLite.DBPath)
+	// otelsql wraps the database/sql driver so each query becomes a child span
+	// of the request's server span. sqlx.NewDb adapts the *sql.DB back into a
+	// *sqlx.DB without losing the otelsql wrapper.
+	sqlDB, err := otelsql.Open("sqlite3", config.Storage.SQLite.DBPath,
+		otelsql.WithAttributes(attribute.String("db.system", "sqlite")),
+	)
 	if err != nil {
 		return nil, err
 	}
+
+	db := sqlx.NewDb(sqlDB, "sqlite3")
+
+	// Export connection-pool metrics (open, idle, wait counts) via the global
+	// MeterProvider. observability.Init runs before NewStorage in server.go so
+	// the provider is already set when this line executes.
+	otelsql.RegisterDBStatsMetrics(sqlDB,
+		otelsql.WithAttributes(attribute.String("db.system", "sqlite")),
+	)
 
 	return &sqliteStorage{
 		db: db,

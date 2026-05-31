@@ -6,9 +6,13 @@ import (
 	"time"
 
 	"github.com/all-in-one/internal/chat/model"
+	"github.com/all-in-one/internal/observability"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -25,6 +29,13 @@ const (
 	maxMessageSize = 8192 // 8KB
 )
 
+// outboundMessage pairs a WebSocket message with its producer's trace context
+// so WritePump can link outbound spans back to the originating receive span.
+type outboundMessage struct {
+	msg model.WebSocketMessage
+	ctx context.Context
+}
+
 // Client represents a single WebSocket connection
 type Client struct {
 	// The hub that manages this client
@@ -34,7 +45,7 @@ type Client struct {
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages
-	send chan model.WebSocketMessage
+	send chan outboundMessage
 
 	// The user ID of the connected user
 	userID uuid.UUID
@@ -63,7 +74,7 @@ func NewClient(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string
 	return &Client{
 		hub:            hub,
 		conn:           conn,
-		send:           make(chan model.WebSocketMessage, 256),
+		send:           make(chan outboundMessage, 256),
 		userID:         userID,
 		username:       username,
 		messageHandler: messageHandler,
@@ -119,15 +130,29 @@ func (c *Client) ReadPump() {
 			Str("user_id", c.userID.String()).
 			Msg("Received WebSocket message")
 
-		// Process the message through the handler
+		c.hub.RecordMessageReceived(c.ctx, wsMsg.Type)
+
+		// Start a per-message span for the full receive+process cycle.
+		msgCtx, span := observability.Tracer("chat").Start(c.ctx,
+			"chat.message.receive",
+			trace.WithAttributes(
+				attribute.String("messaging.system", "websocket"),
+				attribute.String("chat.message.type", wsMsg.Type),
+				attribute.String("user.id", c.userID.String()),
+			),
+		)
+
 		if c.messageHandler != nil {
-			if err := c.messageHandler(c.ctx, c, wsMsg); err != nil {
+			if err := c.messageHandler(msgCtx, c, wsMsg); err != nil {
 				c.log.Error().Err(err).Str("type", wsMsg.Type).Msg("Failed to process WebSocket message")
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
 				c.sendError(err.Error())
 			}
 		} else {
 			c.log.Warn().Str("type", wsMsg.Type).Msg("No message handler configured")
 		}
+		span.End()
 	}
 }
 
@@ -141,7 +166,7 @@ func (c *Client) WritePump() {
 
 	for {
 		select {
-		case message, ok := <-c.send:
+		case om, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel
@@ -149,14 +174,31 @@ func (c *Client) WritePump() {
 				return
 			}
 
-			// Write the message as JSON
-			if err := c.conn.WriteJSON(message); err != nil {
+			// Start a send span; link to the producer's receive span when available.
+			spanOpts := []trace.SpanStartOption{
+				trace.WithAttributes(
+					attribute.String("messaging.system", "websocket"),
+					attribute.String("chat.message.type", om.msg.Type),
+					attribute.String("user.id", c.userID.String()),
+				),
+			}
+			if producerSpanCtx := trace.SpanContextFromContext(om.ctx); producerSpanCtx.IsValid() {
+				spanOpts = append(spanOpts, trace.WithLinks(trace.Link{SpanContext: producerSpanCtx}))
+			}
+			_, sendSpan := observability.Tracer("chat").Start(context.Background(), "chat.message.send", spanOpts...)
+
+			if err := c.conn.WriteJSON(om.msg); err != nil {
 				c.log.Error().Err(err).Msg("Failed to write WebSocket message")
+				sendSpan.RecordError(err)
+				sendSpan.SetStatus(codes.Error, err.Error())
+				sendSpan.End()
 				return
 			}
 
+			c.hub.RecordMessageSent(context.Background())
+			sendSpan.End()
 			c.log.Debug().
-				Str("type", message.Type).
+				Str("type", om.msg.Type).
 				Msg("Sent WebSocket message to client")
 
 		case <-ticker.C:
@@ -181,7 +223,7 @@ func (c *Client) sendError(errorMsg string) {
 	}
 
 	select {
-	case c.send <- wsMsg:
+	case c.send <- outboundMessage{msg: wsMsg, ctx: context.Background()}:
 	default:
 		c.log.Warn().Str("error", errorMsg).Msg("Failed to send error message to client")
 	}

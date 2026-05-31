@@ -9,12 +9,15 @@ import (
 	"github.com/all-in-one/internal/shortener/repository"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type Handler struct {
 	storage        repository.Storage
 	config         config.Config
 	log            zerolog.Logger
+	metrics        *handlerMetrics
 	rateLimiter    *middleware.RateLimiter
 	resolveLimiter *middleware.RateLimiter
 }
@@ -40,10 +43,13 @@ func NewHandler(storage repository.Storage, cfg config.Config, log zerolog.Logge
 		resolveWindow = 1
 	}
 
+	m := newHandlerMetrics()
+
 	return &Handler{
 		storage:        storage,
 		config:         cfg,
 		log:            log,
+		metrics:        m,
 		rateLimiter:    middleware.NewRateLimiter(createLimit, time.Duration(createWindow)*time.Minute),
 		resolveLimiter: middleware.NewRateLimiter(resolveLimit, time.Duration(resolveWindow)*time.Minute),
 	}
@@ -52,7 +58,9 @@ func NewHandler(storage repository.Storage, cfg config.Config, log zerolog.Logge
 func (h *Handler) RegisterPublicRoutes(router *mux.Router) {}
 
 func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
-	router.Handle("/shortener/links", h.rateLimiter.Wrap(h.CreateShortLink)).Methods(http.MethodPost)
+	router.Handle("/shortener/links", h.rateLimiter.Wrap(h.CreateShortLink, func(r *http.Request) {
+		h.metrics.rateLimited.Add(r.Context(), 1, metric.WithAttributes(attribute.String("scope", "create")))
+	})).Methods(http.MethodPost)
 	router.HandleFunc("/shortener/links", h.ListShortLinks).Methods(http.MethodGet)
 	router.HandleFunc("/shortener/links/{code}", h.GetShortLink).Methods(http.MethodGet)
 	router.HandleFunc("/shortener/links/{code}", h.UpdateShortLink).Methods(http.MethodPatch)
@@ -60,7 +68,9 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 }
 
 func (h *Handler) RegisterRedirectRoute(router *mux.Router) {
-	router.Handle("/r/{code}", h.resolveLimiter.WrapWithKey(h.ResolveShortLink, resolveKey)).Methods(http.MethodGet)
+	router.Handle("/r/{code}", h.resolveLimiter.WrapWithKey(h.ResolveShortLink, resolveKey, func(r *http.Request) {
+		h.metrics.rateLimited.Add(r.Context(), 1, metric.WithAttributes(attribute.String("scope", "resolve")))
+	})).Methods(http.MethodGet)
 }
 
 func resolveKey(r *http.Request) string {

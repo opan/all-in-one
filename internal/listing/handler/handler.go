@@ -13,6 +13,7 @@ import (
 type Handler struct {
 	storage repository.Storage
 	config  config.Config
+	metrics *handlerMetrics
 }
 
 // NewHandler creates a new listing handler
@@ -20,6 +21,7 @@ func NewHandler(storage repository.Storage, config config.Config) *Handler {
 	return &Handler{
 		storage: storage,
 		config:  config,
+		metrics: newHandlerMetrics(),
 	}
 }
 

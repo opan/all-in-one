@@ -11,6 +11,8 @@ import (
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/logging"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type RegisterUserRequest struct {
@@ -101,6 +103,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	if existingUser.ID != uuid.Nil {
 		log.Error().Str("username", req.Username).Msg("user already exists")
+		h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "failure")))
 		httpHelper.SendError(w, "user already exists", http.StatusConflict)
 		return
 	}
@@ -108,6 +111,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to hash password")
+		h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "failure")))
 		httpHelper.SendError(w, "failed to register user", http.StatusInternalServerError)
 		return
 	}
@@ -124,10 +128,12 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.storage.UserRepo().Create(ctx, user); err != nil {
 		log.Error().Err(err).Msg("failed to create user")
+		h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "failure")))
 		httpHelper.SendError(w, "failed to create user", http.StatusInternalServerError)
 		return
 	}
 
+	h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "success")))
 	log.Info().Str("username", req.Username).Msg("user successfully registered")
 	res := httpHelper.Response{
 		Success: true,

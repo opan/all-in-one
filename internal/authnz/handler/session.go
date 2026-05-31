@@ -12,6 +12,8 @@ import (
 	"github.com/all-in-one/internal/logging"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type contextKey string
@@ -46,12 +48,14 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	u, err := h.storage.UserRepo().FindByUsername(ctx, rl.Username)
 	if err != nil {
 		log.Error().Err(err).Str("username", rl.Username).Msg("failed to find user by username")
+		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "user_not_found")))
 		httpHelper.SendError(w, "invalid username or password", http.StatusNotFound)
 		return
 	}
 
 	if u.ID == uuid.Nil {
 		log.Debug().Str("username", rl.Username).Msg("user not found")
+		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "user_not_found")))
 		httpHelper.SendError(w, "invalid username or password", http.StatusNotFound)
 		return
 	}
@@ -59,12 +63,14 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	ok, err := auth.CheckPassword(rl.Password, u.PasswordHash)
 	if err != nil || !ok {
 		log.Debug().Err(err).Str("username", rl.Username).Bool("password_match", ok).Msg("password check failed")
+		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "invalid_credentials")))
 		httpHelper.SendError(w, "invalid username or password", http.StatusUnauthorized)
 		return
 	}
 
 	// If user has 2FA enabled, create a challenge instead of a session
 	if u.TOTPEnabled {
+		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "2fa_required")))
 		h.handle2FAChallenge(w, r, u)
 		return
 	}
@@ -142,6 +148,8 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Info().Str("session_id", sid.String()).Msg("session successfully created")
+
+	h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "success")))
 
 	response := httpHelper.Response{
 		Success: true,

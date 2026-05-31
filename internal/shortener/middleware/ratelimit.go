@@ -53,14 +53,17 @@ func (rl *RateLimiter) allow(key string) (bool, time.Duration) {
 	return true, 0
 }
 
-func (rl *RateLimiter) Wrap(next http.HandlerFunc) http.HandlerFunc {
-	return rl.WrapWithKey(next, rateLimitKey)
+func (rl *RateLimiter) Wrap(next http.HandlerFunc, onRejected ...func(*http.Request)) http.HandlerFunc {
+	return rl.WrapWithKey(next, rateLimitKey, onRejected...)
 }
 
-func (rl *RateLimiter) WrapWithKey(next http.HandlerFunc, keyFn func(*http.Request) string) http.HandlerFunc {
+func (rl *RateLimiter) WrapWithKey(next http.HandlerFunc, keyFn func(*http.Request) string, onRejected ...func(*http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ok, retryAfter := rl.allow(keyFn(r))
 		if !ok {
+			for _, fn := range onRejected {
+				fn(r)
+			}
 			w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
 			httpHelper.SendError(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return

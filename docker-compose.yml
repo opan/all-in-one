@@ -1,0 +1,52 @@
+# Local observability stack: OTel Collector → Jaeger (traces) + Prometheus (metrics)
+#
+# Start:
+#   docker compose up -d
+#
+# Then run the app locally with telemetry enabled:
+#   ALLINONE_TELEMETRY_ENABLED=true go run ./cmd/all-in-one server
+#
+# URLs:
+#   Jaeger UI:  http://localhost:16686
+#   Prometheus: http://localhost:9090
+#
+# Stop:
+#   docker compose down
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    container_name: all-in-one-otel-collector
+    command: ["--config=/etc/otel/config.yml"]
+    volumes:
+      - ./.docker/otel-collector-config.yml:/etc/otel/config.yml:ro
+    ports:
+      - "4318:4318"    # OTLP/HTTP — app sends traces/metrics here
+      - "8889:8889"    # Prometheus scrape endpoint
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    container_name: all-in-one-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP/gRPC (used by the collector)
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: all-in-one-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=1d"
+    volumes:
+      - ./.docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"    # Prometheus UI
+    depends_on:
+      - otel-collector
+    restart: unless-stopped

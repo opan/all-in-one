@@ -16,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 	qrcode "github.com/skip2/go-qrcode"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -214,6 +216,8 @@ func (h *Handler) VerifyTOTPSetup(w http.ResponseWriter, r *http.Request) {
 
 	log.Info().Str("user_id", uid.String()).Msg("2FA successfully enabled")
 
+	h.metrics.twoFAStateChanges.Add(ctx, 1, metric.WithAttributes(attribute.String("action", "enabled")))
+
 	resp := httpHelper.Response{
 		Success: true,
 		Message: "Two-factor authentication has been enabled. Please log in again.",
@@ -281,6 +285,8 @@ func (h *Handler) DisableTOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info().Str("user_id", uid.String()).Msg("2FA disabled")
+
+	h.metrics.twoFAStateChanges.Add(ctx, 1, metric.WithAttributes(attribute.String("action", "disabled")))
 
 	resp := httpHelper.Response{
 		Success: true,
@@ -470,11 +476,19 @@ func (h *Handler) VerifyTOTP(w http.ResponseWriter, r *http.Request) {
 	valid := totp.Validate(req.Code, secret)
 	if !valid {
 		log.Warn().Str("user_id", user.ID.String()).Int("attempts", challenge.Attempts+1).Msg("invalid 2FA code")
+		h.metrics.twoFAVerifications.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("method", "totp"),
+			attribute.String("result", "failure"),
+		))
 		httpHelper.SendError(w, "Invalid verification code", http.StatusUnauthorized)
 		return
 	}
 
 	h.storage.TOTPRepo().DeleteChallenge(ctx, challenge.ID)
+	h.metrics.twoFAVerifications.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("method", "totp"),
+		attribute.String("result", "success"),
+	))
 	h.completeLogin(w, r, user)
 }
 
@@ -525,6 +539,10 @@ func (h *Handler) VerifyRecoveryCode(w http.ResponseWriter, r *http.Request) {
 
 	if matchedCodeID == nil {
 		log.Warn().Str("user_id", user.ID.String()).Msg("invalid recovery code")
+		h.metrics.twoFAVerifications.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("method", "recovery_code"),
+			attribute.String("result", "failure"),
+		))
 		httpHelper.SendError(w, "Invalid recovery code", http.StatusUnauthorized)
 		return
 	}
@@ -539,6 +557,10 @@ func (h *Handler) VerifyRecoveryCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.storage.TOTPRepo().DeleteChallenge(ctx, challenge.ID)
+	h.metrics.twoFAVerifications.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("method", "recovery_code"),
+		attribute.String("result", "success"),
+	))
 	h.completeLogin(w, r, user)
 }
 

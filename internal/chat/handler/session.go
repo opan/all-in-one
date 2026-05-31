@@ -280,6 +280,8 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	log.Info().Str("session_id", createdSession.ID).Msg("Session created successfully")
 
+	h.metrics.sessionsCreated.Add(ctx, 1)
+
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
 		Message: "Session created successfully",
@@ -499,6 +501,8 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info().Str("session_id", sessionID).Msg("Session deleted successfully")
+
+	h.metrics.sessionsDeleted.Add(ctx, 1)
 
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,

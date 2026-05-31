@@ -181,6 +181,8 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.metrics.itemsCreated.Add(ctx, 1)
+
 	response := httpHelper.Response{
 		Success: true,
 		Message: "Item created successfully",
@@ -341,6 +343,8 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, "Failed to delete item", http.StatusInternalServerError)
 		return
 	}
+
+	h.metrics.itemsDeleted.Add(ctx, 1)
 
 	response := httpHelper.Response{
 		Success: true,

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/all-in-one/internal/config"
 	httpHelper "github.com/all-in-one/internal/http"
 	listingSvc "github.com/all-in-one/internal/listing/service"
+	"github.com/all-in-one/internal/observability"
 	shortenerSvc "github.com/all-in-one/internal/shortener/service"
 	"github.com/all-in-one/internal/storage"
 	"github.com/rs/cors"
@@ -22,6 +24,7 @@ import (
 
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 
 	_ "github.com/all-in-one/docs"
 )
@@ -49,6 +52,25 @@ func (s *server) Start() error {
 	defer cancel()
 
 	s.log.Info().Msg("Initiating server start...")
+
+	otelShutdown, err := observability.Init(ctx, s.config.Telemetry)
+	if err != nil {
+		if s.config.Telemetry.Enabled {
+			s.log.Error().Err(err).Msg("OpenTelemetry initialization failed")
+			return err
+		}
+		s.log.Warn().Err(err).Msg("OpenTelemetry initialization failed; continuing without telemetry")
+	} else if s.config.Telemetry.Enabled {
+		s.log.Info().
+			Str("otlp_endpoint", s.config.Telemetry.OTLPEndpoint).
+			Float64("sample_ratio", s.config.Telemetry.SampleRatio).
+			Msg("OpenTelemetry tracing enabled")
+	}
+	defer func() {
+		if err := otelShutdown(context.Background()); err != nil {
+			s.log.Warn().Err(err).Msg("OpenTelemetry shutdown returned error")
+		}
+	}()
 
 	s.log.Info().Msg("Initiating database connection...")
 	store, err := storage.NewStorage(s.config)
@@ -96,6 +118,15 @@ func (s *server) Start() error {
 
 	// Initialize router
 	r := mux.NewRouter()
+
+	// OTel HTTP tracing — registered before the logging middleware so that
+	// the per-request logger can pick up trace_id/span_id from the context
+	// (added in phase 2). Static assets, health, and swagger are filtered
+	// out to keep trace volume sane.
+	r.Use(otelmux.Middleware(
+		s.config.Telemetry.ServiceName,
+		otelmux.WithFilter(shouldTrace),
+	))
 
 	// Add logging middleware
 	r.Use(h.LoggingMiddleware)
@@ -203,6 +234,17 @@ func (s *server) Start() error {
 	}
 
 	return nil
+}
+
+// shouldTrace returns true for requests we want to record as spans.
+// Filters out the health check and any non-API path (SPA assets, swagger UI),
+// keeping traces focused on the REST API and the shortener redirect.
+func shouldTrace(r *http.Request) bool {
+	p := r.URL.Path
+	if p == "/api/v1/health" {
+		return false
+	}
+	return strings.HasPrefix(p, "/api/v1/") || strings.HasPrefix(p, "/r/")
 }
 
 // spaFileServer serves static files from dir. If the requested path does not

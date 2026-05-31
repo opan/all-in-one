@@ -1,20 +1,22 @@
 package websocket
 
 import (
+	"context"
 	"sync"
 
 	"github.com/all-in-one/internal/chat/model"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the clients
 type Hub struct {
 	// Registered clients per user (userID -> client)
-	// Each user has at most one active WebSocket connection
 	users map[string]*Client
 
 	// Cache of session participants (sessionID -> []userID)
-	// Optimization to avoid DB queries on every message
 	sessionParticipants map[string][]string
 
 	// Inbound messages from clients
@@ -31,6 +33,10 @@ type Hub struct {
 
 	// Logger
 	log zerolog.Logger
+
+	msgReceived metric.Int64Counter
+	msgSent     metric.Int64Counter
+	meterReg    metric.Registration
 }
 
 // BroadcastMessage represents a message to be broadcast to session participants
@@ -38,11 +44,12 @@ type BroadcastMessage struct {
 	SessionID    string
 	Message      model.WebSocketMessage
 	Participants []string // Optional: userIDs to send to (if known)
+	Ctx          context.Context
 }
 
 // NewHub creates a new Hub
 func NewHub(log zerolog.Logger) *Hub {
-	return &Hub{
+	h := &Hub{
 		users:               make(map[string]*Client),
 		sessionParticipants: make(map[string][]string),
 		broadcast:           make(chan *BroadcastMessage, 256),
@@ -50,6 +57,30 @@ func NewHub(log zerolog.Logger) *Hub {
 		unregister:          make(chan *Client),
 		log:                 log,
 	}
+
+	meter := otel.GetMeterProvider().Meter("chat")
+
+	connActive, _ := meter.Int64ObservableGauge(
+		"aio.chat.websocket.connections.active",
+		metric.WithDescription("Number of active WebSocket connections"),
+	)
+	h.msgReceived, _ = meter.Int64Counter(
+		"aio.chat.websocket.messages.received",
+		metric.WithDescription("Number of WebSocket messages received from clients"),
+	)
+	h.msgSent, _ = meter.Int64Counter(
+		"aio.chat.websocket.messages.sent",
+		metric.WithDescription("Number of WebSocket messages sent to clients"),
+	)
+
+	h.meterReg, _ = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		h.mu.RLock()
+		defer h.mu.RUnlock()
+		o.ObserveInt64(connActive, int64(len(h.users)))
+		return nil
+	}, connActive)
+
+	return h
 }
 
 // Run starts the hub's main event loop
@@ -58,10 +89,8 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.registerClient(client)
-
 		case client := <-h.unregister:
 			h.unregisterClient(client)
-
 		case message := <-h.broadcast:
 			h.broadcastMessage(message)
 		}
@@ -75,19 +104,16 @@ func (h *Hub) registerClient(client *Client) {
 
 	userID := client.userID.String()
 
-	// If user already has a connection, close the old one properly
 	if existingClient, exists := h.users[userID]; exists {
 		h.log.Info().
 			Str("user_id", userID).
 			Msg("Replacing existing WebSocket connection for user")
 
-		// Close the old connection gracefully
-		// This will send a proper close frame to the client
 		go func(oldClient *Client) {
 			if oldClient.cancel != nil {
-				oldClient.cancel() // Cancel the context
+				oldClient.cancel()
 			}
-			close(oldClient.send) // Close the send channel
+			close(oldClient.send)
 		}(existingClient)
 	}
 
@@ -106,7 +132,6 @@ func (h *Hub) unregisterClient(client *Client) {
 
 	userID := client.userID.String()
 
-	// Only remove if it's the current client for this user
 	if currentClient, ok := h.users[userID]; ok && currentClient == client {
 		delete(h.users, userID)
 		close(client.send)
@@ -123,7 +148,6 @@ func (h *Hub) broadcastMessage(bm *BroadcastMessage) {
 	h.mu.RLock()
 	participants := bm.Participants
 	if len(participants) == 0 {
-		// Use cached participants if available
 		participants = h.sessionParticipants[bm.SessionID]
 	}
 	h.mu.RUnlock()
@@ -140,10 +164,9 @@ func (h *Hub) broadcastMessage(bm *BroadcastMessage) {
 	for _, userID := range participants {
 		if client, ok := h.users[userID]; ok {
 			select {
-			case client.send <- bm.Message:
+			case client.send <- outboundMessage{msg: bm.Message, ctx: bm.Ctx}:
 				sentCount++
 			default:
-				// Client's send channel is full, unregister the client
 				h.log.Warn().
 					Str("user_id", userID).
 					Msg("Client send buffer full, unregistering")
@@ -163,19 +186,21 @@ func (h *Hub) broadcastMessage(bm *BroadcastMessage) {
 }
 
 // Broadcast sends a message to all participants in a session
-func (h *Hub) Broadcast(sessionID string, message model.WebSocketMessage) {
+func (h *Hub) Broadcast(ctx context.Context, sessionID string, message model.WebSocketMessage) {
 	h.broadcast <- &BroadcastMessage{
 		SessionID: sessionID,
 		Message:   message,
+		Ctx:       ctx,
 	}
 }
 
 // BroadcastToUsers sends a message to specific users
-func (h *Hub) BroadcastToUsers(sessionID string, message model.WebSocketMessage, participants []string) {
+func (h *Hub) BroadcastToUsers(ctx context.Context, sessionID string, message model.WebSocketMessage, participants []string) {
 	h.broadcast <- &BroadcastMessage{
 		SessionID:    sessionID,
 		Message:      message,
 		Participants: participants,
+		Ctx:          ctx,
 	}
 }
 
@@ -225,4 +250,15 @@ func (h *Hub) IsUserConnected(userID string) bool {
 	defer h.mu.RUnlock()
 	_, ok := h.users[userID]
 	return ok
+}
+
+// RecordMessageReceived increments the received messages counter.
+// msgType is the WebSocket message type (e.g. "message", "typing").
+func (h *Hub) RecordMessageReceived(ctx context.Context, msgType string) {
+	h.msgReceived.Add(ctx, 1, metric.WithAttributes(attribute.String("chat.message.type", msgType)))
+}
+
+// RecordMessageSent increments the sent messages counter.
+func (h *Hub) RecordMessageSent(ctx context.Context) {
+	h.msgSent.Add(ctx, 1)
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/logging"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type JWTMiddleware struct {
@@ -28,7 +30,10 @@ func (m *JWTMiddleware) JWTAuth(next http.Handler) http.Handler {
 
 		if userClaims, ok := m.tryDirectAuth(ctx, r); ok {
 			ctx = context.WithValue(ctx, auth.UserContextKey, userClaims)
-
+			trace.SpanFromContext(ctx).SetAttributes(
+				attribute.String("user.id", userClaims.UserID),
+				attribute.String("session.id", userClaims.SessionID),
+			)
 			log.Info().Str("username", userClaims.Username).Msg("direct authentication bypass used")
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
@@ -42,6 +47,10 @@ func (m *JWTMiddleware) JWTAuth(next http.Handler) http.Handler {
 		}
 
 		ctx = context.WithValue(ctx, auth.UserContextKey, userClaims)
+		trace.SpanFromContext(ctx).SetAttributes(
+			attribute.String("user.id", userClaims.UserID),
+			attribute.String("session.id", userClaims.SessionID),
+		)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
