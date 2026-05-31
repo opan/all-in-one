@@ -40,6 +40,7 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - Don't use comments too excessively, add comment when it is really necessary. Code should be self-explanatory by default, as much as possible.
 - IMPORTANT: do not delete existing database, all-in-one.db, because it persist some data not coming from seed. ask me first before tries to delete it.
 - Make sure to implement otel instrumentation for every new endpoint (also check existing endpoint if its already implement otel instrumentation or not).
+- When creating new metrics, make sure to check `metrics.md` file first if we need to update this docs.
 
 #### Project structure
 In general, organize code:
