@@ -4,7 +4,7 @@
 #   docker compose up -d
 #
 # Then run the app locally with telemetry enabled:
-#   ALLINONE_TELEMETRY_ENABLED=true go run main.go all-in-one server
+#   ALLINONE_TELEMETRY_ENABLED=true go run ./cmd/all-in-one server
 #
 # URLs:
 #   Jaeger UI:  http://localhost:16686

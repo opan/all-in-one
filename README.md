@@ -11,6 +11,7 @@ A multi-functional full-stack web application built for learning purposes.
 - **Chat** — Real-time chat with WebSocket support, invite system
 - **Authentication** — JWT-based auth (username/password) with session management
 - **Two-Factor Authentication (2FA)** — Opt-in TOTP-based 2FA (Google Authenticator, Authy, etc.)
+- **Observability** — OpenTelemetry traces (Jaeger) and metrics (Prometheus) via OTel Collector
 
 ## Project Structure
 
@@ -35,6 +36,7 @@ all-in-one/
 - Go 1.25+
 - Node.js 22.19+, npm 10+
 - SQLite (via `go-sqlite3`, requires CGO — `gcc` must be installed)
+- Docker (optional — for the local observability stack)
 
 ## Quick Start
 
@@ -118,6 +120,16 @@ shortener:
     max_length: 2048              # Max target URL length
     allowed_schemes: ["http", "https"]
     blocked_hosts: []             # Hostnames to reject (e.g. internal services)
+
+telemetry:
+  enabled: false                  # Toggle OTel on/off without rebuilding
+  service_name: "all-in-one"
+  service_version: "1.0.0"
+  environment: "local"            # local | staging | production
+  otlp_endpoint: "localhost:4318" # host:port (no scheme) of OTLP/HTTP receiver
+  otlp_insecure: true             # Set false in production with TLS
+  sample_ratio: 1.0               # 0.0–1.0. Use 0.1 in production.
+  metric_interval: 15s            # How often metrics are pushed to the collector
 ```
 
 ### Environment variable reference
@@ -132,6 +144,11 @@ shortener:
 | `ALLINONE_STORAGE_TYPE` | `sqlite` (default) |
 | `ALLINONE_STORAGE_SQLITE_DB_PATH` | Path to SQLite file (default: `all-in-one.db`) |
 | `ALLINONE_LOG_LEVEL` | Log level (default: `debug`) |
+| `ALLINONE_TELEMETRY_ENABLED` | `true` to enable OTel traces + metrics (default: `false`) |
+| `ALLINONE_TELEMETRY_OTLP_ENDPOINT` | OTLP/HTTP receiver `host:port` (default: `localhost:4318`) |
+| `ALLINONE_TELEMETRY_ENVIRONMENT` | Deployment environment tag (default: `local`) |
+| `ALLINONE_TELEMETRY_SAMPLE_RATIO` | Trace sampling ratio `0.0–1.0` (default: `1.0`) |
+| `ALLINONE_TELEMETRY_METRIC_INTERVAL` | Metrics push interval (default: `15s`) |
 
 ### Generating secrets
 
@@ -274,6 +291,69 @@ go install github.com/swaggo/swag/cmd/swag@latest
 swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
 ```
 
+## Observability (OpenTelemetry)
+
+The app ships with OpenTelemetry instrumentation covering HTTP traces, SQL query traces, log correlation, WebSocket per-message spans, and metrics. It is **off by default** and adds zero overhead when disabled.
+
+### What is instrumented
+
+| Signal | What is tracked |
+|---|---|
+| Traces | Every HTTP request (`otelmux`), every SQL query (`otelsql`), per-message WebSocket spans |
+| Logs | `trace_id` + `span_id` injected into every request log line for grep → Jaeger correlation |
+| Span attrs | `user.id`, `session.id` on authenticated requests; `ws.upgrade`, `username` on WS connect |
+| Metrics | `chat.websocket.connections.active` (gauge), `chat.websocket.messages.received/sent` (counters), DB connection pool stats |
+
+### Local setup
+
+Requires Docker. The `docker-compose.yml` at the project root starts the full observability stack:
+
+```
+App (go run) → OTel Collector :4318 → Jaeger  :16686  (traces)
+                                     → Prometheus :9090 (metrics)
+```
+
+**Step 1 — Start the observability stack:**
+
+```bash
+docker compose up -d
+```
+
+**Step 2 — Run the server with telemetry enabled:**
+
+```bash
+ALLINONE_TELEMETRY_ENABLED=true go run ./cmd/all-in-one server
+```
+
+**Step 3 — Generate some traffic** (login, browse, send a chat message), then open:
+
+- **Jaeger UI:** http://localhost:16686 — select service `all-in-one`, search for traces
+- **Prometheus:** http://localhost:9090 — query `chat_websocket_connections_active` or `chat_websocket_messages_received_total`
+
+**Stop the stack:**
+
+```bash
+docker compose down
+```
+
+### Telemetry config reference
+
+| Setting | Default | Description |
+|---|---|---|
+| `telemetry.enabled` | `false` | Master toggle — `false` means zero OTel overhead |
+| `telemetry.otlp_endpoint` | `localhost:4318` | OTLP/HTTP receiver (no `http://` prefix) |
+| `telemetry.sample_ratio` | `1.0` | `1.0` = always sample. Use `0.1` in production |
+| `telemetry.metric_interval` | `15s` | How often metrics are pushed to the collector |
+| `telemetry.environment` | `local` | Attached to every span as `deployment.environment` |
+
+### Production notes
+
+- Set `ALLINONE_TELEMETRY_OTLP_ENDPOINT` to your collector's address (e.g. `otel-collector.internal:4318`)
+- Lower `ALLINONE_TELEMETRY_SAMPLE_RATIO` to `0.1` to avoid trace volume at scale
+- The JWT token appears in the WS upgrade URL (`?token=...`). Strip it at the collector using a `transform` processor or filter the attribute in your backend before indexing
+
+---
+
 ## Production Checklist
 
 - [ ] Set `ALLINONE_AUTH_JWT_SECRET` to a strong random value (never commit it)
@@ -284,6 +364,7 @@ swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
 - [ ] Put the Go server behind a reverse proxy (Nginx / Caddy) for TLS termination
 - [ ] Build the frontend: `cd web && npm run build` (output in `web/build/`, served by the Go server)
 - [ ] If using SQLite, set the Kubernetes deployment strategy to `Recreate` (see note below)
+- [ ] If enabling telemetry, set `ALLINONE_TELEMETRY_OTLP_ENDPOINT` and lower `ALLINONE_TELEMETRY_SAMPLE_RATIO` to `0.1`
 
 ### SQLite and Kubernetes Deployment Strategy
 
