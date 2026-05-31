@@ -252,7 +252,7 @@ The app ships with OpenTelemetry instrumentation covering HTTP traces, SQL query
 | Traces | Every HTTP request (`otelmux`), every SQL query (`otelsql`), per-message WebSocket spans |
 | Logs | `trace_id` + `span_id` injected into every request log line for grep → Jaeger correlation |
 | Span attrs | `user.id`, `session.id` on authenticated requests; `ws.upgrade`, `username` on WS connect |
-| Metrics | `chat.websocket.connections.active` (gauge), `chat.websocket.messages.received/sent` (counters), DB connection pool stats |
+| Metrics | `aio_chat_websocket_connections_active` (gauge), `aio_chat_websocket_messages_received/sent_total` (counters), DB connection pool stats |
 
 ### Local setup
 
@@ -272,13 +272,13 @@ docker compose up -d
 **Step 2 — Run the server with telemetry enabled:**
 
 ```bash
-ALLINONE_TELEMETRY_ENABLED=true go run ./cmd/all-in-one server
+ALLINONE_TELEMETRY_ENABLED=true make run-backend
 ```
 
 **Step 3 — Generate some traffic** (login, browse, send a chat message), then open:
 
 - **Jaeger UI:** http://localhost:16686 — select service `all-in-one`, search for traces
-- **Prometheus:** http://localhost:9090 — query `chat_websocket_connections_active` or `chat_websocket_messages_received_total`
+- **Prometheus:** http://localhost:9090 — query `aio_chat_websocket_connections_active` or `aio_chat_websocket_messages_received_total`
 
 **Stop the stack:**
 

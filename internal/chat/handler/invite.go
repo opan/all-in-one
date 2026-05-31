@@ -11,6 +11,8 @@ import (
 	"github.com/all-in-one/internal/logging"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // CreateInvite sends one or more invites to the specified participants.
@@ -176,6 +178,8 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 
 	log.Info().Str("batch_id", batchID).Int("count", len(invites)).Msg("Invites created")
 
+	h.metrics.invitesSent.Add(ctx, int64(len(invites)))
+
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
 		Message: "Invites sent",
@@ -335,6 +339,8 @@ func (h *Handler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 			Timestamp: time.Now(),
 		}, []string{invite.InviterID})
 
+		h.metrics.invitesResponded.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "declined")))
+
 		httpHelper.SendJSON(w, httpHelper.Response{
 			Success: true,
 			Data:    model.RespondInviteResponse{Invite: invite},
@@ -449,6 +455,8 @@ func (h *Handler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 
 	log.Info().Str("invite_id", invite.ID).Str("session_id", session.ID).Msg("Invite accepted, session ready")
 
+	h.metrics.invitesResponded.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "accepted")))
+
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
 		Data:    model.RespondInviteResponse{Invite: invite, Session: &session},
@@ -520,6 +528,8 @@ func (h *Handler) CancelInvite(w http.ResponseWriter, r *http.Request) {
 	}, []string{invite.InviteeID})
 
 	log.Info().Str("invite_id", invite.ID).Msg("Invite cancelled")
+
+	h.metrics.invitesCancelled.Add(ctx, 1)
 
 	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Message: "Invite cancelled"}, http.StatusOK)
 }

@@ -12,6 +12,7 @@ type Handler struct {
 	storage repository.Storage
 	config  config.Config
 	hub     *websocket.Hub
+	metrics *handlerMetrics
 }
 
 // NewHandler creates a new chat handler
@@ -20,6 +21,7 @@ func NewHandler(storage repository.Storage, config config.Config, hub *websocket
 		storage: storage,
 		config:  config,
 		hub:     hub,
+		metrics: newHandlerMetrics(),
 	}
 }
 

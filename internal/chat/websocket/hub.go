@@ -61,15 +61,15 @@ func NewHub(log zerolog.Logger) *Hub {
 	meter := otel.GetMeterProvider().Meter("chat")
 
 	connActive, _ := meter.Int64ObservableGauge(
-		"chat.websocket.connections.active",
+		"aio.chat.websocket.connections.active",
 		metric.WithDescription("Number of active WebSocket connections"),
 	)
 	h.msgReceived, _ = meter.Int64Counter(
-		"chat.websocket.messages.received",
+		"aio.chat.websocket.messages.received",
 		metric.WithDescription("Number of WebSocket messages received from clients"),
 	)
 	h.msgSent, _ = meter.Int64Counter(
-		"chat.websocket.messages.sent",
+		"aio.chat.websocket.messages.sent",
 		metric.WithDescription("Number of WebSocket messages sent to clients"),
 	)
 

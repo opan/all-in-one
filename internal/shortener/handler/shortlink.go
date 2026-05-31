@@ -11,6 +11,8 @@ import (
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/shortener/model"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type createShortLinkRequest struct {
@@ -39,6 +41,11 @@ func (h *Handler) CreateShortLink(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendUnauthorized(w, "unauthorized")
 		return
 	}
+
+	createResult := "failure"
+	defer func() {
+		h.metrics.linksCreated.Add(ctx, 1, metric.WithAttributes(attribute.String("result", createResult)))
+	}()
 
 	var req createShortLinkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -123,6 +130,7 @@ func (h *Handler) CreateShortLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	createResult = "success"
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
 		Message: "Short link created",
@@ -253,6 +261,7 @@ func (h *Handler) DeleteShortLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.metrics.linksDeleted.Add(ctx, 1)
 	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Message: "Short link deleted"}, http.StatusOK)
 }
 
@@ -263,16 +272,23 @@ func (h *Handler) ResolveShortLink(w http.ResponseWriter, r *http.Request) {
 	code := mux.Vars(r)["code"]
 	now := time.Now().UTC()
 
+	resolveResult := "not_found"
+	defer func() {
+		h.metrics.linksResolved.Add(ctx, 1, metric.WithAttributes(attribute.String("result", resolveResult)))
+	}()
+
 	link, err := h.storage.ShortLinkRepo().GetByCode(ctx, code)
 	if err != nil {
 		httpHelper.SendError(w, "not found", http.StatusNotFound)
 		return
 	}
 	if !link.IsActive {
+		resolveResult = "disabled"
 		httpHelper.SendError(w, "not found", http.StatusNotFound)
 		return
 	}
 	if link.ExpiresAt != nil && link.ExpiresAt.Before(now) {
+		resolveResult = "expired"
 		httpHelper.SendError(w, "link has expired", http.StatusGone)
 		return
 	}
@@ -281,6 +297,7 @@ func (h *Handler) ResolveShortLink(w http.ResponseWriter, r *http.Request) {
 		log.Warn().Err(err).Str("code", code).Msg("failed to increment click count")
 	}
 
+	resolveResult = "success"
 	w.Header().Set("Cache-Control", "private, no-store")
 	http.Redirect(w, r, link.TargetURL, http.StatusFound)
 }

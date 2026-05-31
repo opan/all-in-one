@@ -144,6 +144,8 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.metrics.topicsCreated.Add(ctx, 1)
+
 	response := httpHelper.Response{
 		Success: true,
 		Message: "Topic created successfully",
@@ -264,6 +266,8 @@ func (h *Handler) DeleteTopic(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, fmt.Sprintf("Failed to commit transaction: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	h.metrics.topicsDeleted.Add(ctx, 1)
 
 	response := httpHelper.Response{
 		Success: true,

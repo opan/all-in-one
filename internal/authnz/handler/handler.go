@@ -9,12 +9,14 @@ import (
 type Handler struct {
 	storage repository.Storage
 	config  config.Config
+	metrics *handlerMetrics
 }
 
 func NewHandler(storage repository.Storage, config config.Config) *Handler {
 	return &Handler{
 		storage: storage,
 		config:  config,
+		metrics: newHandlerMetrics(),
 	}
 }
 

@@ -558,6 +558,8 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 
 	log.Info().Str("session_id", sessionID).Str("message_id", createdMessage.ID).Msg("Message created")
 
+	h.metrics.messagesPersisted.Add(ctx, 1)
+
 	httpHelper.SendJSON(w, httpHelper.Response{
 		Success: true,
 		Data:    createdMessage,
