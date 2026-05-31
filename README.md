@@ -216,56 +216,6 @@ kubectl get secret all-in-one-secrets -n app \
 # Must print 64
 ```
 
-## API Endpoints
-
-All endpoints are under `/api/v1/`.
-
-### Public
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Health check |
-| `POST` | `/users` | Register a new user |
-| `POST` | `/sessions` | Login (returns JWT cookies) |
-| `POST` | `/sessions/refresh` | Refresh access token |
-| `GET` | `/sessions/verify` | Verify current session |
-| `POST` | `/sessions/2fa/verify` | Verify TOTP code during login |
-| `POST` | `/sessions/2fa/recovery` | Use a recovery code during login |
-
-### Authenticated (requires valid session)
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/users/me` | Get current user profile |
-| `POST` | `/users/reset_password` | Change password |
-| `DELETE` | `/sessions` | Logout |
-| `GET` | `/users/2fa/status` | Get 2FA status and remaining recovery codes |
-| `POST` | `/users/2fa/setup` | Begin 2FA setup (returns QR code + secret + recovery codes) |
-| `POST` | `/users/2fa/verify-setup` | Confirm 2FA setup with a TOTP code |
-| `DELETE` | `/users/2fa` | Disable 2FA (requires current password) |
-| `POST` | `/users/2fa/recovery-codes/regenerate` | Regenerate recovery codes (requires current password) |
-| `GET` | `/listing/topics` | List topics |
-| `POST` | `/listing/topics` | Create topic |
-| `GET` | `/listing/topics/{id}` | Get topic |
-| `PUT` | `/listing/topics/{id}` | Update topic |
-| `DELETE` | `/listing/topics/{id}` | Delete topic |
-| `GET` | `/listing/topics/{id}/items` | List items in topic |
-| `POST` | `/listing/topics/{id}/items` | Create item |
-| `PUT` | `/listing/topics/{id}/items/{itemId}` | Update item |
-| `DELETE` | `/listing/topics/{id}/items/{itemId}` | Delete item |
-| `GET` | `/chats` | List chat sessions |
-| `POST` | `/chats` | Create chat session |
-| `DELETE` | `/chats/{id}` | Delete chat session |
-| `GET` | `/chats/{id}/messages` | Get messages |
-| `POST` | `/chats/{id}/messages` | Send message |
-| `POST` | `/chats/invites` | Send chat invite |
-| `GET` | `/chats/invites/received` | List received invites |
-| `GET` | `/chats/invites/sent` | List sent invites |
-| `POST` | `/chats/invites/{id}/respond` | Accept or decline invite |
-| `DELETE` | `/chats/invites/{id}` | Cancel invite |
-
-WebSocket: `ws://localhost:8080/api/v1/ws?token=<access_token>`
-
 ## API Documentation (Swagger)
 
 Swagger UI is disabled by default and not exposed in production. Enable it locally:
