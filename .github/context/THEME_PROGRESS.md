@@ -8,9 +8,9 @@ Companion to [THEME_IMPLEMENTATION_PLAN.md](./THEME_IMPLEMENTATION_PLAN.md). Bra
 |---|------|---------|--------|
 | 1 | Palette CSS token blocks | `web/src/app.css` | ✅ done |
 | 2 | Theme store (`PALETTES`, `setPalette`, `initPalette`) | `web/src/lib/stores/theme.ts` (new) | ✅ done |
-| 3 | No-flash pre-paint script | `web/src/app.html` | ⏳ pending |
-| 4 | Wire `<ModeWatcher />` + `initPalette()` | `web/src/routes/+layout.svelte` | ⏳ pending |
-| 5 | Settings → General section (palette + mode pickers) | `web/src/routes/settings/+page.svelte` | ⏳ pending |
+| 3 | No-flash pre-paint script | `web/src/app.html` | ✅ done |
+| 4 | Wire `<ModeWatcher />` + `initPalette()` | `web/src/routes/+layout.svelte` | ✅ done |
+| 5 | Settings → General section (palette + mode pickers) | `web/src/routes/settings/+page.svelte` | ✅ done |
 
 ## Step 1 — done
 
@@ -46,6 +46,53 @@ New file `web/src/lib/stores/theme.ts` exports:
 SSR-safe via `import { browser } from "$app/environment"` (same pattern as `lib/api.ts`).
 Uses classic `writable` rather than a `.svelte.ts` rune module to match existing project style.
 `svelte-check`: 0 errors related to this file (14 pre-existing warnings in other files).
+
+## Step 3 — done
+
+Added an inline IIFE pre-paint script to `web/src/app.html` (between `<meta viewport>` and
+`%sveltekit.head%`). Reads `localStorage['aio-palette']`, validates against the hardcoded list
+`['default','ocean','slate','forest']`, and sets `document.documentElement.dataset.palette`
+before first paint. Wrapped in `try/catch` to survive disabled localStorage.
+
+**Sync point:** the hardcoded list must match `PALETTES` in `web/src/lib/stores/theme.ts` —
+comment in the script notes this.
+
+## Step 4 — done
+
+`web/src/routes/+layout.svelte`:
+- Added `import { onMount } from 'svelte'`, `import { ModeWatcher } from 'mode-watcher'`,
+  `import { initPalette } from '$lib/stores/theme'`.
+- `onMount(() => initPalette())` — belt-and-suspenders alongside the app.html script.
+- Rendered `<ModeWatcher />` once after `<svelte:head>`, **outside** the `isAuthPage` branch so
+  login/register pages also respect mode + palette.
+
+After this step, dark mode is live for the first time (mode-watcher was installed but never
+rendered before). Palette wiring is also live — visiting any page reads localStorage and
+applies the palette via CSS. No UI to change it yet — that's Step 5.
+
+## Step 5 — done
+
+`web/src/routes/settings/+page.svelte`:
+- Added imports for `mode-watcher` (`setMode`, `resetMode`, `userPrefersMode`) and theme store
+  (`PALETTES`, `palette`, `setPalette`).
+- Prepended `{ id: 'general', label: 'General', icon: '🎨' }` to `navItems`; default
+  `activeSection` changed from `'account'` to `'general'`.
+- Inserted a new `{#if activeSection === 'general'}` branch as the first arm of the conditional
+  chain. Contains:
+  - **Color palette**: `grid-cols-2 sm:grid-cols-4` of 4 cards (default + 3 palettes). Each card
+    shows the 4 swatches + label. Selected card uses `border-ring`, which itself is palette-driven
+    — the selected ring inherits the chosen accent.
+  - `<Separator />`
+  - **Appearance**: 3 buttons (Light / Dark / System). Active button uses `variant="default"`,
+    inactive uses `variant="outline"`. Active state derived from `userPrefersMode.current` (not
+    `mode.current`) so "System" stays highlighted regardless of resolved value.
+
+`svelte-check`: 0 errors. `npm run build`: ✓ done.
+
+## Whole feature — done
+
+All 5 steps complete on branch `feat/user-themes`. ADR: [THEME_IMPLEMENTATION_DECISIONS.md](../adr/THEME_IMPLEMENTATION_DECISIONS.md).
+Next move: PR.
 
 ## Decisions still open
 

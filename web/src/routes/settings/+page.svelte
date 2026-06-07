@@ -8,6 +8,8 @@
 	import { toast, Toaster } from 'svelte-sonner';
 	import { apiGet, apiPost, apiClient } from '$lib/api';
 	import { goto } from '$app/navigation';
+	import { setMode, resetMode, userPrefersMode } from 'mode-watcher';
+	import { PALETTES, palette, setPalette } from '$lib/stores/theme';
 
 	let { data } = $props();
 
@@ -16,10 +18,11 @@
 	let currentPassword = $state('');
 	let password = $state('');
 	let passwordConfirmation = $state('');
-	let activeSection = $state('account');
+	let activeSection = $state('general');
 	let mobileShowNav = $state(true);
 
 	const navItems = [
+		{ id: 'general', label: 'General', icon: '🎨' },
 		{ id: 'account', label: 'Account', icon: '🔧' },
 		{ id: 'advanced', label: 'Advanced', icon: '⚙️' }
 	];
@@ -267,7 +270,73 @@
 				>
 					← Back
 				</button>
-				{#if activeSection === 'account'}
+				{#if activeSection === 'general'}
+					<div class="space-y-6">
+						<div class="space-y-2">
+							<h2 class="text-2xl font-semibold">General</h2>
+							<p class="text-sm text-muted-foreground">
+								Customize how the app looks. Your choices are saved on this device.
+							</p>
+						</div>
+
+						<!-- Color palette -->
+						<div class="space-y-3">
+							<div>
+								<h3 class="text-lg font-medium">Color palette</h3>
+								<p class="text-sm text-muted-foreground mt-1">
+									Choose an accent color scheme. Background and text stay readable.
+								</p>
+							</div>
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl">
+								{#each PALETTES as p (p.key)}
+									{@const selected = $palette === p.key}
+									<button
+										type="button"
+										onclick={() => setPalette(p.key)}
+										class="group rounded-lg border-2 p-3 text-left transition hover:bg-accent {selected ? 'border-ring' : 'border-border'}"
+										aria-pressed={selected}
+									>
+										<div class="flex gap-1 mb-2">
+											{#each p.swatches as hex}
+												<span class="h-5 w-5 rounded" style="background-color: {hex}"></span>
+											{/each}
+										</div>
+										<div class="text-sm font-medium">{p.label}</div>
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						<Separator />
+
+						<!-- Appearance / mode -->
+						<div class="space-y-3">
+							<div>
+								<h3 class="text-lg font-medium">Appearance</h3>
+								<p class="text-sm text-muted-foreground mt-1">
+									Switch between light and dark modes, or follow your system.
+								</p>
+							</div>
+							<div class="flex gap-2">
+								<Button
+									variant={userPrefersMode.current === 'light' ? 'default' : 'outline'}
+									size="sm"
+									onclick={() => setMode('light')}
+								>Light</Button>
+								<Button
+									variant={userPrefersMode.current === 'dark' ? 'default' : 'outline'}
+									size="sm"
+									onclick={() => setMode('dark')}
+								>Dark</Button>
+								<Button
+									variant={userPrefersMode.current === 'system' ? 'default' : 'outline'}
+									size="sm"
+									onclick={() => resetMode()}
+								>System</Button>
+							</div>
+						</div>
+					</div>
+				{:else if activeSection === 'account'}
 					<div class="space-y-6">
 						<div class="space-y-2">
 							<h2 class="text-2xl font-semibold">Account</h2>

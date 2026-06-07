@@ -3,6 +3,16 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Pre-paint palette apply — keep valid keys in sync with PALETTES in src/lib/stores/theme.ts.
+			(() => {
+				try {
+					const p = localStorage.getItem('aio-palette');
+					const valid = ['default', 'ocean', 'slate', 'forest'];
+					document.documentElement.dataset.palette = valid.includes(p) ? p : 'default';
+				} catch {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

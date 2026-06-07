@@ -1,10 +1,17 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
+	import { ModeWatcher } from 'mode-watcher';
 	import favicon from '$lib/assets/favicon.svg';
 	import AppLayout from "../components/app-layout.svelte";
 	import { page } from '$app/stores';
+	import { initPalette } from '$lib/stores/theme';
 
 	let { children, data } = $props();
+
+	onMount(() => {
+		initPalette();
+	});
 
 	// Check if current route should use simple layout (auth pages)
 	const isAuthPage = $derived($page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/register'));
@@ -40,6 +47,8 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
+
+<ModeWatcher />
 
 {#if isAuthPage}
 	<!-- Simple layout for auth pages without sidebar -->

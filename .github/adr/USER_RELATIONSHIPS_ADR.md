@@ -263,9 +263,9 @@ Can be added later without breaking changes:
 
 ## References
 
-- [USER_RELATIONSHIPS_DESIGN.md](./USER_RELATIONSHIPS_DESIGN.md) - Full design document
-- [CHAT_PROGRESS.md](./CHAT_PROGRESS.md) - Current chat implementation status
-- [CHAT_IMPLEMENTATION_PLAN.md](./CHAT_IMPLEMENTATION_PLAN.md) - Original chat plan
+- [USER_RELATIONSHIPS_DESIGN.md](../context/USER_RELATIONSHIPS_DESIGN.md) - Full design document
+- [CHAT_PROGRESS.md](../context/CHAT_PROGRESS.md) - Current chat implementation status
+- [CHAT_IMPLEMENTATION_PLAN.md](../context/CHAT_IMPLEMENTATION_PLAN.md) - Original chat plan
 
 ---
 
