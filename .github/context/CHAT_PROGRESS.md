@@ -157,7 +157,7 @@
   - Fixes "Failed to fetch messages" error for newly created chats with no messages
 - [x] **Architecture Decision Recorded** ✨
   - Decided on Option 2 (Invite-Based System) for user relationships
-  - Created ADR document: [USER_RELATIONSHIPS_ADR.md](./USER_RELATIONSHIPS_ADR.md)
+  - Created ADR document: [USER_RELATIONSHIPS_ADR.md](../adr/USER_RELATIONSHIPS_ADR.md)
   - Implementation plan documented (~2 weeks, 12 hours dev work)
 
 ### Phase 12: User-Level WebSocket Architecture ✓ ⭐ NEW (Feb 22, 2026)
@@ -396,7 +396,7 @@ None! All critical features implemented ✅
 - [CHAT_IMPLEMENTATION_PLAN.md](./CHAT_IMPLEMENTATION_PLAN.md) - Original implementation plan
 - [CHAT_SCHEMA_UPDATE.md](./CHAT_SCHEMA_UPDATE.md) - Database schema changes and rationale
 - [WEBSOCKET_IMPLEMENTATION.md](./WEBSOCKET_IMPLEMENTATION.md) - WebSocket architecture and troubleshooting
-- [USER_RELATIONSHIPS_ADR.md](./USER_RELATIONSHIPS_ADR.md) - Architecture decision for user relationships (invite-based system)
+- [USER_RELATIONSHIPS_ADR.md](../adr/USER_RELATIONSHIPS_ADR.md) - Architecture decision for user relationships (invite-based system)
 - **User-Level WebSocket Architecture** (Feb 22, 2026) - Single persistent connection per user, session ID in payload
 
 ---
