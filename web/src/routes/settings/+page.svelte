@@ -22,9 +22,9 @@
 	let mobileShowNav = $state(true);
 
 	const navItems = [
-		{ id: 'general', label: 'General', icon: '🎨' },
-		{ id: 'account', label: 'Account', icon: '🔧' },
-		{ id: 'advanced', label: 'Advanced', icon: '⚙️' }
+		{ id: 'general', label: 'General', icon: '⚙️' },
+		{ id: 'account', label: 'Account', icon: '👤' },
+		{ id: 'advanced', label: 'Advanced', icon: '🛠️' }
 	];
 
 	// 2FA state
