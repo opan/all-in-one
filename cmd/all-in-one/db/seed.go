@@ -85,7 +85,7 @@ func Run(opts Opts) error {
 
 	// Initialize chat repository
 	log.Info().Msg("Initializing chat repository...")
-	chatStorage, err := chatRepo.NewStorage(ctx, opts.Config, log)
+	chatStorage, err := chatRepo.NewStorage(ctx, db, opts.Config, log)
 	if err != nil {
 		return fmt.Errorf("failed to create chat repository: %w", err)
 	}

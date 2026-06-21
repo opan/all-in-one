@@ -19,7 +19,7 @@ func NewSQLite(config config.Config) (*sqliteStorage, error) {
 	// otelsql wraps the database/sql driver so each query becomes a child span
 	// of the request's server span. sqlx.NewDb adapts the *sql.DB back into a
 	// *sqlx.DB without losing the otelsql wrapper.
-	sqlDB, err := otelsql.Open("sqlite3", config.Storage.SQLite.DBPath,
+	sqlDB, err := otelsql.Open("sqlite3", config.Storage.SQLite.DBPath+"?_foreign_keys=on",
 		otelsql.WithAttributes(attribute.String("db.system", "sqlite")),
 	)
 	if err != nil {

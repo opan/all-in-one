@@ -8,7 +8,7 @@ import (
 	"github.com/all-in-one/internal/listing/handler"
 	"github.com/all-in-one/internal/listing/repository"
 	"github.com/gorilla/mux"
-
+	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 )
 
@@ -18,8 +18,8 @@ type Service struct {
 	Storage repository.Storage
 }
 
-func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (*Service, error) {
-	store, err := repository.NewStorage(ctx, config, log)
+func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zerolog.Logger) (*Service, error) {
+	store, err := repository.NewStorage(db, config, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}

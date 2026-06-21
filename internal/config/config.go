@@ -60,15 +60,32 @@ type ServerConfig struct {
 }
 
 type StorageConfig struct {
-	Type   string       `mapstructure:"type"`   // "memory" or "sqlite"
-	Memory MemoryConfig `mapstructure:"memory"` // used for memory storage
-	SQLite SQLiteConfig `mapstructure:"sqlite"` // used for sqlite storage
+	Type     string         `mapstructure:"type"`     // "memory" | "sqlite" | "postgres"
+	Memory   MemoryConfig   `mapstructure:"memory"`   // used for memory storage
+	SQLite   SQLiteConfig   `mapstructure:"sqlite"`   // used for sqlite storage
+	Postgres PostgresConfig `mapstructure:"postgres"` // used for postgres storage
 }
 
 type MemoryConfig struct{}
 
 type SQLiteConfig struct {
 	DBPath string `mapstructure:"db_path"`
+}
+
+type PostgresConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"` // disable | require | verify-full
+}
+
+func (c PostgresConfig) DSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode,
+	)
 }
 
 type LoggingConfig struct {
@@ -97,6 +114,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("server.allowed_origins", []string{"*"})
 	viper.SetDefault("server.swagger_enabled", false)
 	viper.SetDefault("storage.type", "memory")
+	viper.SetDefault("storage.postgres.host", "localhost")
+	viper.SetDefault("storage.postgres.port", 5432)
+	viper.SetDefault("storage.postgres.sslmode", "disable")
 	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("http.timeout", 30)
 	viper.SetDefault("shortener.code_length", 7)
@@ -134,6 +154,12 @@ func Load() (*Config, error) {
 	viper.BindEnv("auth.direct_auth_enabled", "ALLINONE_AUTH_DIRECT_AUTH_ENABLED")
 	viper.BindEnv("auth.secure_cookie", "ALLINONE_AUTH_SECURE_COOKIE")
 	viper.BindEnv("storage.sqlite.db_path", "ALLINONE_STORAGE_SQLITE_DB_PATH")
+	viper.BindEnv("storage.postgres.host", "ALLINONE_STORAGE_POSTGRES_HOST")
+	viper.BindEnv("storage.postgres.port", "ALLINONE_STORAGE_POSTGRES_PORT")
+	viper.BindEnv("storage.postgres.user", "ALLINONE_STORAGE_POSTGRES_USER")
+	viper.BindEnv("storage.postgres.password", "ALLINONE_STORAGE_POSTGRES_PASSWORD")
+	viper.BindEnv("storage.postgres.dbname", "ALLINONE_STORAGE_POSTGRES_DBNAME")
+	viper.BindEnv("storage.postgres.sslmode", "ALLINONE_STORAGE_POSTGRES_SSLMODE")
 	viper.BindEnv("telemetry.enabled", "ALLINONE_TELEMETRY_ENABLED")
 	viper.BindEnv("telemetry.service_name", "ALLINONE_TELEMETRY_SERVICE_NAME")
 	viper.BindEnv("telemetry.service_version", "ALLINONE_TELEMETRY_SERVICE_VERSION")

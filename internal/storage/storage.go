@@ -15,6 +15,8 @@ func NewStorage(config config.Config) (Storage, error) {
 	switch config.Storage.Type {
 	case "sqlite":
 		return NewSQLite(config)
+	case "postgres":
+		return NewPostgres(config)
 	default:
 		panic("unsupported storage type: " + config.Storage.Type)
 	}

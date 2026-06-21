@@ -20,5 +20,8 @@ func (s *sqliteStoreAdapter) TOTPRepo() TOTPRepository {
 }
 
 func (s *sqliteStoreAdapter) Close() error {
-	return s.storage.Close()
+	if s.storage != nil {
+		return s.storage.Close()
+	}
+	return nil
 }

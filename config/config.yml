@@ -5,12 +5,16 @@ server:
   # Defaults to ["*"] when omitted. Set explicitly in production.
 
 storage:
-  type: "sqlite"  # Options: "memory" or "sqlite"
+  type: "sqlite"  # Options: "memory", "sqlite", or "postgres"
   sqlite:
     db_path: "all-in-one.db"
-  # postgres:
-  #   host: "localhost"
-  #   port: 543
+  postgres:
+    host: "localhost"
+    port: 5432
+    user: "allinone"
+    password: "allinone"
+    dbname: "allinone"
+    sslmode: "disable"  # use "require"/"verify-full" in production
 
 log:
   level: "debug"  # Options: "debug", "info", "warn", "error"
