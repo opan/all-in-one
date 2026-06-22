@@ -39,22 +39,18 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          # govulncheck v1.4.0 (x/tools v0.46.0) panics on *types.TypeParam with Go 1.25.
-          # Use 1.24.x for the scan until govulncheck is updated to support Go 1.25.
-          go-version: '1.24.x'
+          go-version: '1.25.11'
           cache: true
 
       - name: Install govulncheck
-        # GOTOOLCHAIN=local prevents go from auto-downloading go1.25 as directed
-        # by the repo's "toolchain go1.25.11" go.mod directive.
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
-        env:
-          GOTOOLCHAIN: local
 
       - name: Run govulncheck
-        run: govulncheck ./...
-        env:
-          GOTOOLCHAIN: local
+        # govulncheck v1.4.0 (x/tools v0.46.0) panics during call-graph analysis
+        # with Go 1.25 (*types.TypeParam). -scan package skips call-graph analysis
+        # and checks at the import level instead, which avoids the panic and still
+        # catches any vulnerable packages in the dependency graph.
+        run: govulncheck -scan package ./...
 
   gosec:
     name: gosec – Go SAST
