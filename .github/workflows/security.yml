@@ -45,10 +45,16 @@ jobs:
           cache: true
 
       - name: Install govulncheck
+        # GOTOOLCHAIN=local prevents go from auto-downloading go1.25 as directed
+        # by the repo's "toolchain go1.25.11" go.mod directive.
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        env:
+          GOTOOLCHAIN: local
 
       - name: Run govulncheck
         run: govulncheck ./...
+        env:
+          GOTOOLCHAIN: local
 
   gosec:
     name: gosec – Go SAST
