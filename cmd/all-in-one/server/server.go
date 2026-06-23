@@ -141,7 +141,7 @@ func (s *server) Start() error {
 	ssvc.RegisterPublicRoutes(publicRoutes)
 
 	// Authenticated routes (JWT required)
-	jwtMiddleware := middleware.NewJWTMiddleware(s.config)
+	jwtMiddleware := middleware.NewJWTMiddleware(s.config, asvc.Store.SessionRepo())
 	authenticatedRoutes := api.NewRoute().Subrouter()
 	authenticatedRoutes.Use(jwtMiddleware.JWTAuth)
 	lsvc.RegisterAuthenticatedRoutes(authenticatedRoutes)

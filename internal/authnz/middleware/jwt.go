@@ -6,20 +6,24 @@ import (
 	"net/http"
 
 	"github.com/all-in-one/internal/auth"
+	"github.com/all-in-one/internal/authnz/repository"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/logging"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type JWTMiddleware struct {
-	config config.Config
+	config      config.Config
+	sessionRepo repository.SessionRepository
 }
 
-func NewJWTMiddleware(config config.Config) *JWTMiddleware {
+func NewJWTMiddleware(config config.Config, sessionRepo repository.SessionRepository) *JWTMiddleware {
 	return &JWTMiddleware{
-		config: config,
+		config:      config,
+		sessionRepo: sessionRepo,
 	}
 }
 
@@ -124,12 +128,25 @@ func (m *JWTMiddleware) validateJWT(ctx context.Context, r *http.Request) (auth.
 		return auth.UserClaims{}, fmt.Errorf("Unauthorized: invalid token type")
 	}
 
-	return auth.UserClaims{
+	userClaims := auth.UserClaims{
 		SessionID: claims["sub"].(string),
 		Email:     claims["email"].(string),
 		UserID:    claims["user_id"].(string),
 		Username:  claims["username"].(string),
-	}, nil
+	}
+
+	sessionID, err := uuid.Parse(userClaims.SessionID)
+	if err != nil {
+		log.Error().Err(err).Msg("invalid session ID in JWT claims")
+		return auth.UserClaims{}, fmt.Errorf("Unauthorized: invalid session")
+	}
+
+	if _, err := m.sessionRepo.Get(ctx, sessionID); err != nil {
+		log.Warn().Str("session_id", userClaims.SessionID).Msg("session not found, likely invalidated")
+		return auth.UserClaims{}, fmt.Errorf("Unauthorized: session has been invalidated")
+	}
+
+	return userClaims, nil
 }
 
 func sendUnauthorized(w http.ResponseWriter, message string) {
