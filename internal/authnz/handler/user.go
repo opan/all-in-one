@@ -221,6 +221,19 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sid, err := uuid.Parse(cu.SessionID)
+	if err != nil {
+		log.Error().Err(err).Msg("invalid session ID in context")
+		httpHelper.SendError(w, "Failed to invalidate sessions", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.storage.SessionRepo().DeleteByUserIDExcept(ctx, uid, sid); err != nil {
+		log.Error().Err(err).Str("user_id", cu.UserID).Msg("failed to invalidate other sessions after password reset")
+		httpHelper.SendError(w, "Failed to invalidate sessions", http.StatusInternalServerError)
+		return
+	}
+
 	res := httpHelper.Response{
 		Success: true,
 		Message: "Password has been resetted successfully",

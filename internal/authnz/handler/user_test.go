@@ -377,6 +377,54 @@ func TestRegisterUser_CreateError(t *testing.T) {
 
 func TestResetPasswordUser_Success(t *testing.T) {
 	userID := uuid.New()
+	sessionID := uuid.New()
+	hashedPassword, _ := auth.HashPassword("oldpassword")
+
+	mockUserRepo := mocks.NewMockUserRepository(t)
+	mockUserRepo.On("Find", mock.Anything, userID).Return(model.User{
+		ID:           userID,
+		Username:     "testuser",
+		PasswordHash: hashedPassword,
+	}, nil)
+	mockUserRepo.On("Update", mock.Anything, userID, mock.AnythingOfType("model.User"), mock.Anything).Return(nil)
+
+	mockSessionRepo := mocks.NewMockSessionRepository(t)
+	mockSessionRepo.On("DeleteByUserIDExcept", mock.Anything, userID, sessionID).Return(nil)
+
+	storage := &MockStorage{
+		userRepo:    mockUserRepo,
+		sessionRepo: mockSessionRepo,
+	}
+
+	handler := NewHandler(storage, config.Config{})
+
+	reqBody := model.UserPasswordReset{
+		CurrentPassword: "oldpassword",
+		Password:        "newpassword123",
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPut, "/users/me/password", bytes.NewReader(body))
+	ctx := tester.ContextWithUser(userID.String(), "testuser", "test@example.com", sessionID.String())
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	handler.ResetPasswordUser(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var response httpHelper.Response
+	err := json.NewDecoder(rr.Body).Decode(&response)
+	assert.NoError(t, err)
+	assert.True(t, response.Success)
+
+	mockUserRepo.AssertExpectations(t)
+	mockSessionRepo.AssertExpectations(t)
+}
+
+func TestResetPasswordUser_InvalidSessionID(t *testing.T) {
+	userID := uuid.New()
 	hashedPassword, _ := auth.HashPassword("oldpassword")
 
 	mockUserRepo := mocks.NewMockUserRepository(t)
@@ -401,21 +449,59 @@ func TestResetPasswordUser_Success(t *testing.T) {
 
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest(http.MethodPut, "/users/me/password", bytes.NewReader(body))
-	ctx := tester.ContextWithUser(userID.String(), "testuser", "test@example.com", uuid.New().String())
+	ctx := tester.ContextWithUser(userID.String(), "testuser", "test@example.com", "direct-auth")
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
 
 	handler.ResetPasswordUser(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	var response httpHelper.Response
-	err := json.NewDecoder(rr.Body).Decode(&response)
-	assert.NoError(t, err)
-	assert.True(t, response.Success)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 
 	mockUserRepo.AssertExpectations(t)
+}
+
+func TestResetPasswordUser_SessionInvalidationError(t *testing.T) {
+	userID := uuid.New()
+	sessionID := uuid.New()
+	hashedPassword, _ := auth.HashPassword("oldpassword")
+
+	mockUserRepo := mocks.NewMockUserRepository(t)
+	mockUserRepo.On("Find", mock.Anything, userID).Return(model.User{
+		ID:           userID,
+		Username:     "testuser",
+		PasswordHash: hashedPassword,
+	}, nil)
+	mockUserRepo.On("Update", mock.Anything, userID, mock.AnythingOfType("model.User"), mock.Anything).Return(nil)
+
+	mockSessionRepo := mocks.NewMockSessionRepository(t)
+	mockSessionRepo.On("DeleteByUserIDExcept", mock.Anything, userID, sessionID).Return(errors.New("database error"))
+
+	storage := &MockStorage{
+		userRepo:    mockUserRepo,
+		sessionRepo: mockSessionRepo,
+	}
+
+	handler := NewHandler(storage, config.Config{})
+
+	reqBody := model.UserPasswordReset{
+		CurrentPassword: "oldpassword",
+		Password:        "newpassword123",
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPut, "/users/me/password", bytes.NewReader(body))
+	ctx := tester.ContextWithUser(userID.String(), "testuser", "test@example.com", sessionID.String())
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	handler.ResetPasswordUser(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+
+	mockUserRepo.AssertExpectations(t)
+	mockSessionRepo.AssertExpectations(t)
 }
 
 func TestResetPasswordUser_NoUserInContext(t *testing.T) {
