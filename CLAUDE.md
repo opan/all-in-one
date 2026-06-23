@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-All-in-one is a multi-functional apps with the main goal for learning.
+All-in-one is a multi-functional apps. Originally built for learning purpose but later decided to be the super-apps that try to address all my problems by trying to build everything in-house.
 
 - Full-stack web application.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
