@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-All-in-one is a multi-functional apps with the main goal for learning.
+All-in-one is a multi-functional apps. Originally built for learning purpose but later decided to be the super-apps that try to address all my problems by trying to build everything in-house.
 
 - Full-stack web application.
 - **Backend:** Go (1.25+), REST API, stored in the project root.
@@ -14,8 +14,8 @@ All-in-one is a multi-functional apps with the main goal for learning.
 - When I said "we are working on a feature" or something similar:
   - create a tracker file to track the progress, e.g.: `CHAT_PROGRESS.md`
   - the file can be used by you when I create new chat session so you don't miss context and start from scratch.
-  - at the end once we finish the feature, create an ADR file to document the design decision, e.g.: `CHAT_IMPLEMENTATION_PLAN.md`    
-  - put all the files under `.github/context/`
+  - at the end once we finish the feature, create an ADR file (under `docs/adr`) to document the design decision, e.g.: `CHAT_IMPLEMENTATION_PLAN.md`    
+  - put all the files under `.context/`
 
 ## Tech stacks
 
@@ -39,6 +39,8 @@ All-in-one is a multi-functional apps with the main goal for learning.
   - PostgreSQL (via `github.com/lib/pq`)
 - Don't use comments too excessively, add comment when it is really necessary. Code should be self-explanatory by default, as much as possible.
 - IMPORTANT: do not delete existing database, all-in-one.db, because it persist some data not coming from seed. ask me first before tries to delete it.
+- Make sure to implement otel instrumentation for every new endpoint (also check existing endpoint if its already implement otel instrumentation or not).
+- When creating new metrics, make sure to check `metrics.md` file first if we need to update this docs.
 
 #### Project structure
 In general, organize code:
