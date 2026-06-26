@@ -128,10 +128,56 @@ func New() *cobra.Command {
 	migrateCmd.AddCommand(migrateUpCmd)
 	migrateCmd.AddCommand(migrateDownCmd)
 
+	var transferDirection string
+	var transferConfirm bool
+	transferCmd := &cobra.Command{
+		Use:   "db:transfer",
+		Short: "migrate data between SQLite and PostgreSQL",
+		Long: `Copy all application data from one storage backend to the other.
+
+Both databases must have all schema migrations applied before running.
+The destination must be empty; existing rows cause constraint failures.
+
+Examples:
+  # SQLite → PostgreSQL
+  all-in-one db:transfer --direction sqlite-to-pg
+
+  # PostgreSQL → SQLite  (requires --confirm to protect all-in-one.db)
+  all-in-one db:transfer --direction pg-to-sqlite --confirm`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if transferDirection == "" {
+				return fmt.Errorf("--direction is required: use sqlite-to-pg or pg-to-sqlite")
+			}
+			if transferDirection == "pg-to-sqlite" && !transferConfirm {
+				return fmt.Errorf("writing to SQLite will modify %s — re-run with --confirm to proceed",
+					"the configured SQLite database")
+			}
+
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			log, err := logging.New(cfg.Logging)
+			if err != nil {
+				return fmt.Errorf("failed to initialize logger: %w", err)
+			}
+
+			return seed.RunTransfer(cmd.Context(), seed.TransferOpts{
+				Direction: transferDirection,
+				Config:    *cfg,
+				Logger:    log,
+			})
+		},
+	}
+	transferCmd.Flags().StringVar(&transferDirection, "direction", "", "transfer direction: sqlite-to-pg or pg-to-sqlite (required)")
+	transferCmd.Flags().BoolVar(&transferConfirm, "confirm", false, "required when direction is pg-to-sqlite to confirm writing to SQLite")
+
 	root := Root()
 	root.AddCommand(serverCmd)
 	root.AddCommand(seedCmd)
 	root.AddCommand(migrateCmd)
+	root.AddCommand(transferCmd)
 
 	return root
 }

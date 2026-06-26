@@ -71,11 +71,16 @@ The frontend dev server runs at `http://localhost:5173` and proxies API requests
 ## CLI Commands
 
 ```bash
-go run ./cmd/all-in-one server            # Start the HTTP server
-go run ./cmd/all-in-one db:migrate up     # Apply all pending migrations
-go run ./cmd/all-in-one db:migrate down   # Roll back migrations
-go run ./cmd/all-in-one db:seed           # Seed sample users, topics, and chat data
+go run ./cmd/all-in-one server                                        # Start the HTTP server
+go run ./cmd/all-in-one db:migrate up                                 # Apply all pending migrations
+go run ./cmd/all-in-one db:migrate down                               # Roll back migrations
+go run ./cmd/all-in-one db:migrate down --steps 1                     # Roll back one migration
+go run ./cmd/all-in-one db:seed                                       # Seed sample users, topics, and chat data
+go run ./cmd/all-in-one db:transfer --direction sqlite-to-pg          # Copy data from SQLite → PostgreSQL
+go run ./cmd/all-in-one db:transfer --direction pg-to-sqlite --confirm  # Copy data from PostgreSQL → SQLite
 ```
+
+> **`db:transfer` prerequisites:** both databases must have all schema migrations applied before running, and the destination must be empty (existing rows cause constraint failures).
 
 ## Configuration
 

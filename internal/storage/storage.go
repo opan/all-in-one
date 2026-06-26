@@ -3,6 +3,7 @@ package storage
 import (
 	"github.com/all-in-one/internal/config"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 type Storage interface {
