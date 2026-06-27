@@ -1,8 +1,8 @@
-package sqlite
+package postgres
 
 import (
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
 
 type storage struct {
@@ -17,9 +17,5 @@ func NewFromDB(db *sqlx.DB) *storage {
 	}
 }
 
-func (s *storage) ShortLinkRepo() *shortLinkRepository {
-	return s.shortLinkRepo
-}
-
-// Close is a no-op; the DB lifetime is managed by central storage.
-func (s *storage) Close() error { return nil }
+func (s *storage) ShortLinkRepo() *shortLinkRepository { return s.shortLinkRepo }
+func (s *storage) Close() error                        { return nil }

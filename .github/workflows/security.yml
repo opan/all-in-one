@@ -46,7 +46,11 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
       - name: Run govulncheck
-        run: govulncheck ./...
+        # govulncheck v1.4.0 (x/tools v0.46.0) panics during call-graph analysis
+        # with Go 1.25 (*types.TypeParam). -scan package skips call-graph analysis
+        # and checks at the import level instead, which avoids the panic and still
+        # catches any vulnerable packages in the dependency graph.
+        run: govulncheck -scan package ./...
 
   gosec:
     name: gosec – Go SAST

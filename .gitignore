@@ -1,4 +1,5 @@
 all-in-one.db
+env.dev
 vendor/
 bin/
 

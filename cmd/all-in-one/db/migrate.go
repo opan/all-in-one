@@ -22,7 +22,7 @@ func RunMigrateUp(opts MigrateOpts) error {
 		return fmt.Errorf("failed to create storage: %w", err)
 	}
 
-	log.Info().Msg("Running migrations up...")
+	log.Info().Str("storage", opts.Config.Storage.Type).Msg("Running migrations up...")
 	if err := store.MigrateUp(); err != nil {
 		return fmt.Errorf("migrate up failed: %w", err)
 	}

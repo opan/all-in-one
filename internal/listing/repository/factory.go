@@ -1,11 +1,12 @@
 package repository
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/all-in-one/internal/config"
+	"github.com/all-in-one/internal/listing/repository/postgres"
 	"github.com/all-in-one/internal/listing/repository/sqlite"
+	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 )
 
@@ -13,17 +14,21 @@ type baseStorage interface {
 	Close() error
 }
 
-func NewStorage(ctx context.Context, config config.Config, log zerolog.Logger) (Storage, error) {
+func NewStorage(db *sqlx.DB, config config.Config, log zerolog.Logger) (Storage, error) {
 	switch config.Storage.Type {
 	case "sqlite":
-		sqliteStorage, err := sqlite.NewStorage(ctx, config, log)
-		if err != nil {
-			return nil, err
-		}
+		s := sqlite.NewFromDB(db, log)
 		return &sqliteStorageAdapter{
-			itemRepo:  sqliteStorage.ItemRepo(),
-			topicRepo: sqliteStorage.TopicRepo(),
-			storage:   sqliteStorage,
+			itemRepo:  s.ItemRepo(),
+			topicRepo: s.TopicRepo(),
+			storage:   s,
+		}, nil
+	case "postgres":
+		s := postgres.NewFromDB(db, log)
+		return &sqliteStorageAdapter{
+			itemRepo:  s.ItemRepo(),
+			topicRepo: s.TopicRepo(),
+			storage:   s,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", config.Storage.Type)

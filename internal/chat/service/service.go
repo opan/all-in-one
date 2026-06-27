@@ -9,6 +9,7 @@ import (
 	"github.com/all-in-one/internal/chat/websocket"
 	"github.com/all-in-one/internal/config"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 )
 
@@ -20,9 +21,9 @@ type Service struct {
 }
 
 // NewService creates a new chat service instance
-func NewService(ctx context.Context, config config.Config, log zerolog.Logger) (*Service, error) {
+func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zerolog.Logger) (*Service, error) {
 	// Initialize storage
-	store, err := repository.NewStorage(ctx, config, log)
+	store, err := repository.NewStorage(ctx, db, config, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}

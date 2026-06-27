@@ -93,20 +93,20 @@ func (s *server) Start() error {
 		return err
 	}
 
-	lsvc, err := listingSvc.NewService(ctx, s.config, s.log)
+	lsvc, err := listingSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
 		return err
 	}
 
-	csvc, err := chatSvc.NewService(ctx, s.config, s.log)
+	csvc, err := chatSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create chat service")
 		return err
 	}
 	defer csvc.Close()
 
-	ssvc, err := shortenerSvc.NewService(ctx, s.config, s.log)
+	ssvc, err := shortenerSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create shortener service")
 		return err
