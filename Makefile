@@ -1,14 +1,19 @@
+LOAD_ENV := if [ -f env.dev ]; then set -a; . ./env.dev; set +a; fi
+
 run-backend:
-	@go run cmd/all-in-one/main.go server
+	@$(LOAD_ENV); go run cmd/all-in-one/main.go server
 
 db-migrate-up:
-	@go run cmd/all-in-one/main.go db:migrate up
+	@$(LOAD_ENV); go run cmd/all-in-one/main.go db:migrate up
 
 db-migrate-down:
-	@go run cmd/all-in-one/main.go db:migrate down
+	@$(LOAD_ENV); go run cmd/all-in-one/main.go db:migrate down
 
 db-seed:
-	@go run cmd/all-in-one/main.go db:seed
+	@$(LOAD_ENV); go run cmd/all-in-one/main.go db:seed
+
+db-transfer:
+	@$(LOAD_ENV); go run cmd/all-in-one/main.go db:transfer $(ARGS)
 
 gen-swagger:
 	@swag init -g cmd/all-in-one/main.go -o docs --parseDependency --parseInternal
@@ -29,4 +34,4 @@ test:
 test-handler:
 	@go test -v ./internal/authnz/handler/...
 
-.PHONY: run-backend db-migrate-up db-migrate-down db-seed gen-swagger gen-proto gen-mocks test test-handler
+.PHONY: run-backend db-migrate-up db-migrate-down db-seed db-transfer gen-swagger gen-proto gen-mocks test test-handler
