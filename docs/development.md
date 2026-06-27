@@ -68,6 +68,75 @@ sqlite3 all-in-one.db "SELECT * FROM users;"
 
 > Do not delete `all-in-one.db` — it may contain data not reproducible from seed.
 
+### PostgreSQL Setup
+
+For local development, start the bundled Postgres container:
+
+```bash
+docker compose up -d postgres
+```
+
+For a manual setup (local or production), run the following as a PostgreSQL superuser (`psql -U postgres`):
+
+```sql
+-- Create the role/user
+CREATE ROLE allinone WITH LOGIN PASSWORD 'replace-with-strong-password';
+
+-- Create the database
+CREATE DATABASE allinone OWNER allinone ENCODING 'UTF8';
+
+-- Connect to the database
+\c allinone
+
+-- Revoke default public access
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+
+-- Grant schema access to the app role
+GRANT USAGE ON SCHEMA public TO allinone;
+GRANT CREATE ON SCHEMA public TO allinone;  -- required for golang-migrate to create schema_migrations
+
+-- Grant privileges on existing tables and sequences
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO allinone;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO allinone;
+
+-- Apply grants automatically to future tables/sequences created by migrations
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO allinone;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    GRANT USAGE, SELECT ON SEQUENCES TO allinone;
+```
+
+> After the initial migration run you can optionally tighten the lockdown:
+> ```sql
+> REVOKE CREATE ON SCHEMA public FROM allinone;
+> ```
+
+Then point the app at the Postgres instance via `config/config.yml` or env vars, and run migrations:
+
+```bash
+ALLINONE_STORAGE_TYPE=postgres \
+ALLINONE_STORAGE_POSTGRES_USER=allinone \
+ALLINONE_STORAGE_POSTGRES_PASSWORD=your-password \
+ALLINONE_STORAGE_POSTGRES_DBNAME=allinone \
+go run ./cmd/all-in-one db:migrate up
+```
+
+### Migrating data between SQLite and PostgreSQL
+
+Both databases must be fully migrated before running a transfer, and the destination must be empty.
+
+```bash
+# SQLite → PostgreSQL
+make db-transfer ARGS="--direction sqlite-to-pg --confirm"
+
+# PostgreSQL → SQLite
+make db-transfer ARGS="--direction pg-to-sqlite --confirm"
+```
+
+Both `storage.sqlite` and `storage.postgres` must be configured (or set via env vars) regardless of direction — the command opens both connections simultaneously. The SQLite path defaults to `all-in-one.db`.
+
+---
+
 ### Disable 2FA for a local account
 
 If you locked yourself out after enabling 2FA, reset it directly in the database:
