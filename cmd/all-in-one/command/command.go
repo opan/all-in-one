@@ -137,20 +137,20 @@ func New() *cobra.Command {
 
 Both databases must have all schema migrations applied before running.
 The destination must be empty; existing rows cause constraint failures.
+--confirm is always required because both directions write to a live database.
 
 Examples:
   # SQLite → PostgreSQL
-  all-in-one db:transfer --direction sqlite-to-pg
+  all-in-one db:transfer --direction sqlite-to-pg --confirm
 
-  # PostgreSQL → SQLite  (requires --confirm to protect all-in-one.db)
+  # PostgreSQL → SQLite
   all-in-one db:transfer --direction pg-to-sqlite --confirm`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if transferDirection == "" {
 				return fmt.Errorf("--direction is required: use sqlite-to-pg or pg-to-sqlite")
 			}
-			if transferDirection == "pg-to-sqlite" && !transferConfirm {
-				return fmt.Errorf("writing to SQLite will modify %s — re-run with --confirm to proceed",
-					"the configured SQLite database")
+			if !transferConfirm {
+				return fmt.Errorf("--confirm is required: this will write to the destination database and cannot be undone")
 			}
 
 			cfg, err := config.Load()
@@ -171,7 +171,7 @@ Examples:
 		},
 	}
 	transferCmd.Flags().StringVar(&transferDirection, "direction", "", "transfer direction: sqlite-to-pg or pg-to-sqlite (required)")
-	transferCmd.Flags().BoolVar(&transferConfirm, "confirm", false, "required when direction is pg-to-sqlite to confirm writing to SQLite")
+	transferCmd.Flags().BoolVar(&transferConfirm, "confirm", false, "required for all transfers — confirms you intend to write to the destination database")
 
 	root := Root()
 	root.AddCommand(serverCmd)

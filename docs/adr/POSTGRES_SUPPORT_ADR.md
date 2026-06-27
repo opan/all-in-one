@@ -218,9 +218,9 @@ data between backends in either direction:
 
 ```bash
 # SQLite → PostgreSQL
-go run ./cmd/all-in-one db:transfer --direction sqlite-to-pg
+go run ./cmd/all-in-one db:transfer --direction sqlite-to-pg --confirm
 
-# PostgreSQL → SQLite  (requires --confirm to protect the SQLite file)
+# PostgreSQL → SQLite
 go run ./cmd/all-in-one db:transfer --direction pg-to-sqlite --confirm
 ```
 
@@ -234,8 +234,8 @@ go run ./cmd/all-in-one db:transfer --direction pg-to-sqlite --confirm
   transfer is atomic; a partial failure rolls back completely.
 - Rows are read entirely into memory before the transaction begins, keeping
   the source connection read-only and avoiding long-held read locks on SQLite.
-- `--confirm` is required for `pg-to-sqlite` to prevent accidental overwrites
-  of the production SQLite file (`all-in-one.db`).
+- `--confirm` is required for both directions — either destination database
+  may hold live data that cannot be recovered after an overwrite.
 
 ### Type-conversion details
 Two columns require explicit conversion between backends:
