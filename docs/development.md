@@ -135,6 +135,48 @@ make db-transfer ARGS="--direction pg-to-sqlite --confirm"
 
 Both `storage.sqlite` and `storage.postgres` must be configured (or set via env vars) regardless of direction — the command opens both connections simultaneously. The SQLite path defaults to `all-in-one.db`.
 
+#### Migrating data in Kubernetes (distroless image)
+
+Since the production image is distroless, you can't `kubectl exec` and run the command directly. Use the provided Kubernetes Job instead (`k8s/all-in-one/jobs/db-transfer-sqlite-to-pg.yaml`).
+
+**Step 1 — Scale down the deployment** to release the SQLite file lock:
+
+```bash
+kubectl scale deployment all-in-one -n app --replicas=0
+# Wait until the pod is fully terminated
+kubectl get pods -n app -w
+```
+
+**Step 2 — Apply the Job:**
+
+```bash
+kubectl apply -f k8s/all-in-one/jobs/db-transfer-sqlite-to-pg.yaml
+```
+
+The Job runs in two stages via an init container:
+- **Init container (`migrate`):** applies PostgreSQL schema migrations (`db:migrate up`) — the transfer container will not start until this succeeds.
+- **Main container (`db-transfer`):** copies all data from SQLite → PostgreSQL.
+
+**Step 3 — Watch progress:**
+
+```bash
+# Init container (migrations)
+kubectl logs -n app -l job-name=all-in-one-db-transfer -c migrate -f
+
+# Main container (data transfer)
+kubectl logs -n app -l job-name=all-in-one-db-transfer -c db-transfer -f
+```
+
+Look for `"transfer complete"` in the transfer logs. The Job uses `backoffLimit: 0` — it will not retry on failure so any error is surfaced immediately.
+
+**Step 4 — Verify data in PostgreSQL**, then scale back up:
+
+```bash
+kubectl scale deployment all-in-one -n app --replicas=1
+```
+
+**Re-run protection:** the Job object is intentionally kept after completion (no `ttlSecondsAfterFinished`). Re-applying the manifest while the Job exists fails with `AlreadyExists`. Even if the Job is deleted and re-applied, the transfer will fail immediately on the first duplicate row if the destination already has data.
+
 ---
 
 ### Disable 2FA for a local account
