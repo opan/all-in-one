@@ -401,7 +401,7 @@ func SeedTopicsAndItems(ctx context.Context, storage repository.Storage, userID 
 				TopicID:          topicID,
 				Title:            itemData.title,
 				Description:      itemData.description,
-				FormSchemaValues: valuesJSON,
+				FormSchemaValues: model.JSONText(valuesJSON),
 			}
 
 			created, err := itemRepo.Create(ctx, item)
