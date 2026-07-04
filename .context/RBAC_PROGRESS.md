@@ -1,45 +1,58 @@
 # RBAC / Access-Management — Progress Tracker
 
-**Status:** 🟡 Not started (planning complete & approved). Working tree is clean — no code written yet.
+**Status:** 🟡 Not started (planning complete & approved, split into 7 phases). Working tree has only docs
+committed-pending — no feature code written yet.
 **Last updated:** 2026-07-04
-**Full plan:** [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md) (authoritative, git-tracked)
+**Full plan:** [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md) (authoritative, git-tracked, phase-by-phase)
+**Design rationale:** [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md)
 
 ## What this feature is
 Admin-only **Access Management** (Settings > Access Managements) controlling which app-features
 (listing, chat, shortener, …) each user can access. See the plan for full detail.
 
-### Locked decisions (do NOT re-litigate)
+### Locked decisions (do NOT re-litigate — see ADR for rationale)
 1. One group per user (`users.group_id` FK; NULL → `regular-user`).
 2. Groups = permission presets; built-ins `admin` (superuser) + `regular-user` (default).
 3. Per-user overrides are tri-state (grant AND revoke). Precedence: **admin > user override > group > default-deny**.
 4. Admin = full superuser (bypasses all gates; system keeps ≥1 admin).
 5. Allow-all by default **except** `admin_only` features (e.g. `access-management`). Realized via seeded data.
 
-## Checklist (implementation order)
-- [ ] 1. Migration `06_add_rbac_tables` — sqlite3 + postgres, up + down (features, groups, group_features, user_feature_overrides, `users.group_id`)
-- [ ] 2. `model.User.GroupID *uuid.UUID` field (**CRITICAL** — `SELECT *` breaks app-wide without it)
-- [ ] 3. `internal/rbac/` package: `features.go` registry, `model/`, `repository/` (interface/factory/sqlite/postgres)
-- [ ] 4. `service/resolver.go` (precedence) + `service/bootstrap.go` (idempotent)
-- [ ] 5. `middleware/authz.go` (RequireFeature/RequireAdmin) + `service.go` (mgmt + guards) + `handler/` (API + metrics)
-- [ ] 6. Wire into `cmd/all-in-one/server/server.go` (per-app gated subrouters + Bootstrap + resolver injection)
-- [ ] 7. Extend `/users/me` (AccessResolver interface + CurrentUserResponse + direct-auth guard)
-- [ ] 8. `RBACConfig` in `internal/config/config.go` + `config/config.yml`; call Bootstrap in `cmd/all-in-one/db/seed.go`
-- [ ] 9. Update `cmd/all-in-one/db/transfer.go` (users.group_id + 4 tables, FK order) + regenerate mocks (`.mockery.yaml`)
-- [ ] 10. Backend tests (resolver matrix, middleware, repository, handler guards, bootstrap idempotency)
-- [ ] 11. Frontend: `rbac-api.ts`, `stores/auth.ts`, `/users/me` types, sidebar filtering, Access Management section + components
-- [x] 12a. ADR written: [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md) (7 decisions — group model, precedence, JWT-role-free, admin superuser/lockout, default-allow-via-data, per-app subrouter enforcement, code-defined feature registry)
-- [ ] 12b. Docs: metrics.md update + swagger regen (once handlers exist)
-- [ ] 13. End-to-end verification (build, tests, run server, enforcement flow, postgres path)
+## Phase checklist
+
+Each phase = one independently completable, testable, committable chunk. See the plan file for full
+detail, file lists, and each phase's Definition of Done. Dependency chain:
+`1 → 2 → 3 → 4 → 6 → 7`, with `5` branching off `2` (can run any time after it, in parallel with 3/4).
+
+- [ ] **Phase 1 — Database Schema Foundation.** Migration `06_add_rbac_tables` (sqlite3 + postgres, up/down) + `model.User.GroupID`. Zero behavior change — safest first commit.
+- [ ] **Phase 2 — RBAC Core Package.** `internal/rbac/{features.go, model/, repository/, service/resolver.go, service/bootstrap.go}`. Fully unit-tested in isolation; not wired into the server yet.
+- [ ] **Phase 3 — Enforcement Wiring.** `middleware/authz.go` + `RBACConfig` + `server.go` per-app gated subrouters + bootstrap call sites. ⚠️ The "flip the switch" phase — access is actually gated after this merges.
+- [ ] **Phase 4 — `/users/me` Extension + Admin Management API.** `AccessResolver` wiring, `CurrentUserResponse`, full `/api/v1/access/*` CRUD + guards + OTel metrics + swagger.
+- [ ] **Phase 5 — Data-Integrity Backfill.** `cmd/all-in-one/db/transfer.go` updates (group_id + 4 tables, FK order). Only depends on Phase 2.
+- [ ] **Phase 6 — Frontend.** `rbac-api.ts`, `stores/auth.ts`, sidebar filtering, Access Management UI (Features/Groups/Users tabs).
+- [ ] **Phase 7 — Final Verification & Docs Sweep.** Full test suite + curl walkthrough on both SQLite and Postgres; metrics.md/swagger/ADR reflect final state.
 
 ## Key gotchas captured during planning
-- **`model.User` needs `GroupID`** or every `SELECT * FROM users` fails (`missing destination name group_id`). Do this with the migration.
-- **Routes are NOT cleanly prefixed** — chat owns `/users/search`, colliding with authnz `/users`. Gate via per-app sibling subrouters, not `PathPrefix`.
-- **Direct-auth bypass** (`x-direct-auth-username`) fabricates `UserID=username` (non-UUID, no DB row). Middleware + `/users/me` must short-circuit on `SessionID=="direct-auth"` using `rbac.direct_auth_is_admin` (default true).
-- **SQLite down-migration** `ALTER TABLE users DROP COLUMN group_id` — verified OK on go-sqlite3 v1.14.32 (SQLite 3.50) despite the outgoing FK. Drop indexes first, then column, then tables child→parent.
-- **`transfer.go`** copies by explicit column/table lists — must add group_id + the 4 tables (correct FK insert order) or transfers silently drop RBAC data.
-- **JWT stays role-free** — resolve authz from DB per request (session lookup already hits DB) → zero staleness.
-- **Reserved word:** `groups` is valid unquoted in both SQLite & Postgres; fallback `access_groups` if ever needed.
+(Full detail + phase tags in the plan's Appendix A.)
+- **`model.User` needs `GroupID`** or every `SELECT * FROM users` fails. Phase 1.
+- **Routes are NOT cleanly prefixed** — chat owns `/users/search`, colliding with authnz `/users`. Gate via per-app sibling subrouters, not `PathPrefix`. Phase 3.
+- **Direct-auth bypass** (`x-direct-auth-username`) fabricates `UserID=username` (non-UUID, no DB row). Middleware + `/users/me` must short-circuit on `SessionID=="direct-auth"` using `rbac.direct_auth_is_admin` (default true). Phases 3 & 4.
+- **SQLite down-migration** `ALTER TABLE users DROP COLUMN group_id` — verified OK on go-sqlite3 v1.14.32 (SQLite 3.50) despite the outgoing FK. Phase 1.
+- **`transfer.go`** copies by explicit column/table lists — must add group_id + the 4 tables (correct FK insert order) or transfers silently drop RBAC data. Phase 5.
+- **JWT stays role-free** — resolve authz from DB per request (session lookup already hits DB) → zero staleness. Phase 2/3 design constraint (see ADR-003).
+- **Reserved word:** `groups` is valid unquoted in both SQLite & Postgres; fallback `access_groups` if ever needed. Phase 1.
+
+## Docs status
+- [x] ADR written: [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md) (7 decisions — group model, precedence, JWT-role-free, admin superuser/lockout, default-allow-via-data, per-app subrouter enforcement, code-defined feature registry)
+- [x] Implementation plan written and split into phases: [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md)
+- [x] This progress tracker
+- [ ] `docs/metrics.md` update (Phase 4)
+- [ ] Swagger regen (Phase 4)
 
 ## Resume instructions
-- **Same machine / new session:** open [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md), start at the first unchecked item.
-- **Another machine:** `git add .context/RBAC_*.md` (+ any committed code), commit & push; pull on the other machine; a fresh Claude Code session reads these `.context/` files (the `~/.claude/plans/` copy does NOT travel — it's machine-local).
+- **Same machine / new session:** open [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md), find
+  the first unchecked phase, read only that phase's section.
+- **Another machine:** commit & push `.context/RBAC_*.md` + `docs/adr/ACCESS_MANAGEMENT_ADR.md` (+ any
+  completed phase code); pull on the other machine; a fresh Claude Code session reads these git-tracked
+  files (the `~/.claude/plans/` copy does NOT travel — it's machine-local).
+- **Mid-phase handoff:** if a phase is partially done, note which files are finished under that phase's
+  checklist item before pausing, so the next session doesn't redo work.
