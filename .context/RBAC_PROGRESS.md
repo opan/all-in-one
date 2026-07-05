@@ -1,8 +1,7 @@
 # RBAC / Access-Management — Progress Tracker
 
-**Status:** 🟡 Not started (planning complete & approved, split into 7 phases). Working tree has only docs
-committed-pending — no feature code written yet.
-**Last updated:** 2026-07-04
+**Status:** 🟢 Phase 1 complete. Phases 2-7 not started.
+**Last updated:** 2026-07-05
 **Full plan:** [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md) (authoritative, git-tracked, phase-by-phase)
 **Design rationale:** [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md)
 
@@ -23,7 +22,11 @@ Each phase = one independently completable, testable, committable chunk. See the
 detail, file lists, and each phase's Definition of Done. Dependency chain:
 `1 → 2 → 3 → 4 → 6 → 7`, with `5` branching off `2` (can run any time after it, in parallel with 3/4).
 
-- [ ] **Phase 1 — Database Schema Foundation.** Migration `06_add_rbac_tables` (sqlite3 + postgres, up/down) + `model.User.GroupID`. Zero behavior change — safest first commit.
+- [x] **Phase 1 — Database Schema Foundation.** Migration `06_add_rbac_tables` (sqlite3 + postgres, up/down) + `model.User.GroupID`. Zero behavior change — safest first commit.
+  - Verified live on SQLite: full up→down→up cycle against a scratch DB (never touched `all-in-one.db`) — schema, indexes, and `PRAGMA foreign_key_check` all clean at each step.
+  - Postgres twin verified by structural review only (diffed against SQLite after normalizing `BOOLEAN/FALSE`↔`INTEGER/0` — identical) — **no live Postgres server was available to test against** (no docker, no running local cluster, no passwordless sudo to start one). Re-verify against a real Postgres instance before/during Phase 7.
+  - `go build ./...` and full `go test ./...` pass with no regressions.
+  - Not yet committed to git.
 - [ ] **Phase 2 — RBAC Core Package.** `internal/rbac/{features.go, model/, repository/, service/resolver.go, service/bootstrap.go}`. Fully unit-tested in isolation; not wired into the server yet.
 - [ ] **Phase 3 — Enforcement Wiring.** `middleware/authz.go` + `RBACConfig` + `server.go` per-app gated subrouters + bootstrap call sites. ⚠️ The "flip the switch" phase — access is actually gated after this merges.
 - [ ] **Phase 4 — `/users/me` Extension + Admin Management API.** `AccessResolver` wiring, `CurrentUserResponse`, full `/api/v1/access/*` CRUD + guards + OTel metrics + swagger.
