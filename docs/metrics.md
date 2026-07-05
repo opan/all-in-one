@@ -122,6 +122,31 @@ rate(aio_shortener_rate_limited_total[5m])
 
 ---
 
+### RBAC
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `aio_rbac_access_denied_total` | Counter | `feature`, `reason` | Requests denied by RBAC feature/admin gating (`internal/rbac/middleware`) |
+
+**Label values**
+
+| Label | Metric | Values |
+|---|---|---|
+| `feature` | `access_denied_total` | `listing`, `chat`, `shortener`, `access-management` |
+| `reason` | `access_denied_total` | `feature_denied` (no grant/override for the feature), `not_admin` (RequireAdmin gate), `direct_auth_not_admin` (dev bypass with `rbac.direct_auth_is_admin=false`) |
+
+**Example queries**
+
+```promql
+# Denials by feature (which app is being blocked most)
+sum by (feature) (rate(aio_rbac_access_denied_total[5m]))
+
+# Denials by reason
+sum by (reason) (rate(aio_rbac_access_denied_total[5m]))
+```
+
+---
+
 ### Chat
 
 | Metric | Type | Labels | Description |
@@ -236,11 +261,12 @@ Total series count at steady state (worst case, all label combinations observed)
 | Shortener | `links_created_total` | 2 |
 | Shortener | `links_resolved_total` | 4 |
 | Shortener | `rate_limited_total` | 2 |
+| RBAC | `access_denied_total` | 8 (4 `feature` × up to 2 valid `reason`s each) |
 | Chat | `invites_responded_total` | 2 |
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
 | All others | — | 1 each (15 metrics) |
 
-**Total: ~38 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~46 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

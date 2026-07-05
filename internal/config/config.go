@@ -17,6 +17,7 @@ type Config struct {
 	Http      HTTPConfig      `mapstructure:"http"`
 	Auth      Auth            `mapstructure:"auth"`
 	Shortener ShortenerConfig `mapstructure:"shortener"`
+	RBAC      RBACConfig      `mapstructure:"rbac"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 }
 
@@ -103,6 +104,17 @@ type Auth struct {
 	TOTPEncryptionKey string `mapstructure:"totp_encryption_key"`
 }
 
+type RBACConfig struct {
+	// AdminUsername identifies the user Bootstrap assigns to the admin group
+	// whenever the admin group is empty (fresh install, or recovery from a
+	// hypothetical lockout). See docs/adr/ACCESS_MANAGEMENT_ADR.md ADR-004.
+	AdminUsername string `mapstructure:"admin_username"`
+	// DirectAuthIsAdmin controls the RBAC treatment of the x-direct-auth-username
+	// dev bypass (config.Auth.DirectAuthEnabled): that path already forgoes
+	// authentication entirely, so by default it is also treated as a superuser.
+	DirectAuthIsAdmin bool `mapstructure:"direct_auth_is_admin"`
+}
+
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
@@ -130,6 +142,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("shortener.url.max_length", 2048)
 	viper.SetDefault("shortener.url.allowed_schemes", []string{"http", "https"})
 	viper.SetDefault("shortener.url.blocked_hosts", []string{})
+	viper.SetDefault("rbac.admin_username", "admin")
+	viper.SetDefault("rbac.direct_auth_is_admin", true)
 	viper.SetDefault("telemetry.enabled", false)
 	viper.SetDefault("telemetry.service_name", "all-in-one")
 	viper.SetDefault("telemetry.service_version", "1.0.0")
@@ -160,6 +174,8 @@ func Load() (*Config, error) {
 	viper.BindEnv("storage.postgres.password", "ALLINONE_STORAGE_POSTGRES_PASSWORD")
 	viper.BindEnv("storage.postgres.dbname", "ALLINONE_STORAGE_POSTGRES_DBNAME")
 	viper.BindEnv("storage.postgres.sslmode", "ALLINONE_STORAGE_POSTGRES_SSLMODE")
+	viper.BindEnv("rbac.admin_username", "ALLINONE_RBAC_ADMIN_USERNAME")
+	viper.BindEnv("rbac.direct_auth_is_admin", "ALLINONE_RBAC_DIRECT_AUTH_IS_ADMIN")
 	viper.BindEnv("telemetry.enabled", "ALLINONE_TELEMETRY_ENABLED")
 	viper.BindEnv("telemetry.service_name", "ALLINONE_TELEMETRY_SERVICE_NAME")
 	viper.BindEnv("telemetry.service_version", "ALLINONE_TELEMETRY_SERVICE_VERSION")

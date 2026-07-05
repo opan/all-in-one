@@ -9,6 +9,9 @@ import (
 	chatRepo "github.com/all-in-one/internal/chat/repository"
 	chatSeed "github.com/all-in-one/internal/chat/seed"
 	"github.com/all-in-one/internal/config"
+	"github.com/all-in-one/internal/logging"
+	rbacRepo "github.com/all-in-one/internal/rbac/repository"
+	rbacService "github.com/all-in-one/internal/rbac/service"
 
 	// listingRepo "github.com/all-in-one/internal/listing/repository"
 	// listingSeed "github.com/all-in-one/internal/listing/seed"
@@ -26,6 +29,11 @@ type Opts struct {
 func Run(opts Opts) error {
 	ctx := context.Background()
 	log := opts.Logger
+
+	// Attach the logger so any code that pulls a logger from context (e.g.
+	// logging.GetLoggerFromContext, used by RBAC bootstrap) logs to the real
+	// output instead of silently falling back to a no-op logger.
+	ctx = context.WithValue(ctx, logging.LoggerKey, &log)
 
 	log.Info().Msg("Starting database seeding process...")
 
@@ -54,6 +62,18 @@ func Run(opts Opts) error {
 	log.Info().Msg("Seeding users...")
 	if err := authnzSeed.SeedUsers(ctx, authnzStorage, log); err != nil {
 		return fmt.Errorf("failed to seed users: %w", err)
+	}
+
+	// Bootstrap RBAC (features, built-in groups, default grants, initial
+	// admin). Independent of SeedUsers' early-return-if-users-exist guard,
+	// so existing installs are bootstrapped too, not just fresh ones.
+	log.Info().Msg("Bootstrapping RBAC...")
+	rbacStorage, err := rbacRepo.NewRepo(db, opts.Config)
+	if err != nil {
+		return fmt.Errorf("failed to create rbac repository: %w", err)
+	}
+	if err := rbacService.Bootstrap(ctx, rbacStorage, authnzStorage.UserRepo(), opts.Config.RBAC.AdminUsername); err != nil {
+		return fmt.Errorf("failed to bootstrap rbac: %w", err)
 	}
 
 	// Get the first user (admin) to use as the owner of topics
