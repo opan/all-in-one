@@ -28,11 +28,11 @@ func NewStorage(db *sqlx.DB, config config.Config) *storage {
 	}
 }
 
-func (s *storage) FeatureRepo() *featureRepository             { return s.featureRepo }
-func (s *storage) GroupRepo() *groupRepository                 { return s.groupRepo }
-func (s *storage) GroupFeatureRepo() *groupFeatureRepository   { return s.groupFeatureRepo }
-func (s *storage) OverrideRepo() *overrideRepository           { return s.overrideRepo }
-func (s *storage) UserGroupRepo() *userGroupRepository         { return s.userGroupRepo }
+func (s *storage) FeatureRepo() *featureRepository           { return s.featureRepo }
+func (s *storage) GroupRepo() *groupRepository               { return s.groupRepo }
+func (s *storage) GroupFeatureRepo() *groupFeatureRepository { return s.groupFeatureRepo }
+func (s *storage) OverrideRepo() *overrideRepository         { return s.overrideRepo }
+func (s *storage) UserGroupRepo() *userGroupRepository       { return s.userGroupRepo }
 
 func (s *storage) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	return createTrx(ctx, s.db)

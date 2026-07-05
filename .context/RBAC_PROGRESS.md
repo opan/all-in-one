@@ -1,8 +1,8 @@
 # RBAC / Access-Management — Progress Tracker
 
-**Status:** 🟢 Phases 1-3 complete. Phases 4-7 not started. Authorization is now LIVE — non-admin users are
-gated on listing/chat/shortener (regular-user is granted all three by default, so no existing user is
-locked out).
+**Status:** 🟢 Phases 1-4 complete. Phases 5-7 not started. Authorization is live (Phase 3) and the full
+admin-facing Access Management REST API + widened `/users/me` now exist (Phase 4) — everything needed for
+Phase 6's frontend to consume.
 **Last updated:** 2026-07-05
 **Full plan:** [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md) (authoritative, git-tracked, phase-by-phase)
 **Design rationale:** [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md)
@@ -47,7 +47,20 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
   - `docs/metrics.md` — added the RBAC section (`aio_rbac_access_denied_total`, labels `feature`+`reason`) and updated the cardinality table/total.
   - **Live end-to-end verification** (scratch SQLite DB, real server on a throwaway port, real cookie-based logins as the seeded `admin`/`user`/`demo`) confirmed all four precedence behaviors for real, not just in unit tests: admin bypass (200 on everything), regular-user default-allow (200 on listing/chat/shortener for both `user` and `demo` — the critical no-lockout regression check), a manually-restricted `listing-only` group correctly getting 200 on listing but 403 on chat/shortener, and a per-user override correctly beating the group (chat re-granted via override while shortener stayed 403). Bootstrap idempotency also reconfirmed live (server restart against the already-seeded DB reused the same group/feature IDs rather than duplicating).
   - Not yet committed to git.
-- [ ] **Phase 4 — `/users/me` Extension + Admin Management API.** `AccessResolver` wiring, `CurrentUserResponse`, full `/api/v1/access/*` CRUD + guards + OTel metrics + swagger.
+- [x] **Phase 4 — `/users/me` Extension + Admin Management API.** `AccessResolver` wiring, `CurrentUserResponse`, full `/api/v1/access/*` CRUD + guards + OTel metrics + swagger.
+  - `internal/authnz/handler/handler.go` — `AccessResolver` interface (`EffectiveFeatures`) + `SetAccessResolver`, following the exact same structural-satisfaction pattern as Phase 2/3 (authnz imports nothing from rbac). `*rbac/service.Resolver` satisfies it without changes.
+  - `internal/authnz/handler/user.go` — `CurrentUserResponse{model.User; IsAdmin; Group *GroupRef; Features []string}` (embeds `model.User`, so the wire format stays backward-compatible — confirmed by the 4 pre-existing tests passing unmodified). `GetCurrentUser` now calls `EffectiveFeatures` and also fixes the pre-existing direct-auth 401 (fabricated non-UUID `UserID`) with a minimal config-driven response (`is_admin` from `rbac.direct_auth_is_admin`, empty `features` since enforcement never trusts this list anyway).
+  - `internal/rbac/model/model.go` — added `IsAdmin` to `UserAccessRow` (computed, `db:"-"`) and a new `FeatureOverrideView{FeatureKey, Allow}` — both placed in the shared `model` package (not `service`) specifically so `internal/rbac/handler` never needs to import `internal/rbac/service`, avoiding a cycle (service already imports handler to construct it).
+  - `internal/rbac/errors.go` (new) — `ErrLastAdmin`/`ErrBuiltinGroup` sentinels moved to the top-level `rbac` package (not `service`) for the same cycle-avoidance reason — the handler checks them via `errors.Is` without importing `service`.
+  - `internal/rbac/service/service.go` — expanded with the full management API: `ListFeatures`, `ListGroups`/`GetGroup`/`CreateGroup`/`UpdateGroup`/`DeleteGroup`/`SetGroupFeatures` (built-in-group guards), `ListUsers` (computes `IsAdmin`), `AssignUserGroup` (last-admin guard), `ListUserOverrides`/`SetUserOverrides` (feature-key↔ID resolution, transactional replace). Constructs `*rbac/handler.Handler` internally by passing itself as the handler's local `Service` interface.
+  - `internal/rbac/handler/` (new) — `handler.go` (local `Service` interface + `RegisterAdminRoutes`, mirroring the `AccessResolver` cross-package pattern), `access.go` (all 11 endpoint implementations + swagger godoc, `errors.Is`-based error→HTTP-status mapping: 404/409/400/500), `metrics.go` (`aio_rbac_groups_changed_total{action}`, `aio_rbac_user_group_assigned_total`, `aio_rbac_user_overrides_set_total`).
+  - `cmd/all-in-one/server/server.go` — `rsvc.RegisterAdminRoutes(adminRoutes)` now populates the Phase-3-gated-but-empty admin subrouter; `asvc.Handler.SetAccessResolver(rsvc.Resolver)` wires `/users/me`.
+  - `.mockery.yaml` — added `internal/rbac/handler.Service` (→ `internal/rbac/handler/mocks`) and `internal/authnz/handler.AccessResolver` (→ `internal/authnz/handler/mocks`).
+  - Tests: 15 service-layer guard tests (builtin-rename/delete/features-edit rejections, last-admin lockout + the 3 cases that must NOT trigger it, `IsAdmin` computation, override key-resolution both directions), 16 handler tests (happy paths + 409/400/404 guard paths via the mocked `Service`), 5 new authnz tests (RBAC info population for admin/regular, resolver-error→500, direct-auth both flag states) — all passing, including under `go test -race`.
+  - **Live curl walkthrough** exercised literally every one of the 11 `/access/*` endpoints plus the widened `/users/me`, end-to-end against a real running server: full group CRUD, all 3 built-in-group 409 guards, user listing, group reassignment, overrides CRUD, and — most valuably — a real lockout-guard sequence (sole admin blocked from leaving → promote a second admin → original admin now allowed to leave) followed by confirming the *same still-authenticated session* immediately loses admin-API access with zero staleness (no re-login), while `/users/me` keeps working (ungated) and correctly reflects the demotion.
+  - Swagger regenerated (`swag init`) — all 11 endpoints + widened `/users/me` confirmed present in `docs/swagger.json`; project still builds.
+  - `docs/metrics.md` — added the 3 new counters + `action` label values + cardinality table update (~46 → ~52 series).
+  - Not yet committed to git.
 - [ ] **Phase 5 — Data-Integrity Backfill.** `cmd/all-in-one/db/transfer.go` updates (group_id + 4 tables, FK order). Only depends on Phase 2.
 - [ ] **Phase 6 — Frontend.** `rbac-api.ts`, `stores/auth.ts`, sidebar filtering, Access Management UI (Features/Groups/Users tabs).
 - [ ] **Phase 7 — Final Verification & Docs Sweep.** Full test suite + curl walkthrough on both SQLite and Postgres; metrics.md/swagger/ADR reflect final state.
@@ -62,13 +75,14 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
 - **JWT stays role-free** — resolve authz from DB per request (session lookup already hits DB) → zero staleness. Phase 2/3 design constraint (see ADR-003).
 - **Reserved word:** `groups` is valid unquoted in both SQLite & Postgres; fallback `access_groups` if ever needed. Phase 1.
 - **`logging.GetLoggerFromContext` silently no-ops without a context logger** — any new startup-time code path (not just per-HTTP-request code) that wants logging must ensure `ctx` carries one via `context.WithValue(ctx, logging.LoggerKey, &log)` (now done in both `server.go Start()` and `db/seed.go Run()`). Worth remembering for any future startup-time code, not just RBAC.
+- **Cycle-avoidance rule for `internal/rbac/{service,handler}`** — `service` imports `handler` (to construct it), so anything `handler` needs to reference back (sentinel errors, shared DTOs) must NOT live in `service`. Sentinels (`ErrLastAdmin`/`ErrBuiltinGroup`) live in the top-level `rbac` package; shared view types (`UserAccessRow`, `FeatureOverrideView`) live in `rbac/model`. If Phase 6 or later needs another shared type/error between these two packages, put it in one of those two dependency-free packages, not in `service`. Phase 4.
 
 ## Docs status
 - [x] ADR written: [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md) (7 decisions — group model, precedence, JWT-role-free, admin superuser/lockout, default-allow-via-data, per-app subrouter enforcement, code-defined feature registry)
 - [x] Implementation plan written and split into phases: [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md)
 - [x] This progress tracker
-- [x] `docs/metrics.md` update (done in Phase 3 — `aio_rbac_access_denied_total`)
-- [ ] Swagger regen (Phase 4)
+- [x] `docs/metrics.md` update (Phase 3 + Phase 4 — all 4 RBAC counters documented)
+- [x] Swagger regen (done in Phase 4 — all 11 `/access/*` endpoints + widened `/users/me`)
 
 ## Resume instructions
 - **Same machine / new session:** open [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md), find

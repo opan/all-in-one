@@ -112,6 +112,7 @@ func (s *server) Start() error {
 		s.log.Error().Err(err).Msg("RBAC bootstrap failed")
 		return err
 	}
+	asvc.Handler.SetAccessResolver(rsvc.Resolver)
 
 	lsvc, err := listingSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
@@ -184,11 +185,11 @@ func (s *server) Start() error {
 	csvc.RegisterAuthenticatedRoutes(mkGated(rbac.FeatureChat))
 	ssvc.RegisterAuthenticatedRoutes(mkGated(rbac.FeatureShortener))
 
-	// RBAC management API (admin-only). The gate is wired up now; route
-	// registration is added once the handler exists (Phase 4).
+	// RBAC management API (admin-only), under /api/v1/access/*.
 	adminRoutes := api.NewRoute().Subrouter()
 	adminRoutes.Use(jwtMiddleware.JWTAuth)
 	adminRoutes.Use(authz.RequireAdmin)
+	rsvc.RegisterAdminRoutes(adminRoutes)
 
 	// Shortener public redirect: /r/{code} — lives outside /api/v1
 	ssvc.Handler.RegisterRedirectRoute(r)

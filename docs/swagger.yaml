@@ -10,6 +10,58 @@ definitions:
       success:
         type: boolean
     type: object
+  handler.AssignUserGroupRequest:
+    properties:
+      group_id:
+        type: string
+    type: object
+  handler.CreateGroupRequest:
+    properties:
+      description:
+        type: string
+      feature_keys:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+    type: object
+  handler.CurrentUserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      features:
+        items:
+          type: string
+        type: array
+      group:
+        $ref: '#/definitions/handler.GroupRef'
+      group_id:
+        type: string
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      last_login:
+        type: string
+      name:
+        type: string
+      totp_enabled:
+        type: boolean
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  handler.GroupRef:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   handler.RegisterUserRequest:
     properties:
       email:
@@ -21,12 +73,98 @@ definitions:
       username:
         type: string
     type: object
+  handler.SetGroupFeaturesRequest:
+    properties:
+      feature_keys:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.SetUserOverridesRequest:
+    properties:
+      overrides:
+        items:
+          $ref: '#/definitions/model.FeatureOverrideView'
+        type: array
+    type: object
+  handler.UpdateGroupRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  model.CreateInviteRequest:
+    properties:
+      participants:
+        description: user IDs to invite
+        items:
+          type: string
+        type: array
+      session_id:
+        description: non-nil = invite into existing session
+        type: string
+    type: object
+  model.CreateSessionRequest:
+    properties:
+      participants:
+        description: Array of user IDs
+        items:
+          type: string
+        type: array
+    type: object
+  model.Feature:
+    properties:
+      admin_only:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      key:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.FeatureOverrideView:
+    properties:
+      allow:
+        type: boolean
+      feature_key:
+        type: string
+    type: object
   model.FormSchema:
     properties:
       schema:
         $ref: '#/definitions/model.JSONSchema'
       uischema:
         $ref: '#/definitions/model.UISchema'
+    type: object
+  model.Group:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      feature_keys:
+        description: |-
+          FeatureKeys is populated by the service layer (not scanned from the
+          groups table itself) when a caller needs a group's granted features.
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      is_builtin:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
     type: object
   model.Item:
     properties:
@@ -94,6 +232,12 @@ definitions:
       username:
         type: string
     type: object
+  model.RespondInviteRequest:
+    properties:
+      action:
+        description: '"accept" or "decline"'
+        type: string
+    type: object
   model.Topic:
     properties:
       created_at:
@@ -142,11 +286,23 @@ definitions:
       type:
         type: string
     type: object
+  model.UpdateSessionRequest:
+    properties:
+      add_participants:
+        description: Array of user IDs to add
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+    type: object
   model.User:
     properties:
       created_at:
         type: string
       email:
+        type: string
+      group_id:
         type: string
       id:
         type: string
@@ -154,7 +310,24 @@ definitions:
         type: string
       name:
         type: string
+      totp_enabled:
+        type: boolean
       updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  model.UserAccessRow:
+    properties:
+      email:
+        type: string
+      group_id:
+        type: string
+      group_name:
+        type: string
+      is_admin:
+        type: boolean
+      user_id:
         type: string
       username:
         type: string
@@ -180,6 +353,934 @@ info:
   title: All-in-one API
   version: "1.0"
 paths:
+  /access/features:
+    get:
+      description: List every code-registered app-feature (admin-only). Features are
+        code-defined; this endpoint is read-only.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of features
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Feature'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List RBAC features
+      tags:
+      - access-management
+  /access/groups:
+    get:
+      description: List every group (built-in and custom), each with its granted feature
+        keys (admin-only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of groups
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Group'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List RBAC groups
+      tags:
+      - access-management
+    post:
+      consumes:
+      - application/json
+      description: Create a custom permission-preset group with an initial set of
+        granted features (admin-only)
+      parameters:
+      - description: Group to create
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Group created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Group'
+              type: object
+        "400":
+          description: Invalid request body or unknown feature key
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Create a group
+      tags:
+      - access-management
+  /access/groups/{id}:
+    delete:
+      description: Delete a custom group. Built-in groups (admin, regular-user) cannot
+        be deleted (admin-only)
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Group deleted
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Group not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Cannot delete a built-in group
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Delete a group
+      tags:
+      - access-management
+    get:
+      description: Retrieve a single group, including its granted feature keys (admin-only)
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Group details
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Group'
+              type: object
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Group not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Get a group by ID
+      tags:
+      - access-management
+    put:
+      consumes:
+      - application/json
+      description: Rename or re-describe a group. Renaming a built-in group (admin,
+        regular-user) is rejected (admin-only)
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated group data
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Group updated
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Group'
+              type: object
+        "400":
+          description: Invalid ID or request body
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Group not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Cannot rename a built-in group
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Update a group
+      tags:
+      - access-management
+  /access/groups/{id}/features:
+    put:
+      consumes:
+      - application/json
+      description: Atomically replace which features a group grants. Rejected for
+        the admin group, whose grants are never consulted (admin bypasses all gates)
+        (admin-only)
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Feature keys to grant
+        in: body
+        name: grants
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SetGroupFeaturesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Grants replaced
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Group'
+              type: object
+        "400":
+          description: Invalid ID, request body, or unknown feature key
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Group not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Cannot edit the admin group's grants
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Replace a group's feature grants
+      tags:
+      - access-management
+  /access/users:
+    get:
+      description: List every user with their assigned group and admin status (admin-only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.UserAccessRow'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List users and their access
+      tags:
+      - access-management
+  /access/users/{id}/group:
+    put:
+      consumes:
+      - application/json
+      description: Move a user to a different group (or unassign them back to the
+        regular-user default with group_id=null). Rejected with 409 if this would
+        remove the last remaining admin (admin-only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target group ID (null to unassign)
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AssignUserGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Group reassigned
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid ID or request body
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: User or group not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Cannot remove the last admin
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Reassign a user's group
+      tags:
+      - access-management
+  /access/users/{id}/overrides:
+    get:
+      description: List the per-feature grant/revoke overrides set for a user (admin-only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of overrides
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.FeatureOverrideView'
+                  type: array
+              type: object
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List a user's feature overrides
+      tags:
+      - access-management
+    put:
+      consumes:
+      - application/json
+      description: Atomically replace all per-feature grant/revoke overrides for a
+        user. Overrides take precedence over the user's group but can never grant
+        admin-equivalent access (admin-only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Overrides to set
+        in: body
+        name: overrides
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SetUserOverridesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Overrides replaced
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid ID, request body, or unknown feature key
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Replace a user's feature overrides
+      tags:
+      - access-management
+  /chats:
+    get:
+      consumes:
+      - application/json
+      description: Get all chat sessions where the current user is a participant
+      parameters:
+      - default: 20
+        description: Max results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all chat sessions
+      tags:
+      - chat
+    post:
+      consumes:
+      - application/json
+      description: Create a new chat session with specified participants
+      parameters:
+      - description: Session details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a chat session
+      tags:
+      - chat
+  /chats/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a chat session (archives it)
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a chat session
+      tags:
+      - chat
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific chat session
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a chat session
+      tags:
+      - chat
+    put:
+      consumes:
+      - application/json
+      description: Update session details like adding new participants
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Update a chat session
+      tags:
+      - chat
+  /chats/{id}/leave:
+    post:
+      consumes:
+      - application/json
+      description: Remove yourself from a chat session. Session auto-deletes if <2
+        participants remain.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Leave a chat session
+      tags:
+      - chat
+  /chats/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get all messages for a specific chat session with optional limit
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 100
+        description: Maximum number of messages to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Get message history
+      tags:
+      - chat
+    post:
+      consumes:
+      - application/json
+      description: Send a new message to a chat session
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Message content
+        in: body
+        name: message
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Send a message
+      tags:
+      - chat
+  /chats/{id}/ws:
+    get:
+      consumes:
+      - application/json
+      description: Upgrade HTTP connection to WebSocket for real-time chat
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: WebSocket endpoint
+      tags:
+      - chat
+  /chats/invites:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Invite details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateInviteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Send chat invite(s)
+      tags:
+      - chat-invites
+  /chats/invites/{id}:
+    delete:
+      parameters:
+      - description: Invite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Cancel a pending invite
+      tags:
+      - chat-invites
+  /chats/invites/{id}/respond:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Invite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Response action
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RespondInviteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Respond to an invite
+      tags:
+      - chat-invites
+  /chats/invites/received:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Get received invites
+      tags:
+      - chat-invites
+  /chats/invites/sent:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sent invites
+      tags:
+      - chat-invites
   /sessions:
     delete:
       description: Invalidate the current session and clear authentication cookies
@@ -635,18 +1736,19 @@ paths:
       - items
   /users/me:
     get:
-      description: Retrieve the profile of the currently authenticated user
+      description: Retrieve the profile of the currently authenticated user, plus
+        their effective RBAC access (is_admin, group, features)
       produces:
       - application/json
       responses:
         "200":
-          description: User profile
+          description: User profile with RBAC info
           schema:
             allOf:
             - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/model.User'
+                  $ref: '#/definitions/handler.CurrentUserResponse'
               type: object
         "401":
           description: Unauthorized
@@ -733,6 +1835,46 @@ paths:
       summary: Register a new user
       tags:
       - users
+  /users/search:
+    get:
+      consumes:
+      - application/json
+      description: Search for users to invite to chat sessions
+      parameters:
+      - description: Search query (username or name)
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 10
+        description: Max results
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+      summary: Search users
+      tags:
+      - chat
 schemes:
 - http
 securityDefinitions:

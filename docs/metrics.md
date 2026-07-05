@@ -127,6 +127,9 @@ rate(aio_shortener_rate_limited_total[5m])
 | Metric | Type | Labels | Description |
 |---|---|---|---|
 | `aio_rbac_access_denied_total` | Counter | `feature`, `reason` | Requests denied by RBAC feature/admin gating (`internal/rbac/middleware`) |
+| `aio_rbac_groups_changed_total` | Counter | `action` | Admin group management actions (`internal/rbac/handler`) |
+| `aio_rbac_user_group_assigned_total` | Counter | — | Times an admin reassigned a user's group |
+| `aio_rbac_user_overrides_set_total` | Counter | — | Times an admin replaced a user's feature overrides |
 
 **Label values**
 
@@ -134,6 +137,7 @@ rate(aio_shortener_rate_limited_total[5m])
 |---|---|---|
 | `feature` | `access_denied_total` | `listing`, `chat`, `shortener`, `access-management` |
 | `reason` | `access_denied_total` | `feature_denied` (no grant/override for the feature), `not_admin` (RequireAdmin gate), `direct_auth_not_admin` (dev bypass with `rbac.direct_auth_is_admin=false`) |
+| `action` | `groups_changed_total` | `created`, `updated`, `deleted`, `features_set` |
 
 **Example queries**
 
@@ -143,6 +147,9 @@ sum by (feature) (rate(aio_rbac_access_denied_total[5m]))
 
 # Denials by reason
 sum by (reason) (rate(aio_rbac_access_denied_total[5m]))
+
+# Admin group changes by action
+sum by (action) (rate(aio_rbac_groups_changed_total[1h]))
 ```
 
 ---
@@ -262,11 +269,12 @@ Total series count at steady state (worst case, all label combinations observed)
 | Shortener | `links_resolved_total` | 4 |
 | Shortener | `rate_limited_total` | 2 |
 | RBAC | `access_denied_total` | 8 (4 `feature` × up to 2 valid `reason`s each) |
+| RBAC | `groups_changed_total` | 4 (`action`) |
 | Chat | `invites_responded_total` | 2 |
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
-| All others | — | 1 each (15 metrics) |
+| All others | — | 1 each (17 metrics) |
 
-**Total: ~46 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~52 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

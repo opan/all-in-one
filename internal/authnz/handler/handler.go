@@ -1,15 +1,30 @@
 package handler
 
 import (
+	"context"
+
 	"github.com/all-in-one/internal/authnz/repository"
 	"github.com/all-in-one/internal/config"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+// AccessResolver is the contract this package depends on for RBAC info in
+// /users/me. Declared here (rather than importing internal/rbac/service
+// directly) so *rbac/service.Resolver can satisfy it structurally without
+// authnz ever importing anything from internal/rbac — the dependency runs
+// the other way (server.go wires a concrete resolver in via
+// SetAccessResolver after both services are constructed).
+type AccessResolver interface {
+	EffectiveFeatures(ctx context.Context, userID uuid.UUID) (isAdmin bool, groupID uuid.UUID, groupName string, featureKeys []string, err error)
+}
 
 type Handler struct {
 	storage repository.Storage
 	config  config.Config
 	metrics *handlerMetrics
+
+	accessResolver AccessResolver
 }
 
 func NewHandler(storage repository.Storage, config config.Config) *Handler {
@@ -18,6 +33,14 @@ func NewHandler(storage repository.Storage, config config.Config) *Handler {
 		config:  config,
 		metrics: newHandlerMetrics(),
 	}
+}
+
+// SetAccessResolver wires in the RBAC resolver used by GetCurrentUser to
+// populate is_admin/group/features on /users/me. Called once from
+// cmd/all-in-one/server/server.go after both services are constructed —
+// left nil (and defensively handled) in any test that doesn't set it.
+func (h *Handler) SetAccessResolver(resolver AccessResolver) {
+	h.accessResolver = resolver
 }
 
 func (h *Handler) RegisterPublicRoutes(router *mux.Router) {

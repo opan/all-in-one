@@ -47,11 +47,21 @@ type UserFeatureOverride struct {
 }
 
 // UserAccessRow is a denormalized read model joining a user to their group,
-// used by the management API's Users tab (Phase 4).
+// used by the management API's Users tab. IsAdmin is computed by the service
+// layer (GroupName == the admin group's name), not scanned from the DB.
 type UserAccessRow struct {
 	UserID    uuid.UUID  `json:"user_id" db:"user_id"`
 	Username  string     `json:"username" db:"username"`
 	Email     string     `json:"email" db:"email"`
 	GroupID   *uuid.UUID `json:"group_id" db:"group_id"`
 	GroupName *string    `json:"group_name" db:"group_name"`
+	IsAdmin   bool       `json:"is_admin" db:"-"`
+}
+
+// FeatureOverrideView is the API-facing (feature-key-based) shape of a
+// per-user override, used by both the read (list) and write (replace)
+// sides of the management API's overrides endpoints.
+type FeatureOverrideView struct {
+	FeatureKey string `json:"feature_key"`
+	Allow      bool   `json:"allow"`
 }

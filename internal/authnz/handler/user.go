@@ -22,15 +22,33 @@ type RegisterUserRequest struct {
 	Name     string `json:"name"`
 }
 
+// GroupRef is a minimal {id,name} reference to a group, embedded in
+// CurrentUserResponse.
+type GroupRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// CurrentUserResponse widens model.User with the RBAC info the frontend
+// needs to filter its menu and gate the Access Management section: whether
+// the user is an admin, their effective group, and the non-admin-only
+// feature keys they can currently access.
+type CurrentUserResponse struct {
+	model.User
+	IsAdmin  bool      `json:"is_admin"`
+	Group    *GroupRef `json:"group"`
+	Features []string  `json:"features"`
+}
+
 // GetCurrentUser godoc
 // @Summary      Get current authenticated user
-// @Description  Retrieve the profile of the currently authenticated user
+// @Description  Retrieve the profile of the currently authenticated user, plus their effective RBAC access (is_admin, group, features)
 // @Tags         users
 // @Produce      json
 // @Security     BearerAuth || DirectAuth
-// @Success      200  {object}  httpHelper.Response{data=model.User}  "User profile"
-// @Failure      401  {object}  httpHelper.Response                   "Unauthorized"
-// @Failure      500  {object}  httpHelper.Response                   "Internal server error"
+// @Success      200  {object}  httpHelper.Response{data=CurrentUserResponse}  "User profile with RBAC info"
+// @Failure      401  {object}  httpHelper.Response                            "Unauthorized"
+// @Failure      500  {object}  httpHelper.Response                            "Internal server error"
 // @Router       /users/me [get]
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -45,6 +63,16 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	uid, err := uuid.Parse(cu.UserID)
 	if err != nil {
+		// The x-direct-auth-username dev bypass fabricates a non-UUID
+		// UserID with no corresponding DB row (see jwt.go tryDirectAuth) —
+		// that's not a malformed-claims error, it's expected for that path.
+		if cu.SessionID == "direct-auth" {
+			httpHelper.SendJSON(w, httpHelper.Response{
+				Success: true,
+				Data:    h.directAuthCurrentUser(cu.Username, cu.Email),
+			}, http.StatusOK)
+			return
+		}
 		log.Error().Err(err).Str("user_id", cu.UserID).Msg("invalid user ID in context")
 		httpHelper.SendError(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -57,12 +85,37 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := httpHelper.Response{
-		Success: true,
-		Data:    user,
+	response := CurrentUserResponse{User: user, Features: []string{}}
+
+	if h.accessResolver != nil {
+		isAdmin, groupID, groupName, featureKeys, err := h.accessResolver.EffectiveFeatures(ctx, uid)
+		if err != nil {
+			log.Error().Err(err).Str("user_id", cu.UserID).Msg("failed to resolve effective RBAC access")
+			httpHelper.SendError(w, "Failed to resolve access", http.StatusInternalServerError)
+			return
+		}
+		response.IsAdmin = isAdmin
+		response.Group = &GroupRef{ID: groupID.String(), Name: groupName}
+		response.Features = featureKeys
 	}
 
-	httpHelper.SendJSON(w, response, http.StatusOK)
+	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Data: response}, http.StatusOK)
+}
+
+// directAuthCurrentUser builds a minimal CurrentUserResponse for the
+// x-direct-auth-username dev bypass, which has no backing DB row. Admin
+// status is config-driven (rbac.direct_auth_is_admin) rather than resolved,
+// matching the RequireAdmin/RequireFeature middleware's treatment of the
+// same bypass (see internal/rbac/middleware/authz.go). Features is left
+// empty — real enforcement never trusts this list (RequireAdmin/
+// RequireFeature re-check independently on every request), so there is no
+// resolvable identity to compute it against and no need to.
+func (h *Handler) directAuthCurrentUser(username, email string) CurrentUserResponse {
+	return CurrentUserResponse{
+		User:     model.User{Username: username, Email: email},
+		IsAdmin:  h.config.RBAC.DirectAuthIsAdmin,
+		Features: []string{},
+	}
 }
 
 // RegisterUser godoc

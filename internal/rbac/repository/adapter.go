@@ -24,11 +24,11 @@ type storeAdapter struct {
 	trx              trxCreator
 }
 
-func (a *storeAdapter) FeatureRepo() FeatureRepository             { return a.featureRepo }
-func (a *storeAdapter) GroupRepo() GroupRepository                 { return a.groupRepo }
-func (a *storeAdapter) GroupFeatureRepo() GroupFeatureRepository   { return a.groupFeatureRepo }
-func (a *storeAdapter) OverrideRepo() OverrideRepository           { return a.overrideRepo }
-func (a *storeAdapter) UserGroupRepo() UserGroupRepository         { return a.userGroupRepo }
+func (a *storeAdapter) FeatureRepo() FeatureRepository           { return a.featureRepo }
+func (a *storeAdapter) GroupRepo() GroupRepository               { return a.groupRepo }
+func (a *storeAdapter) GroupFeatureRepo() GroupFeatureRepository { return a.groupFeatureRepo }
+func (a *storeAdapter) OverrideRepo() OverrideRepository         { return a.overrideRepo }
+func (a *storeAdapter) UserGroupRepo() UserGroupRepository       { return a.userGroupRepo }
 
 func (a *storeAdapter) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	return a.trx.CreateTrx(ctx)

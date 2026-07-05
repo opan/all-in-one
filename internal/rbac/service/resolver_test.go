@@ -29,11 +29,20 @@ func (s *testStorage) FeatureRepo() repository.FeatureRepository           { ret
 func (s *testStorage) GroupRepo() repository.GroupRepository               { return s.groupRepo }
 func (s *testStorage) GroupFeatureRepo() repository.GroupFeatureRepository { return s.groupFeatureRepo }
 func (s *testStorage) OverrideRepo() repository.OverrideRepository         { return s.overrideRepo }
-func (s *testStorage) UserGroupRepo() repository.UserGroupRepository      { return s.userGroupRepo }
+func (s *testStorage) UserGroupRepo() repository.UserGroupRepository       { return s.userGroupRepo }
 func (s *testStorage) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
-	return nil, nil
+	return noopTrx{}, nil
 }
 func (s *testStorage) Close() error { return nil }
+
+// noopTrx is a query.QueryOptions that does nothing — used wherever a test
+// storage needs to hand back *something* satisfying the interface without a
+// real transaction (a literal nil interface would panic on .Commit()/
+// .Rollback(), since there'd be no concrete type to dispatch to).
+type noopTrx struct{}
+
+func (noopTrx) Commit() error   { return nil }
+func (noopTrx) Rollback() error { return nil }
 
 // TestResolver_CanAccess exercises the full precedence matrix documented in
 // docs/adr/ACCESS_MANAGEMENT_ADR.md ADR-002:
