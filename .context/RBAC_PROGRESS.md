@@ -1,6 +1,6 @@
 # RBAC / Access-Management — Progress Tracker
 
-**Status:** 🟢 Phase 1 complete. Phases 2-7 not started.
+**Status:** 🟢 Phases 1-2 complete. Phases 3-7 not started.
 **Last updated:** 2026-07-05
 **Full plan:** [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md) (authoritative, git-tracked, phase-by-phase)
 **Design rationale:** [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md)
@@ -27,7 +27,13 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
   - Postgres twin verified by structural review only (diffed against SQLite after normalizing `BOOLEAN/FALSE`↔`INTEGER/0` — identical) — **no live Postgres server was available to test against** (no docker, no running local cluster, no passwordless sudo to start one). Re-verify against a real Postgres instance before/during Phase 7.
   - `go build ./...` and full `go test ./...` pass with no regressions.
   - Not yet committed to git.
-- [ ] **Phase 2 — RBAC Core Package.** `internal/rbac/{features.go, model/, repository/, service/resolver.go, service/bootstrap.go}`. Fully unit-tested in isolation; not wired into the server yet.
+- [x] **Phase 2 — RBAC Core Package.** `internal/rbac/{features.go, model/, repository/, service/resolver.go, service/bootstrap.go}`. Fully unit-tested in isolation; not wired into the server yet.
+  - Repository layer: `internal/rbac/repository/{interface.go, factory.go, adapter.go}` + `sqlite/` and `postgres/` subpackages (5 repos each: Feature, Group, GroupFeature, Override, UserGroup), mirroring `internal/authnz/repository` conventions exactly (queryOptions/Execer/getExecCtx, `?`/`$N` placeholders, `INSERT OR IGNORE`/`ON CONFLICT DO NOTHING`, `httpHelper.ErrNotFound` on `sql.ErrNoRows`).
+  - `service/resolver.go` — `Resolver` with `CanAccess`/`IsAdmin`/`EffectiveFeatures`, built-in group IDs cached via `sync.Once` (verified race-free with `go test -race`).
+  - `service/bootstrap.go` — package-level `Bootstrap(ctx, store, userRepo, adminUsername string) error` (deliberately takes `adminUsername` as a plain string, not `config.RBACConfig`, since config wiring is Phase 3 scope — avoids a forward dependency on a config field that doesn't exist yet). Phase 3 will wrap this in a `Service.Bootstrap(ctx, userRepo)` method that reads `cfg.RBAC.AdminUsername`.
+  - Tests: 14 repository tests (grants/overrides/cascades/`CountByGroup`/`ListUsersWithGroup` join/`ON DELETE SET NULL`+`CASCADE`) using in-memory SQLite + hand-rolled schema (matches the `shortener` package's proven test convention — not real migration files); 10-case resolver precedence-matrix table test + `IsAdmin`/`EffectiveFeatures` smoke tests, using mockery mocks; 4 bootstrap tests (fresh install, idempotent second run, new-feature auto-grant, missing-admin-username-doesn't-error) against a real in-memory SQLite store with only the external authnz `UserRepository` mocked. All green under `go test ./... ` and `go test -race ./internal/rbac/...`.
+  - `.mockery.yaml` extended with a `internal/rbac/repository` block (5 interfaces + `Storage`) outputting to `internal/rbac/service/mocks` (a deliberate deviation from the `<app>/handler/mocks` convention, since rbac's first mock consumer is the service layer, not a handler — Phase 4's handler tests will likely mock the `Resolver`/`Service` interface instead of raw repos).
+  - Not yet committed to git.
 - [ ] **Phase 3 — Enforcement Wiring.** `middleware/authz.go` + `RBACConfig` + `server.go` per-app gated subrouters + bootstrap call sites. ⚠️ The "flip the switch" phase — access is actually gated after this merges.
 - [ ] **Phase 4 — `/users/me` Extension + Admin Management API.** `AccessResolver` wiring, `CurrentUserResponse`, full `/api/v1/access/*` CRUD + guards + OTel metrics + swagger.
 - [ ] **Phase 5 — Data-Integrity Backfill.** `cmd/all-in-one/db/transfer.go` updates (group_id + 4 tables, FK order). Only depends on Phase 2.
