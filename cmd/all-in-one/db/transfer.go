@@ -189,6 +189,7 @@ type userRow struct {
 	TOTPEnabled         boolInt        `db:"totp_enabled"`
 	TOTPSecretEncrypted sql.NullString `db:"totp_secret_encrypted"`
 	TOTPVerifiedAt      nullableTime   `db:"totp_verified_at"`
+	GroupID             sql.NullString `db:"group_id"`
 }
 
 type sessionRow struct {
@@ -289,28 +290,79 @@ type shortLinkOwnerRow struct {
 	UserID string `db:"user_id"`
 }
 
+type featureRow struct {
+	ID          string         `db:"id"`
+	Key         string         `db:"key"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	AdminOnly   boolInt        `db:"admin_only"`
+	CreatedAt   nullableTime   `db:"created_at"`
+	UpdatedAt   nullableTime   `db:"updated_at"`
+}
+
+type groupRow struct {
+	ID          string         `db:"id"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	IsBuiltin   boolInt        `db:"is_builtin"`
+	CreatedAt   nullableTime   `db:"created_at"`
+	UpdatedAt   nullableTime   `db:"updated_at"`
+}
+
+type groupFeatureRow struct {
+	GroupID   string       `db:"group_id"`
+	FeatureID string       `db:"feature_id"`
+	CreatedAt nullableTime `db:"created_at"`
+}
+
+type userFeatureOverrideRow struct {
+	UserID    string       `db:"user_id"`
+	FeatureID string       `db:"feature_id"`
+	Allow     boolInt      `db:"allow"`
+	CreatedAt nullableTime `db:"created_at"`
+	UpdatedAt nullableTime `db:"updated_at"`
+}
+
 // transferData holds all rows read from the source database.
 type transferData struct {
-	users            []userRow
-	sessions         []sessionRow
-	topics           []topicRow
-	items            []itemRow
-	chatSessions     []chatSessionRow
-	chatParticipants []chatParticipantRow
-	chatMessages     []chatMessageRow
-	chatInvites      []chatInviteRow
-	recoveryCodes    []recoveryCodeRow
-	totpChallenges   []totpChallengeRow
-	shortLinks       []shortLinkRow
-	shortLinkOwners  []shortLinkOwnerRow
+	features             []featureRow
+	groups               []groupRow
+	users                []userRow
+	sessions             []sessionRow
+	topics               []topicRow
+	items                []itemRow
+	chatSessions         []chatSessionRow
+	chatParticipants     []chatParticipantRow
+	chatMessages         []chatMessageRow
+	chatInvites          []chatInviteRow
+	recoveryCodes        []recoveryCodeRow
+	totpChallenges       []totpChallengeRow
+	shortLinks           []shortLinkRow
+	shortLinkOwners      []shortLinkOwnerRow
+	groupFeatures        []groupFeatureRow
+	userFeatureOverrides []userFeatureOverrideRow
 }
 
 func readAll(ctx context.Context, src *sqlx.DB) (*transferData, error) {
 	d := &transferData{}
 
+	// features and groups are read (and, in writeAll, written) before users
+	// because users.group_id references groups(id).
+	if err := queryInto(ctx, src, &d.features, `
+		SELECT id, key, name, description, admin_only, created_at, updated_at
+		FROM features`); err != nil {
+		return nil, fmt.Errorf("features: %w", err)
+	}
+
+	if err := queryInto(ctx, src, &d.groups, `
+		SELECT id, name, description, is_builtin, created_at, updated_at
+		FROM groups`); err != nil {
+		return nil, fmt.Errorf("groups: %w", err)
+	}
+
 	if err := queryInto(ctx, src, &d.users, `
 		SELECT id, username, email, name, password_hash, last_login, created_at, updated_at,
-		       totp_enabled, totp_secret_encrypted, totp_verified_at
+		       totp_enabled, totp_secret_encrypted, totp_verified_at, group_id
 		FROM users`); err != nil {
 		return nil, fmt.Errorf("users: %w", err)
 	}
@@ -381,6 +433,21 @@ func readAll(ctx context.Context, src *sqlx.DB) (*transferData, error) {
 		return nil, fmt.Errorf("short_link_owners: %w", err)
 	}
 
+	// group_features and user_feature_overrides reference groups/features
+	// and users/features respectively — read last, mirroring their write
+	// position (after all three of those tables have been written).
+	if err := queryInto(ctx, src, &d.groupFeatures, `
+		SELECT group_id, feature_id, created_at
+		FROM group_features`); err != nil {
+		return nil, fmt.Errorf("group_features: %w", err)
+	}
+
+	if err := queryInto(ctx, src, &d.userFeatureOverrides, `
+		SELECT user_id, feature_id, allow, created_at, updated_at
+		FROM user_feature_overrides`); err != nil {
+		return nil, fmt.Errorf("user_feature_overrides: %w", err)
+	}
+
 	return d, nil
 }
 
@@ -411,18 +478,47 @@ func writeAll(ctx context.Context, dst *sqlx.DB, data *transferData, direction s
 
 	total := 0
 
+	// features and groups first — users.group_id references groups(id).
+	q := insertQuery("features", []string{
+		"id", "key", "name", "description", "admin_only", "created_at", "updated_at",
+	}, direction)
+	for _, r := range data.features {
+		if _, err := tx.ExecContext(ctx, q,
+			r.ID, r.Key, r.Name, r.Description,
+			boolForDst(r.AdminOnly.V, direction), r.CreatedAt.T, r.UpdatedAt.T,
+		); err != nil {
+			return total, fmt.Errorf("insert feature %s: %w", r.ID, err)
+		}
+	}
+	log.Info().Str("table", "features").Int("rows", len(data.features)).Msg("transferred")
+	total += len(data.features)
+
+	q = insertQuery("groups", []string{
+		"id", "name", "description", "is_builtin", "created_at", "updated_at",
+	}, direction)
+	for _, r := range data.groups {
+		if _, err := tx.ExecContext(ctx, q,
+			r.ID, r.Name, r.Description,
+			boolForDst(r.IsBuiltin.V, direction), r.CreatedAt.T, r.UpdatedAt.T,
+		); err != nil {
+			return total, fmt.Errorf("insert group %s: %w", r.ID, err)
+		}
+	}
+	log.Info().Str("table", "groups").Int("rows", len(data.groups)).Msg("transferred")
+	total += len(data.groups)
+
 	// users
-	q := insertQuery("users", []string{
+	q = insertQuery("users", []string{
 		"id", "username", "email", "name", "password_hash",
 		"last_login", "created_at", "updated_at",
-		"totp_enabled", "totp_secret_encrypted", "totp_verified_at",
+		"totp_enabled", "totp_secret_encrypted", "totp_verified_at", "group_id",
 	}, direction)
 	for _, r := range data.users {
 		if _, err := tx.ExecContext(ctx, q,
 			r.ID, r.Username, r.Email, r.Name, r.PasswordHash,
 			r.LastLogin.T, r.CreatedAt.T, r.UpdatedAt.T,
 			boolForDst(r.TOTPEnabled.V, direction),
-			r.TOTPSecretEncrypted, r.TOTPVerifiedAt.T,
+			r.TOTPSecretEncrypted, r.TOTPVerifiedAt.T, r.GroupID,
 		); err != nil {
 			return total, fmt.Errorf("insert user %s: %w", r.ID, err)
 		}
@@ -583,12 +679,40 @@ func writeAll(ctx context.Context, dst *sqlx.DB, data *transferData, direction s
 	log.Info().Str("table", "short_link_owners").Int("rows", len(data.shortLinkOwners)).Msg("transferred")
 	total += len(data.shortLinkOwners)
 
+	// group_features and user_feature_overrides last — they reference
+	// groups/features and users/features, all already written above.
+	q = insertQuery("group_features", []string{"group_id", "feature_id", "created_at"}, direction)
+	for _, r := range data.groupFeatures {
+		if _, err := tx.ExecContext(ctx, q, r.GroupID, r.FeatureID, r.CreatedAt.T); err != nil {
+			return total, fmt.Errorf("insert group_feature (%s,%s): %w", r.GroupID, r.FeatureID, err)
+		}
+	}
+	log.Info().Str("table", "group_features").Int("rows", len(data.groupFeatures)).Msg("transferred")
+	total += len(data.groupFeatures)
+
+	q = insertQuery("user_feature_overrides", []string{
+		"user_id", "feature_id", "allow", "created_at", "updated_at",
+	}, direction)
+	for _, r := range data.userFeatureOverrides {
+		if _, err := tx.ExecContext(ctx, q,
+			r.UserID, r.FeatureID, boolForDst(r.Allow.V, direction), r.CreatedAt.T, r.UpdatedAt.T,
+		); err != nil {
+			return total, fmt.Errorf("insert user_feature_override (%s,%s): %w", r.UserID, r.FeatureID, err)
+		}
+	}
+	log.Info().Str("table", "user_feature_overrides").Int("rows", len(data.userFeatureOverrides)).Msg("transferred")
+	total += len(data.userFeatureOverrides)
+
 	// After bulk-inserting explicit IDs into PostgreSQL IDENTITY columns, advance
-	// the sequences so future INSERTs without explicit IDs don't collide.
+	// the sequences so future INSERTs without explicit IDs don't collide. The
+	// 3-argument setval form is required: when a table is empty, MAX(id) is
+	// NULL/0, and setval(seq, 0) errors because sequences have MINVALUE 1 —
+	// passing is_called=false instead primes the sequence so the next
+	// nextval() returns 1 without treating 1 as already consumed.
 	if direction == "sqlite-to-pg" {
 		for _, q := range []string{
-			`SELECT setval(pg_get_serial_sequence('topics', 'id'), COALESCE((SELECT MAX(id) FROM topics), 0))`,
-			`SELECT setval(pg_get_serial_sequence('items', 'id'), COALESCE((SELECT MAX(id) FROM items), 0))`,
+			`SELECT setval(pg_get_serial_sequence('topics', 'id'), COALESCE((SELECT MAX(id) FROM topics), 1), (SELECT MAX(id) FROM topics) IS NOT NULL)`,
+			`SELECT setval(pg_get_serial_sequence('items', 'id'), COALESCE((SELECT MAX(id) FROM items), 1), (SELECT MAX(id) FROM items) IS NOT NULL)`,
 		} {
 			if _, err := tx.ExecContext(ctx, q); err != nil {
 				return total, fmt.Errorf("reset sequence: %w", err)
@@ -605,6 +729,8 @@ func writeAll(ctx context.Context, dst *sqlx.DB, data *transferData, direction s
 
 func logTransferSummary(log zerolog.Logger, d *transferData) {
 	log.Info().
+		Int("features", len(d.features)).
+		Int("groups", len(d.groups)).
 		Int("users", len(d.users)).
 		Int("sessions", len(d.sessions)).
 		Int("topics", len(d.topics)).
@@ -617,5 +743,7 @@ func logTransferSummary(log zerolog.Logger, d *transferData) {
 		Int("totp_challenges", len(d.totpChallenges)).
 		Int("short_links", len(d.shortLinks)).
 		Int("short_link_owners", len(d.shortLinkOwners)).
+		Int("group_features", len(d.groupFeatures)).
+		Int("user_feature_overrides", len(d.userFeatureOverrides)).
 		Msg("source data summary")
 }

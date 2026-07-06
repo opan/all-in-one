@@ -5,6 +5,7 @@
 	import * as Field from '$lib/components/ui/field';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import SettingsNav from "../../components/settings-nav.svelte";
+	import AccessManagement from "../../components/access-management/AccessManagement.svelte";
 	import { toast, Toaster } from 'svelte-sonner';
 	import { apiGet, apiPost, apiClient } from '$lib/api';
 	import { goto } from '$app/navigation';
@@ -24,7 +25,10 @@
 	const navItems = [
 		{ id: 'general', label: 'General', icon: '⚙️' },
 		{ id: 'account', label: 'Account', icon: '👤' },
-		{ id: 'advanced', label: 'Advanced', icon: '🛠️' }
+		{ id: 'advanced', label: 'Advanced', icon: '🛠️' },
+		...(data.user?.is_admin
+			? [{ id: 'access-management', label: 'Access Management', icon: '🛡️' }]
+			: [])
 	];
 
 	// 2FA state
@@ -485,6 +489,8 @@
 							{/if}
 						</div>
 					</div>
+				{:else if activeSection === 'access-management'}
+					<AccessManagement />
 				{/if}
 			</div>
 		</div>

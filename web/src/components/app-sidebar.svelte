@@ -14,11 +14,12 @@
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
-  import { apiDelete, apiGet, isLoggedIn } from '$lib/api';
+  import { apiDelete, isLoggedIn } from '$lib/api';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
+  import { auth, loadAuth, hasFeature } from '$lib/stores/auth';
 
   interface Props {
     currentPath?: string;
@@ -29,6 +30,7 @@
     url?: string;
     icon: Component<IconProps, {}, "">;
     isExpandable: boolean;
+    feature?: string;
     subitems?: Array<{
       title: string;
       url: string;
@@ -47,22 +49,11 @@
   });
   let userLoggedIn = $state(false);
   let isSigningOut = $state(false);
-  let currentUser = $state<{ name?: string; username?: string; email?: string } | null>(null);
 
   onMount(async () => {
     userLoggedIn = await isLoggedIn();
     if (userLoggedIn) {
-      try {
-        const response = await apiGet('/api/v1/users/me');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            currentUser = data.data;
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch current user:', error);
-      }
+      await loadAuth();
     }
   });
 
@@ -94,20 +85,30 @@
       url: "/listing/topics",
       icon: Table,
       isExpandable: false,
+      feature: "listing",
     },
     {
       title: "Chats",
       url: "/chat",
       icon: MessageSquare,
       isExpandable: false,
+      feature: "chat",
     },
     {
       title: "Shortener",
       url: "/shortener",
       icon: Link2,
       isExpandable: false,
+      feature: "shortener",
     },
   ];
+
+  // Cosmetic only — the backend (RequireFeature middleware) is the actual
+  // enforcement point regardless of what's rendered here. Before auth loads
+  // (userLoggedIn false, $auth null), show nothing rather than everything.
+  let visibleGeneralItems = $derived(
+    generalItems.filter((item) => !item.feature || hasFeature($auth, item.feature))
+  );
 
   const settingItems: NavItem[] = [
     {
@@ -145,7 +146,7 @@
       <Sidebar.GroupLabel>General</Sidebar.GroupLabel>
       <Sidebar.GroupContent>
         <Sidebar.Menu>
-          {#each generalItems as item}
+          {#each visibleGeneralItems as item}
             <Sidebar.MenuItem>
               {#if item.isExpandable}
                 <Sidebar.MenuButton
@@ -263,8 +264,8 @@
                     <SquareUser class="size-4" />
                   </div>
                   <div class="grid flex-1 text-left text-sm leading-tight">
-                    <span class="truncate font-semibold">{currentUser?.name || currentUser?.username || 'User'}</span>
-                    <span class="truncate text-xs text-muted-foreground">{currentUser?.email || ''}</span>
+                    <span class="truncate font-semibold">{$auth?.name || $auth?.username || 'User'}</span>
+                    <span class="truncate text-xs text-muted-foreground">{$auth?.email || ''}</span>
                   </div>
                 </button>
               {/snippet}

@@ -1,9 +1,13 @@
 # RBAC / Access-Management — Progress Tracker
 
-**Status:** 🟢 Phases 1-4 complete. Phases 5-7 not started. Authorization is live (Phase 3) and the full
-admin-facing Access Management REST API + widened `/users/me` now exist (Phase 4) — everything needed for
-Phase 6's frontend to consume.
-**Last updated:** 2026-07-05
+**Status:** ✅ All 7 phases complete. Authorization is live (Phase 3), the full admin-facing Access
+Management REST API + widened `/users/me` exist (Phase 4), `db:transfer` correctly moves RBAC data in both
+directions (Phase 5, including a real Postgres-sequence bug found and fixed in Phase 7), the Access
+Management frontend is built and fully verified via a live headless-browser walkthrough (Phase 6), and the
+full backend + a live Postgres round trip are verified end-to-end (Phase 7). Feature-complete; nothing left
+on the RBAC implementation plan. Remaining work is normal follow-up (commit, PR, code review), not part of
+this tracker.
+**Last updated:** 2026-07-06
 **Full plan:** [RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md) (authoritative, git-tracked, phase-by-phase)
 **Design rationale:** [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md)
 
@@ -26,7 +30,7 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
 
 - [x] **Phase 1 — Database Schema Foundation.** Migration `06_add_rbac_tables` (sqlite3 + postgres, up/down) + `model.User.GroupID`. Zero behavior change — safest first commit.
   - Verified live on SQLite: full up→down→up cycle against a scratch DB (never touched `all-in-one.db`) — schema, indexes, and `PRAGMA foreign_key_check` all clean at each step.
-  - Postgres twin verified by structural review only (diffed against SQLite after normalizing `BOOLEAN/FALSE`↔`INTEGER/0` — identical) — **no live Postgres server was available to test against** (no docker, no running local cluster, no passwordless sudo to start one). Re-verify against a real Postgres instance before/during Phase 7.
+  - Postgres twin originally verified by structural review only (no live Postgres was available at the time). **Closed in Phase 7:** a rootless throwaway `initdb`/`pg_ctl` cluster (no docker, no sudo needed — see Phase 7 notes) confirmed migration `06` applies cleanly to real Postgres 14, all 4 RBAC tables + `users.group_id` created correctly.
   - `go build ./...` and full `go test ./...` pass with no regressions.
   - Not yet committed to git.
 - [x] **Phase 2 — RBAC Core Package.** `internal/rbac/{features.go, model/, repository/, service/resolver.go, service/bootstrap.go}`. Fully unit-tested in isolation; not wired into the server yet.
@@ -61,9 +65,37 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
   - Swagger regenerated (`swag init`) — all 11 endpoints + widened `/users/me` confirmed present in `docs/swagger.json`; project still builds.
   - `docs/metrics.md` — added the 3 new counters + `action` label values + cardinality table update (~46 → ~52 series).
   - Not yet committed to git.
-- [ ] **Phase 5 — Data-Integrity Backfill.** `cmd/all-in-one/db/transfer.go` updates (group_id + 4 tables, FK order). Only depends on Phase 2.
-- [ ] **Phase 6 — Frontend.** `rbac-api.ts`, `stores/auth.ts`, sidebar filtering, Access Management UI (Features/Groups/Users tabs).
-- [ ] **Phase 7 — Final Verification & Docs Sweep.** Full test suite + curl walkthrough on both SQLite and Postgres; metrics.md/swagger/ADR reflect final state.
+- [x] **Phase 5 — Data-Integrity Backfill.** `cmd/all-in-one/db/transfer.go` updates (group_id + 4 tables, FK order). Only depends on Phase 2.
+  - `userRow` gained `GroupID sql.NullString`; users `SELECT`/`INSERT` column lists updated in both `readAll`/`writeAll`.
+  - 4 new row types (`featureRow`, `groupRow`, `groupFeatureRow`, `userFeatureOverrideRow`) using the existing `boolInt`/`nullableTime` scanners — no new scanner types needed, `admin_only`/`is_builtin`/`allow` slot straight into the established `boolInt` pattern.
+  - **Write order fixed for the new FK:** `features` and `groups` now write *before* `users` (since `users.group_id` now references `groups(id)` — previously `users` was the very first table written); `group_features` and `user_feature_overrides` write *last* (after everything they could possibly reference). `readAll`'s read order was adjusted to match for readability, though read order has no FK implications.
+  - `logTransferSummary` reports row counts for all 4 new tables.
+  - Tests (`cmd/all-in-one/db/transfer_test.go`, new): two tests calling `readAll`/`writeAll` directly against two hand-rolled in-memory SQLite DBs (source seeded with 2 features/1 group/1 user+group_id/1 group_feature/1 override, destination empty, `PRAGMA foreign_keys=ON`) — verifies row counts match, `group_id` (both populated and NULL cases) survives the round trip, and the 3 new bool columns decode correctly. Passing this test is itself proof the FK ordering is correct: with foreign keys enforced, a wrong write order would fail with a constraint violation, not a silently-wrong result.
+  - **Postgres round trip closed in Phase 7** against a real throwaway Postgres 14 instance: seeded a SQLite source with a custom group, a group reassignment, and a user override, ran `db:transfer --direction sqlite-to-pg --confirm` into a freshly-migrated *empty* Postgres DB, then `--direction pg-to-sqlite --confirm` back into a freshly-migrated empty SQLite DB. All 34/35 rows (features/groups/users/group_features/user_feature_overrides + chat data) transferred correctly both ways; `users.group_id` and the override survived both hops intact.
+  - **Real bug found and fixed by this live round trip (would NOT have been caught by the existing readAll/writeAll unit test, which uses SQLite on both sides and never exercises Postgres-specific SQL):** the post-transfer sequence-reset step (`SELECT setval(pg_get_serial_sequence('topics','id'), COALESCE((SELECT MAX(id) FROM topics), 0))`) fails with `setval: value 0 is out of bounds` whenever `topics`/`items` is empty on the source side — Postgres sequences have `MINVALUE 1`, so `setval(seq, 0)` is always an error, not just a no-op. Since a brand-new install's `topics`/`items` tables are typically empty, this would have broken *every* first-time `sqlite-to-pg` transfer for a fresh installation. Fixed in `cmd/all-in-one/db/transfer.go` by switching to the 3-argument `setval(seq, COALESCE(MAX(id),1), MAX(id) IS NOT NULL)` form, which correctly primes an empty table's sequence to start at 1 instead of erroring. Verified fixed: re-ran the transfer, confirmed `topics_id_seq` left in a correct `(last_value=1, is_called=false)` state, and confirmed a subsequent ID-less `INSERT` correctly received `id=1`.
+  - Not currently covered by an automated test — reproducing it requires a real Postgres connection (the Postgres-specific `setval`/`pg_get_serial_sequence` SQL doesn't run against SQLite), and this project's CI (`.github/workflows/github-action.yml`) has no Postgres service container. Adding one is a reasonable future improvement but is CI-infrastructure scope, not part of this bug fix.
+  - Not yet committed to git.
+- [x] **Phase 6 — Frontend.** `rbac-api.ts`, `stores/auth.ts`, sidebar filtering, Access Management UI (Features/Groups/Users tabs).
+  - `web/src/lib/rbac-api.ts` (new) — typed client mirroring `shortener-api.ts`'s pattern: `Feature`/`Group`/`UserAccess`/`FeatureOverride`/`GroupInput` interfaces + `listFeatures/listGroups/getGroup/createGroup/updateGroup/deleteGroup/setGroupFeatures/listUsers/assignUserGroup/getUserOverrides/setUserOverrides`, all through a shared `unwrap<T>(res)` helper.
+  - `web/src/lib/stores/auth.ts` (new) — `writable<AuthUser|null>` + `loadAuth()` (single `/users/me` fetch) + `hasFeature(user, key)`. Replaces the sidebar's ad-hoc `/users/me` fetch.
+  - `web/src/components/app-sidebar.svelte` — `generalItems` tagged with `feature` keys (listing/chat/shortener); `visibleGeneralItems = $derived(...)` filters by `hasFeature($auth, item.feature)`. Cosmetic only — backend still enforces via Phase 3 middleware.
+  - `web/src/routes/settings/+page.svelte` — Access Management nav item conditionally pushed when `data.user?.is_admin` (zero load-function changes needed — Phase 4 already widened `/users/me`).
+  - `web/src/components/access-management/` (new) — `AccessManagement.svelte` (Tabs host) + `FeaturesTab.svelte` (read-only list) + `GroupsTab.svelte` (full CRUD via `DataTable`, built-in-group protections mirrored from the backend guards) + `UsersTab.svelte` (group reassignment `Select` + per-feature tri-state Overrides `Dialog`).
+  - **Real bug found + fixed by live browser testing (not caught by `npm run check`):** bits-ui's `Tabs.Content` never unmounts inactive panels, so a plain `onMount` in each tab component only ever fires once for the component's whole lifetime — creating a group in the Groups tab wouldn't appear in the Users tab's reassignment dropdown without a full page reload. Fixed with an `active: boolean` prop threaded from `AccessManagement.svelte` (`active={activeTab === 'x'}`) and `$effect(() => { if (active) load(); })` in place of `onMount(load)` in all three tab components.
+  - Admin-only features (`access-management`) are excluded from both the Groups-tab grant checkboxes and the Users-tab override selects (`$derived(features.filter(f => !f.admin_only))`) — that feature is gated purely by admin-group membership (`RequireAdmin`), so a grant/override on it would be inert.
+  - **Live verification:** installed Playwright + Chromium (headless, no system browser was available) and drove a full 27-check scripted walkthrough against the real built SPA + real Go server + scratch SQLite DB: admin login → Access Management visibility → all 3 tabs render seeded data → group CRUD (create/edit/delete, built-in delete-guard) → user group reassignment → per-user override set to Allow → logout → restricted-user login → sidebar correctly hides ungranted features and shows the override-granted one → backend independently confirmed via `fetch()` returning 403/200 matching the UI. **27/27 checks passed** on the final clean run.
+  - One false lead during debugging, worth recording: an early run showed the Overrides dialog's `Select` triggers as "not found" by the test script (`button[role="combobox"]`), which looked like a real component bug and cost significant investigation (bind vs. controlled `value` pattern, portal/dialog nesting). Root cause turned out to be the test script itself — bits-ui 2.11's `Select.Trigger` never sets `role="combobox"` (it uses `aria-haspopup="listbox"` per the current ARIA pattern); the one working selector elsewhere in the script only passed by accident via an OR-fallback to `[data-slot="select-trigger"]`. No application code changed as a result. Lesson: prefer `[data-slot="..."]` shadcn/bits-ui markers over ARIA role guesses when scripting against this component library.
+  - Not yet committed to git.
+- [x] **Phase 7 — Final Verification & Docs Sweep.** Full test suite + curl walkthrough on both SQLite and Postgres; metrics.md/swagger/ADR reflect final state.
+  - `go build ./...`, `go vet ./...`, and `go test -count=1 ./...` (fresh, uncached) all green with zero regressions; `go test -race -count=1 ./internal/rbac/... ./internal/authnz/...` also clean.
+  - `mockery` re-run — zero diff, all mocks already current from Phase 2/4.
+  - `make gen-swagger` re-run — zero diff, `docs/swagger.json`/`swagger.yaml`/`docs.go` already reflect all 11 `/access/*` endpoints + widened `/users/me` from Phase 4.
+  - `docs/metrics.md` re-checked against the actual OTel instrument names in `internal/rbac/{middleware,handler}/metrics.go` — all 4 counters and their dot→underscore Prometheus renderings are accurate; no changes needed.
+  - `docs/adr/ACCESS_MANAGEMENT_ADR.md` re-checked against everything verified live this phase (admin bypass, override-beats-group precedence, last-admin lockout 409, default-allow-via-seeded-data) — no deviation from any of the 7 locked decisions found, so no amendment needed.
+  - **Postgres finally available for live testing** (previously blocked in Phases 1 & 5 — no docker WSL integration, no passwordless sudo for the system `postgresql-14`/`16` services). Worked around with a fully rootless, throwaway cluster: `initdb -D <scratch>/pgdata -U postgres --auth=trust`, then `pg_ctl start` with a custom port (5544) and a short Unix-socket path under `/tmp` (the scratchpad's own path is too long for the 107-byte socket-path limit). No system state touched; torn down at the end of this phase.
+  - **Live curl walkthrough against real Postgres 14** (server + `db:seed` pointed at it via `ALLINONE_STORAGE_TYPE=postgres` + `ALLINONE_STORAGE_POSTGRES_*` env vars): migrations + RBAC bootstrap succeeded on first real Postgres run; confirmed widened `/users/me`; created a `listing-only` group and reassigned `user` into it (listing→200, chat/shortener→403); granted a `chat` override (chat→200, override beats group); attempted to reassign the sole admin to `regular-user` (→409 `cannot remove the last admin`). Every precedence behavior from the ADR held on Postgres exactly as it does on SQLite.
+  - **Real bug found and fixed by the Postgres round trip** — see the `setval`/sequence bug documented under Phase 5 above (`cmd/all-in-one/db/transfer.go`). This is the single most valuable outcome of finally having live Postgres access: a bug that would have broken every fresh-install `sqlite-to-pg` transfer, invisible to structural review and to the SQLite-only unit tests.
+  - Not yet committed to git.
 
 ## Key gotchas captured during planning
 (Full detail + phase tags in the plan's Appendix A.)
@@ -75,6 +107,8 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
 - **JWT stays role-free** — resolve authz from DB per request (session lookup already hits DB) → zero staleness. Phase 2/3 design constraint (see ADR-003).
 - **Reserved word:** `groups` is valid unquoted in both SQLite & Postgres; fallback `access_groups` if ever needed. Phase 1.
 - **`logging.GetLoggerFromContext` silently no-ops without a context logger** — any new startup-time code path (not just per-HTTP-request code) that wants logging must ensure `ctx` carries one via `context.WithValue(ctx, logging.LoggerKey, &log)` (now done in both `server.go Start()` and `db/seed.go Run()`). Worth remembering for any future startup-time code, not just RBAC.
+- **bits-ui `Tabs.Content` never unmounts inactive panels** — a plain `onMount` in a tab's component only fires once ever. Any tab that fetches its own data needs an `active` prop from the tab host + `$effect(() => { if (active) load(); })` instead. Phase 6.
+- **bits-ui 2.11's `Select.Trigger` does not set `role="combobox"`** — it uses `aria-haspopup="listbox"`. Script/test against `[data-slot="select-trigger"]` instead of ARIA-role guesses. Phase 6.
 - **Cycle-avoidance rule for `internal/rbac/{service,handler}`** — `service` imports `handler` (to construct it), so anything `handler` needs to reference back (sentinel errors, shared DTOs) must NOT live in `service`. Sentinels (`ErrLastAdmin`/`ErrBuiltinGroup`) live in the top-level `rbac` package; shared view types (`UserAccessRow`, `FeatureOverrideView`) live in `rbac/model`. If Phase 6 or later needs another shared type/error between these two packages, put it in one of those two dependency-free packages, not in `service`. Phase 4.
 
 ## Docs status
@@ -92,3 +126,9 @@ detail, file lists, and each phase's Definition of Done. Dependency chain:
   files (the `~/.claude/plans/` copy does NOT travel — it's machine-local).
 - **Mid-phase handoff:** if a phase is partially done, note which files are finished under that phase's
   checklist item before pausing, so the next session doesn't redo work.
+
+## Feature complete
+All 7 phases are done and independently verified (unit tests, live SQLite walkthroughs, and — as of
+Phase 7 — a live Postgres walkthrough and cross-backend transfer round trip). Nothing on this tracker is
+outstanding. None of this has been committed to git yet (see each phase's "Not yet committed" note) — that,
+plus normal code review, is the only remaining step before this ships.
