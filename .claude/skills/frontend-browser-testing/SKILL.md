@@ -88,8 +88,13 @@ Seeded default users (from `internal/authnz/seed/seed.go`): `admin`/`admin123`, 
 ## Script skeleton (known-working selectors)
 
 ```js
-const { chromium } = require('playwright'); // run with cwd inside web/ so node_modules resolves
 const path = require('path');
+const { execSync } = require('child_process');
+// The script lives outside web/ (in the scratchpad), so plain require('playwright')
+// won't resolve — Node resolves require() relative to the FILE's own location, not
+// the process cwd, even if you `cd web` first. Resolve the repo root via git instead.
+const repoRoot = execSync('git rev-parse --show-toplevel').toString().trim();
+const { chromium } = require(path.join(repoRoot, 'web', 'node_modules', 'playwright'));
 
 const BASE = 'http://localhost:18090';
 const SHOT_DIR = '<scratchpad>/shots';

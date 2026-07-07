@@ -1,6 +1,6 @@
 import { goto } from "$app/navigation";
 import { browser } from "$app/environment";
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 
 /**
  * API client wrapper that handles authentication and redirects on 401
@@ -94,6 +94,16 @@ export async function apiLoad(
 	}
 
 	return response;
+}
+
+/**
+ * Throws a SvelteKit HTTP error carrying the real response status (403, 404, ...)
+ * instead of the default 500, so +error.svelte can render the right message.
+ * Call from a load function after checking `!res.ok`.
+ */
+export async function throwApiError(res: Response, fallback: string): Promise<never> {
+	const body = await res.json().catch(() => null);
+	error(res.status, body?.error || fallback);
 }
 
 /**
