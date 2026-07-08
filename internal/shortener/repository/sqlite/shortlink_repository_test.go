@@ -38,9 +38,19 @@ func newTestDB(t *testing.T) *sqlx.DB {
 			user_id TEXT NOT NULL
 		);
 		CREATE INDEX idx_short_link_owners_user_id ON short_link_owners(user_id);
+		CREATE TABLE users (
+			id       TEXT PRIMARY KEY,
+			username TEXT NOT NULL UNIQUE
+		);
 	`)
 	require.NoError(t, err)
 	return db
+}
+
+func seedUser(t *testing.T, db *sqlx.DB, id, username string) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO users (id, username) VALUES (?, ?)`, id, username)
+	require.NoError(t, err)
 }
 
 func seedLink(t *testing.T, db *sqlx.DB, link model.ShortLink, ownerID string) {
@@ -354,4 +364,130 @@ func TestIncrementClick_MultipleClicks(t *testing.T) {
 	got, err := repo.GetByCode(context.Background(), "mul1234")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(5), got.ClickCount)
+}
+
+// ---- ListAll ----
+
+func TestListAll_AcrossOwners(t *testing.T) {
+	db := newTestDB(t)
+	repo := newShortLinkRepository(db)
+
+	seedUser(t, db, "user-1", "alice")
+	seedUser(t, db, "user-2", "bob")
+	seedLink(t, db, baseLink("own0001"), "user-1")
+	seedLink(t, db, baseLink("own0002"), "user-2")
+	seedLink(t, db, baseLink("anon001"), "")
+
+	links, total, err := repo.ListAll(context.Background(), 1, 10)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(3), total)
+	assert.Len(t, links, 3)
+
+	byCode := map[string]model.ShortLinkWithOwner{}
+	for _, l := range links {
+		byCode[l.Code] = l
+	}
+	assert.Equal(t, "user-1", byCode["own0001"].OwnerID)
+	assert.Equal(t, "alice", byCode["own0001"].OwnerUsername)
+	assert.Equal(t, "user-2", byCode["own0002"].OwnerID)
+	assert.Equal(t, "bob", byCode["own0002"].OwnerUsername)
+	assert.Empty(t, byCode["anon001"].OwnerID)
+	assert.Empty(t, byCode["anon001"].OwnerUsername)
+}
+
+func TestListAll_Pagination(t *testing.T) {
+	db := newTestDB(t)
+	repo := newShortLinkRepository(db)
+
+	for i := range 5 {
+		code := [7]byte{'p', 'g', 'a', 'l', 'l', '0', byte('1' + i)}
+		l := baseLink(string(code[:]))
+		l.CreatedAt = time.Now().Add(-time.Duration(i) * time.Second).UTC()
+		seedLink(t, db, l, "")
+	}
+
+	links, total, err := repo.ListAll(context.Background(), 1, 2)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(5), total)
+	assert.Len(t, links, 2)
+
+	page2, _, err := repo.ListAll(context.Background(), 2, 2)
+	require.NoError(t, err)
+	assert.Len(t, page2, 2)
+}
+
+func TestListAll_Empty(t *testing.T) {
+	repo := newShortLinkRepository(newTestDB(t))
+	links, total, err := repo.ListAll(context.Background(), 1, 10)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(0), total)
+	assert.Empty(t, links)
+}
+
+// ---- DeleteByCode ----
+
+func TestDeleteByCode_RemovesRegardlessOfOwner(t *testing.T) {
+	db := newTestDB(t)
+	repo := newShortLinkRepository(db)
+	link := baseLink("adel123")
+	seedLink(t, db, link, "some-owner")
+
+	err := repo.DeleteByCode(context.Background(), "adel123")
+	require.NoError(t, err)
+
+	_, err = repo.GetByCode(context.Background(), "adel123")
+	assert.ErrorIs(t, err, httpHelper.ErrNotFound)
+}
+
+func TestDeleteByCode_Anonymous(t *testing.T) {
+	db := newTestDB(t)
+	repo := newShortLinkRepository(db)
+	link := baseLink("adel456")
+	seedLink(t, db, link, "")
+
+	err := repo.DeleteByCode(context.Background(), "adel456")
+	require.NoError(t, err)
+}
+
+func TestDeleteByCode_NotFound(t *testing.T) {
+	repo := newShortLinkRepository(newTestDB(t))
+	err := repo.DeleteByCode(context.Background(), "ghost99")
+	assert.ErrorIs(t, err, httpHelper.ErrNotFound)
+}
+
+// ---- SetActiveByCode ----
+
+func TestSetActiveByCode_Deactivate(t *testing.T) {
+	db := newTestDB(t)
+	repo := newShortLinkRepository(db)
+	link := baseLink("aset123")
+	seedLink(t, db, link, "some-owner")
+
+	err := repo.SetActiveByCode(context.Background(), "aset123", false)
+	require.NoError(t, err)
+
+	got, err := repo.GetByCode(context.Background(), "aset123")
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+}
+
+func TestSetActiveByCode_Reactivate(t *testing.T) {
+	db := newTestDB(t)
+	repo := newShortLinkRepository(db)
+	link := baseLink("aset456")
+	link.IsActive = false
+	seedLink(t, db, link, "some-owner")
+
+	err := repo.SetActiveByCode(context.Background(), "aset456", true)
+	require.NoError(t, err)
+
+	got, err := repo.GetByCode(context.Background(), "aset456")
+	require.NoError(t, err)
+	assert.True(t, got.IsActive)
+}
+
+func TestSetActiveByCode_NotFound(t *testing.T) {
+	repo := newShortLinkRepository(newTestDB(t))
+	err := repo.SetActiveByCode(context.Background(), "ghost88", false)
+	assert.ErrorIs(t, err, httpHelper.ErrNotFound)
 }
