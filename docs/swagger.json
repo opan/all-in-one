@@ -670,6 +670,171 @@
                 }
             }
         },
+        "/admin/users/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. Change another user's email address.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-users"
+                ],
+                "summary": "Update a user's email (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New email",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateUserEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email updated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user id or email",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Email already in use",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/block": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. Block a user's login and terminate all their active sessions. Administrators cannot be blocked.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-users"
+                ],
+                "summary": "Block a user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User blocked",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user id",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Cannot block an administrator",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/unblock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. Re-enable a blocked user's login.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-users"
+                ],
+                "summary": "Unblock a user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User unblocked",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user id",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/chats": {
             "get": {
                 "security": [
@@ -2478,6 +2643,9 @@
         "handler.CurrentUserResponse": {
             "type": "object",
             "properties": {
+                "blocked": {
+                    "type": "boolean"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2576,6 +2744,14 @@
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.UpdateUserEmailRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
                     "type": "string"
                 }
             }
@@ -2886,6 +3062,9 @@
         "model.User": {
             "type": "object",
             "properties": {
+                "blocked": {
+                    "type": "boolean"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2918,6 +3097,9 @@
         "model.UserAccessRow": {
             "type": "object",
             "properties": {
+                "blocked": {
+                    "type": "boolean"
+                },
                 "email": {
                     "type": "string"
                 },

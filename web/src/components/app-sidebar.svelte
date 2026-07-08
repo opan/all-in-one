@@ -11,6 +11,8 @@
     LogOut,
     MessageSquare,
     Link2,
+    Users,
+    ShieldCheck,
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
@@ -110,6 +112,25 @@
     generalItems.filter((item) => !item.feature || hasFeature($auth, item.feature))
   );
 
+  const adminItems: NavItem[] = [
+    {
+      title: "Users",
+      url: "/admin/users",
+      icon: Users,
+      isExpandable: false,
+    },
+    {
+      title: "Access",
+      url: "/admin/access",
+      icon: ShieldCheck,
+      isExpandable: false,
+    },
+  ];
+
+  // The whole Admin section only renders for admins. The backend RequireAdmin
+  // middleware is the real gate; this is cosmetic (mirrors visibleGeneralItems).
+  let showAdmin = $derived($auth?.is_admin === true);
+
   const settingItems: NavItem[] = [
     {
       title: "Settings",
@@ -195,6 +216,31 @@
       </Sidebar.GroupContent>
     </Sidebar.Group>
     
+    {#if showAdmin}
+      <Sidebar.Group>
+        <Sidebar.GroupLabel>Admin</Sidebar.GroupLabel>
+        <Sidebar.GroupContent>
+          <Sidebar.Menu>
+            {#each adminItems as item}
+              <Sidebar.MenuItem>
+                <Sidebar.MenuButton
+                  isActive={item.url === currentPath}
+                  tooltipContent={item.title}
+                >
+                  {#snippet child({ props })}
+                    <a href={item.url} {...props}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  {/snippet}
+                </Sidebar.MenuButton>
+              </Sidebar.MenuItem>
+            {/each}
+          </Sidebar.Menu>
+        </Sidebar.GroupContent>
+      </Sidebar.Group>
+    {/if}
+
     <Sidebar.Group>
       <Sidebar.GroupLabel>Settings</Sidebar.GroupLabel>
       <Sidebar.GroupContent>

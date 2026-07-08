@@ -39,7 +39,8 @@ func newTransferTestDB(t *testing.T) *sqlx.DB {
 			totp_enabled INTEGER NOT NULL DEFAULT 0,
 			totp_secret_encrypted TEXT,
 			totp_verified_at TIMESTAMP,
-			group_id TEXT REFERENCES groups(id) ON DELETE SET NULL
+			group_id TEXT REFERENCES groups(id) ON DELETE SET NULL,
+			blocked INTEGER NOT NULL DEFAULT 0
 		);
 
 		CREATE TABLE features (
@@ -128,8 +129,8 @@ func TestReadAllWriteAll_RBACTables(t *testing.T) {
 		('grp-regular', 'regular-user', 'default', 1, ?, ?)`, now, now)
 	require.NoError(t, err)
 
-	_, err = src.Exec(`INSERT INTO users (id, username, email, password_hash, created_at, updated_at, group_id) VALUES
-		('user-1', 'alice', 'alice@example.com', 'hash', ?, ?, 'grp-regular')`, now, now)
+	_, err = src.Exec(`INSERT INTO users (id, username, email, password_hash, created_at, updated_at, group_id, blocked) VALUES
+		('user-1', 'alice', 'alice@example.com', 'hash', ?, ?, 'grp-regular', 1)`, now, now)
 	require.NoError(t, err)
 
 	_, err = src.Exec(`INSERT INTO group_features (group_id, feature_id, created_at) VALUES ('grp-regular', 'feat-listing', ?)`, now)
@@ -170,6 +171,11 @@ func TestReadAllWriteAll_RBACTables(t *testing.T) {
 	var groupID string
 	require.NoError(t, dst.Get(&groupID, "SELECT group_id FROM users WHERE id = 'user-1'"))
 	assert.Equal(t, "grp-regular", groupID)
+
+	// users.blocked must survive the round trip (boolInt/boolForDst).
+	var blocked int
+	require.NoError(t, dst.Get(&blocked, "SELECT blocked FROM users WHERE id = 'user-1'"))
+	assert.Equal(t, 1, blocked)
 
 	// Bool columns (admin_only, is_builtin, allow) must decode correctly on
 	// both sides of the boolInt/boolForDst round trip.

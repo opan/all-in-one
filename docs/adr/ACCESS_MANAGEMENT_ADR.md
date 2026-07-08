@@ -306,3 +306,68 @@ code and DB is logged instead of auto-corrected).
 ### Key files
 - `internal/rbac/features.go`
 - `internal/rbac/service/bootstrap.go`
+
+---
+
+## ADR-008: Dedicated Admin area + user management (edit email, block login)
+
+### Status
+Accepted
+
+### Context
+ADR-001–007 delivered an admin-only **Access Management** screen, but it shipped as a fourth tab inside
+the personal **Settings** page (`/settings`). Settings is self-service — a user's own theme, password, and
+2FA — whereas Access Management administers *other* users, so the two were conceptually mismatched. Separately,
+there was no way for an admin to perform basic identity administration: correcting another user's email, or
+disabling a compromised/departed account.
+
+### Decision
+1. **Dedicated Admin area.** Admin-only features move out of Settings into a new top-level **Admin** section
+   in the sidebar (rendered only when `is_admin`), with two real routes: **`/admin/users`** (the user roster:
+   edit email, block/unblock, group assignment, per-user overrides) and **`/admin/access`** (Groups + Features
+   policy). Settings returns to purely personal. The frontend `/admin/*` guard is cosmetic; the backend
+   `RequireAdmin` subrouter is the real gate.
+2. **Block login.** Users carry a `blocked` boolean (migration `07`). A blocked user is rejected at login
+   (403 "account is blocked", checked after the password and *before* the 2FA branch), and blocking also
+   deletes all their sessions via the existing `SessionRepository.DeleteByUserID` — the same invalidation
+   path used for password-reset — so the block takes effect immediately on live sessions with no new
+   per-request cost. Enforcement stays DB-per-request and JWT stays role/state-free (consistent with ADR-003).
+3. **Admins are never blockable.** Blocking a user who is an admin returns **409**; an admin must have their
+   admin access removed first. This makes self-block impossible and admin lockout unreachable by construction
+   (mirrors the last-admin group guard in ADR-004). The guard reuses the already-wired `AccessResolver`.
+4. **Domain split.** User-identity mutations (email, block/unblock) live in **authnz** (`/api/v1/admin/users/*`),
+   since they touch account state and sessions (authnz-owned). The read model reuses rbac's existing
+   `/access/users` roster — extended with one `blocked` column — so the Users page needs a single list call
+   rather than a second identity endpoint plus client-side merge.
+
+### Rationale
+- Grouping admin-only capabilities in one area matches the mental model (and convention: GitHub/Linear-style
+  admin vs. personal settings) and stops Access Management from being buried in unrelated personal settings.
+- Reusing `DeleteByUserID` for block enforcement means no new middleware and no new per-request DB read —
+  the blocked check at login plus session-deletion is both cheap and immediate.
+- "Admins are never blockable" is the simplest rule that removes all lockout risk; the alternative
+  ("allow except the last admin") needs a non-blocked-admin count and was rejected as unnecessary complexity.
+
+### Alternatives Considered
+| Option | Rejected because |
+|---|---|
+| Keep Access Management as a Settings tab, add user admin there | Perpetuates the personal-vs-admin mismatch and crowds a personal page with cross-user administration. |
+| Enforce block via a new per-request middleware check | Adds a per-request user lookup; deleting sessions at block time + the login check already gives immediate, zero-staleness enforcement for free. |
+| Put email/block endpoints in rbac alongside `/access/*` | Email and session termination are authnz/identity concerns, not authorization policy; keeping them in authnz preserves the domain boundary (rbac already reaches into `users` only for group joins). |
+| Allow blocking admins except the last one | Requires counting non-blocked admins and a lockout guard; "never block an admin" is safer and simpler. |
+
+### Consequences
+- Adding `model.User.Blocked` is mandatory (every user query is `SELECT *`); the flag is wired through
+  `db:transfer` so it survives cross-backend migration.
+- To block an administrator you must first move them out of the admin group, then block — a deliberate,
+  explicit two-step.
+- New admin identity operations extend the authnz admin surface (`RegisterAdminRoutes`) on the same
+  `RequireAdmin` subrouter as rbac's management API.
+
+### Key files
+- `db/migrations/{sqlite3,postgres}/07_add_user_blocked.*`, `internal/authnz/model/user.go`
+- `internal/authnz/handler/{session.go, admin_user.go}` (login check, admin API + block guard)
+- `internal/authnz/repository/*/user_repository.go` (`UpdateEmail`, `SetBlocked`)
+- `internal/rbac/.../user_group_repository.go` + `internal/rbac/model/model.go` (`blocked` on the roster)
+- `cmd/all-in-one/server/server.go` (wiring), `cmd/all-in-one/db/transfer.go` (backfill)
+- `web/src/components/app-sidebar.svelte`, `web/src/routes/admin/**`, `web/src/lib/admin-api.ts`

@@ -28,6 +28,7 @@ export interface UserAccess {
 	group_id: string | null;
 	group_name: string | null;
 	is_admin: boolean;
+	blocked: boolean;
 }
 
 export interface FeatureOverride {

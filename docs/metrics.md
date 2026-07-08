@@ -52,16 +52,20 @@ rate(aio_listing_items_created_total[5m]) * 60
 | `aio_authnz_registrations_total` | Counter | `result` | Registration attempts by outcome |
 | `aio_authnz_2fa_verifications_total` | Counter | `method`, `result` | 2FA verification attempts |
 | `aio_authnz_2fa_state_changes_total` | Counter | `action` | 2FA enable/disable events |
+| `aio_admin_user_email_updated_total` | Counter | — | Admin changed another user's email (`internal/authnz/handler`) |
+| `aio_admin_user_blocked_total` | Counter | `result` | Admin blocked a user's login |
+| `aio_admin_user_unblocked_total` | Counter | — | Admin unblocked a user's login |
 
 **Label values**
 
 | Label | Metric | Values |
 |---|---|---|
-| `result` | `logins_total` | `success`, `invalid_credentials`, `user_not_found`, `2fa_required` |
+| `result` | `logins_total` | `success`, `invalid_credentials`, `user_not_found`, `2fa_required`, `blocked` |
 | `result` | `registrations_total` | `success`, `failure` |
 | `method` | `2fa_verifications_total` | `totp`, `recovery_code` |
 | `result` | `2fa_verifications_total` | `success`, `failure` |
 | `action` | `2fa_state_changes_total` | `enabled`, `disabled` |
+| `result` | `admin_user_blocked_total` | `success` |
 
 **Example queries**
 
@@ -261,10 +265,13 @@ Total series count at steady state (worst case, all label combinations observed)
 
 | App | Metric | Max series |
 |---|---|---|
-| Authnz | `logins_total` | 4 (`result`) |
+| Authnz | `logins_total` | 5 (`result`) |
 | Authnz | `registrations_total` | 2 |
 | Authnz | `2fa_verifications_total` | 4 (2 × 2) |
 | Authnz | `2fa_state_changes_total` | 2 |
+| Admin | `admin_user_blocked_total` | 1 (`result`) |
+| Admin | `admin_user_unblocked_total` | 1 |
+| Admin | `admin_user_email_updated_total` | 1 |
 | Shortener | `links_created_total` | 2 |
 | Shortener | `links_resolved_total` | 4 |
 | Shortener | `rate_limited_total` | 2 |
@@ -274,7 +281,7 @@ Total series count at steady state (worst case, all label combinations observed)
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
 | All others | — | 1 each (17 metrics) |
 
-**Total: ~52 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~56 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

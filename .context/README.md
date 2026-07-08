@@ -16,7 +16,11 @@ This directory contains implementation plans, progress trackers, ADRs (Architect
 
 ### Access Management (RBAC)
 - **[RBAC_IMPLEMENTATION_PLAN.md](RBAC_IMPLEMENTATION_PLAN.md)** - Approved plan for the admin-only Access Management / feature-authorization system
-- **[RBAC_PROGRESS.md](RBAC_PROGRESS.md)** - Progress tracker for RBAC development (not started)
+- **[RBAC_PROGRESS.md](RBAC_PROGRESS.md)** - Progress tracker for RBAC development (complete)
+
+### Admin & User Management
+- **[USER_ADMIN_MANAGEMENT_IMPLEMENTATION_PLAN.md](USER_ADMIN_MANAGEMENT_IMPLEMENTATION_PLAN.md)** - Plan for the dedicated Admin area + user management (edit email, block/unblock login)
+- **[USER_ADMIN_MANAGEMENT_PROGRESS.md](USER_ADMIN_MANAGEMENT_PROGRESS.md)** - Progress tracker (complete)
 
 ### Other
 - **[SWAGGER_INTEGRATION.md](SWAGGER_INTEGRATION.md)** - Swagger/OpenAPI integration documentation

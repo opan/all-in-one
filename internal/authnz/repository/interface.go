@@ -23,6 +23,11 @@ type UserRepository interface {
 	Find(ctx context.Context, id uuid.UUID) (model.User, error)
 	Create(ctx context.Context, user model.User, opts ...query.QueryOptions) error
 	Update(ctx context.Context, id uuid.UUID, user model.User, opts ...query.QueryOptions) error
+	// UpdateEmail and SetBlocked are narrow admin-management updates that touch a
+	// single column, deliberately separate from the full-row Update to avoid
+	// clobbering unrelated fields.
+	UpdateEmail(ctx context.Context, id uuid.UUID, email string) error
+	SetBlocked(ctx context.Context, id uuid.UUID, blocked bool) error
 }
 
 type TOTPRepository interface {

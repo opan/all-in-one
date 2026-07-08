@@ -134,6 +134,16 @@ export async function apiPut(url: string, data?: unknown): Promise<Response> {
 }
 
 /**
+ * Convenience method for PATCH requests
+ */
+export async function apiPatch(url: string, data?: unknown): Promise<Response> {
+	return apiClient(url, {
+		method: "PATCH",
+		body: data ? JSON.stringify(data) : undefined,
+	});
+}
+
+/**
  * Convenience method for DELETE requests
  */
 export async function apiDelete(url: string): Promise<Response> {

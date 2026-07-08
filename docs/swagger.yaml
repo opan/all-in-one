@@ -28,6 +28,8 @@ definitions:
     type: object
   handler.CurrentUserResponse:
     properties:
+      blocked:
+        type: boolean
       created_at:
         type: string
       email:
@@ -92,6 +94,11 @@ definitions:
       description:
         type: string
       name:
+        type: string
+    type: object
+  handler.UpdateUserEmailRequest:
+    properties:
+      email:
         type: string
     type: object
   model.CreateInviteRequest:
@@ -298,6 +305,8 @@ definitions:
     type: object
   model.User:
     properties:
+      blocked:
+        type: boolean
       created_at:
         type: string
       email:
@@ -319,6 +328,8 @@ definitions:
     type: object
   model.UserAccessRow:
     properties:
+      blocked:
+        type: boolean
       email:
         type: string
       group_id:
@@ -759,6 +770,113 @@ paths:
       summary: Replace a user's feature overrides
       tags:
       - access-management
+  /admin/users/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Admin-only. Change another user's email address.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New email
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateUserEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email updated
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid user id or email
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Email already in use
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Update a user's email (admin)
+      tags:
+      - admin-users
+  /admin/users/{id}/block:
+    post:
+      description: Admin-only. Block a user's login and terminate all their active
+        sessions. Administrators cannot be blocked.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User blocked
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid user id
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Cannot block an administrator
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Block a user (admin)
+      tags:
+      - admin-users
+  /admin/users/{id}/unblock:
+    post:
+      description: Admin-only. Re-enable a blocked user's login.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User unblocked
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid user id
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Unblock a user (admin)
+      tags:
+      - admin-users
   /chats:
     get:
       consumes:

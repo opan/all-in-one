@@ -190,6 +190,7 @@ type userRow struct {
 	TOTPSecretEncrypted sql.NullString `db:"totp_secret_encrypted"`
 	TOTPVerifiedAt      nullableTime   `db:"totp_verified_at"`
 	GroupID             sql.NullString `db:"group_id"`
+	Blocked             boolInt        `db:"blocked"`
 }
 
 type sessionRow struct {
@@ -362,7 +363,7 @@ func readAll(ctx context.Context, src *sqlx.DB) (*transferData, error) {
 
 	if err := queryInto(ctx, src, &d.users, `
 		SELECT id, username, email, name, password_hash, last_login, created_at, updated_at,
-		       totp_enabled, totp_secret_encrypted, totp_verified_at, group_id
+		       totp_enabled, totp_secret_encrypted, totp_verified_at, group_id, blocked
 		FROM users`); err != nil {
 		return nil, fmt.Errorf("users: %w", err)
 	}
@@ -511,7 +512,7 @@ func writeAll(ctx context.Context, dst *sqlx.DB, data *transferData, direction s
 	q = insertQuery("users", []string{
 		"id", "username", "email", "name", "password_hash",
 		"last_login", "created_at", "updated_at",
-		"totp_enabled", "totp_secret_encrypted", "totp_verified_at", "group_id",
+		"totp_enabled", "totp_secret_encrypted", "totp_verified_at", "group_id", "blocked",
 	}, direction)
 	for _, r := range data.users {
 		if _, err := tx.ExecContext(ctx, q,
@@ -519,6 +520,7 @@ func writeAll(ctx context.Context, dst *sqlx.DB, data *transferData, direction s
 			r.LastLogin.T, r.CreatedAt.T, r.UpdatedAt.T,
 			boolForDst(r.TOTPEnabled.V, direction),
 			r.TOTPSecretEncrypted, r.TOTPVerifiedAt.T, r.GroupID,
+			boolForDst(r.Blocked.V, direction),
 		); err != nil {
 			return total, fmt.Errorf("insert user %s: %w", r.ID, err)
 		}

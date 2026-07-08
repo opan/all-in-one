@@ -1,9 +1,14 @@
 <script lang="ts">
-	import DataTable from '../data-table.svelte';
+	import { onMount } from 'svelte';
+	import DataTable from '../../../components/data-table.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { toast } from 'svelte-sonner';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { toast, Toaster } from 'svelte-sonner';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import {
 		listUsers,
@@ -16,47 +21,48 @@
 		type Group,
 		type Feature
 	} from '$lib/rbac-api';
-
-	interface Props {
-		active: boolean;
-	}
-	let { active }: Props = $props();
+	import { updateUserEmail, blockUser, unblockUser } from '$lib/admin-api';
 
 	const UNASSIGNED = '__unassigned__';
 
 	let users = $state<UserAccess[]>([]);
 	let groups = $state<Group[]>([]);
 	let features = $state<Feature[]>([]);
-	let loading = $state(false);
 	let error = $state('');
 	let reassigningUserId = $state<string | null>(null);
 
-	// Admin-only features (access-management) are gated by admin-group
-	// membership, not a feature grant/override check — an override on them
-	// would never be consulted, so they're excluded here (mirrors GroupsTab).
+	// Admin-only features (access-management) are gated by admin-group membership,
+	// not a feature grant/override — an override on them is never consulted, so
+	// they're excluded here (mirrors GroupsTab / the old UsersTab).
 	let overridableFeatures = $derived(features.filter((f) => !f.admin_only));
 
+	// Overrides dialog
 	let overridesDialogOpen = $state(false);
 	let overridesUser = $state<UserAccess | null>(null);
 	let overrideState = $state<Record<string, 'inherit' | 'allow' | 'deny'>>({});
 	let savingOverrides = $state(false);
 
-	// Re-fetch every time this tab becomes active — bits-ui's Tabs.Content
-	// never unmounts inactive panels, so a plain onMount would only ever run
-	// once for this component's whole lifetime (see AccessManagement.svelte).
-	$effect(() => {
-		if (active) load();
-	});
+	// Edit-email dialog
+	let emailDialogOpen = $state(false);
+	let emailUser = $state<UserAccess | null>(null);
+	let emailValue = $state('');
+	let savingEmail = $state(false);
+
+	// Block confirmation
+	let blockDialogOpen = $state(false);
+	let blockUserTarget = $state<UserAccess | null>(null);
+	let blocking = $state(false);
+
+	// This is a route (not a bits-ui tab), so it mounts fresh on navigation — a
+	// plain onMount is correct here; no active-prop refetch hack needed.
+	onMount(load);
 
 	async function load() {
-		loading = true;
 		error = '';
 		try {
 			[users, groups, features] = await Promise.all([listUsers(), listGroups(), listFeatures()]);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load users';
-		} finally {
-			loading = false;
 		}
 	}
 
@@ -108,18 +114,76 @@
 		}
 	}
 
+	function openEmailDialog(user: UserAccess) {
+		emailUser = user;
+		emailValue = user.email;
+		emailDialogOpen = true;
+	}
+
+	async function saveEmail() {
+		if (!emailUser) return;
+		savingEmail = true;
+		try {
+			await updateUserEmail(emailUser.user_id, emailValue.trim());
+			toast.success('Email updated');
+			emailDialogOpen = false;
+			await load();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to update email');
+		} finally {
+			savingEmail = false;
+		}
+	}
+
+	function openBlockDialog(user: UserAccess) {
+		blockUserTarget = user;
+		blockDialogOpen = true;
+	}
+
+	async function confirmBlock() {
+		if (!blockUserTarget) return;
+		blocking = true;
+		try {
+			await blockUser(blockUserTarget.user_id);
+			toast.success(`${blockUserTarget.username} has been blocked`);
+			blockDialogOpen = false;
+			blockUserTarget = null;
+			await load();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to block user');
+		} finally {
+			blocking = false;
+		}
+	}
+
+	async function handleUnblock(user: UserAccess) {
+		try {
+			await unblockUser(user.user_id);
+			toast.success(`${user.username} has been unblocked`);
+			await load();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to unblock user');
+		}
+	}
+
 	const columns: ColumnDef<UserAccess>[] = [
-		// id explicitly set to "name" (rather than defaulting to "username") so
-		// DataTable's special-cased nameColumn snippet renders the admin badge —
-		// it only hooks custom Svelte content for columns literally named
-		// "name" or "actions" (see components/data-table.svelte).
+		// id "name"/"actions" so DataTable renders the custom snippets below.
 		{ accessorKey: 'username', id: 'name', header: 'Username', cell: (info) => info.getValue() },
 		{ accessorKey: 'email', header: 'Email', cell: (info) => info.getValue() },
-		{ id: 'actions', header: 'Group / Overrides', enableHiding: false }
+		{ id: 'actions', header: 'Group / Actions', enableHiding: false }
 	];
 </script>
 
-<div class="space-y-4">
+<Toaster richColors position="top-center" />
+
+<div class="container mx-auto p-6 space-y-6">
+	<div class="space-y-2">
+		<h1 class="text-3xl font-bold tracking-tight">Users</h1>
+		<p class="text-muted-foreground">
+			Manage users: edit email, block or unblock login, assign a group, and set per-user overrides.
+		</p>
+	</div>
+
 	{#if error}
 		<div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>
 	{/if}
@@ -139,6 +203,11 @@
 				{#if row.original.is_admin}
 					<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
 						Admin
+					</span>
+				{/if}
+				{#if row.original.blocked}
+					<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-200">
+						Blocked
 					</span>
 				{/if}
 			</div>
@@ -166,11 +235,61 @@
 				<Button variant="outline" size="sm" onclick={() => openOverridesDialog(row.original)}>
 					Overrides
 				</Button>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button {...props} variant="ghost" size="sm" aria-label="More actions">⋯</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end">
+						<DropdownMenu.Item onclick={() => openEmailDialog(row.original)}>
+							Edit email
+						</DropdownMenu.Item>
+						{#if !row.original.is_admin}
+							<DropdownMenu.Separator />
+							{#if row.original.blocked}
+								<DropdownMenu.Item onclick={() => handleUnblock(row.original)}>
+									Unblock login
+								</DropdownMenu.Item>
+							{:else}
+								<DropdownMenu.Item
+									class="text-destructive data-highlighted:text-destructive"
+									onclick={() => openBlockDialog(row.original)}
+								>
+									Block login
+								</DropdownMenu.Item>
+							{/if}
+						{/if}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</div>
 		{/snippet}
 	</DataTable>
 </div>
 
+<!-- Edit email dialog -->
+<Dialog.Root bind:open={emailDialogOpen}>
+	<Dialog.Content class="max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Edit email — {emailUser?.username}</Dialog.Title>
+			<Dialog.Description>Change this user's email address.</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-2">
+			<Label for="edit-email">Email</Label>
+			<Input id="edit-email" type="email" bind:value={emailValue} />
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (emailDialogOpen = false)} disabled={savingEmail}>
+				Cancel
+			</Button>
+			<Button onclick={saveEmail} disabled={savingEmail}>
+				{savingEmail ? 'Saving...' : 'Save'}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Overrides dialog -->
 <Dialog.Root bind:open={overridesDialogOpen}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
@@ -217,3 +336,30 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Block confirmation -->
+<AlertDialog.Root bind:open={blockDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Block login</AlertDialog.Title>
+			<AlertDialog.Description>
+				{#if blockUserTarget}
+					Block <span class="font-semibold">{blockUserTarget.username}</span>? They will be signed out
+					of all sessions immediately and cannot log back in until unblocked.
+				{/if}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => { blockDialogOpen = false; blockUserTarget = null; }} disabled={blocking}>
+				Cancel
+			</AlertDialog.Cancel>
+			<AlertDialog.Action
+				onclick={confirmBlock}
+				disabled={blocking}
+				class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+			>
+				{blocking ? 'Blocking...' : 'Block'}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

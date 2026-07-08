@@ -72,3 +72,15 @@ func (u *userRepository) Update(ctx context.Context, id uuid.UUID, user model.Us
 		WHERE id = :id`, user)
 	return err
 }
+
+func (u *userRepository) UpdateEmail(ctx context.Context, id uuid.UUID, email string) error {
+	now := time.Now().UTC()
+	_, err := u.db.ExecContext(ctx, "UPDATE users SET email = $1, updated_at = $2 WHERE id = $3", email, now, id.String())
+	return err
+}
+
+func (u *userRepository) SetBlocked(ctx context.Context, id uuid.UUID, blocked bool) error {
+	now := time.Now().UTC()
+	_, err := u.db.ExecContext(ctx, "UPDATE users SET blocked = $1, updated_at = $2 WHERE id = $3", blocked, now, id.String())
+	return err
+}

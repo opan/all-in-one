@@ -55,6 +55,7 @@ type UserAccessRow struct {
 	Email     string     `json:"email" db:"email"`
 	GroupID   *uuid.UUID `json:"group_id" db:"group_id"`
 	GroupName *string    `json:"group_name" db:"group_name"`
+	Blocked   bool       `json:"blocked" db:"blocked"`
 	IsAdmin   bool       `json:"is_admin" db:"-"`
 }
 

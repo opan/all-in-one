@@ -47,7 +47,7 @@
 
 	// Re-fetch every time this tab becomes active — bits-ui's Tabs.Content
 	// never unmounts inactive panels, so a plain onMount would only ever run
-	// once for this component's whole lifetime (see AccessManagement.svelte).
+	// once for this component's whole lifetime (see routes/admin/access/+page.svelte).
 	$effect(() => {
 		if (active) load();
 	});

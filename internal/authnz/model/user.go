@@ -18,6 +18,7 @@ type User struct {
 	TOTPSecretEncrypted *string    `json:"-" db:"totp_secret_encrypted"`
 	TOTPVerifiedAt      *time.Time `json:"-" db:"totp_verified_at"`
 	GroupID             *uuid.UUID `json:"group_id,omitempty" db:"group_id"`
+	Blocked             bool       `json:"blocked" db:"blocked"`
 	CreatedAt           *time.Time `json:"created_at,omitempty" db:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at,omitempty" db:"updated_at"`
 }
