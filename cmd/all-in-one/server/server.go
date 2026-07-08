@@ -186,12 +186,14 @@ func (s *server) Start() error {
 	ssvc.RegisterAuthenticatedRoutes(mkGated(rbac.FeatureShortener))
 
 	// Admin-only management APIs: RBAC under /api/v1/access/*, user management
-	// under /api/v1/admin/users/*. Both share the RequireAdmin subrouter.
+	// under /api/v1/admin/users/*, shortener moderation under
+	// /api/v1/admin/shortener/*. All share the RequireAdmin subrouter.
 	adminRoutes := api.NewRoute().Subrouter()
 	adminRoutes.Use(jwtMiddleware.JWTAuth)
 	adminRoutes.Use(authz.RequireAdmin)
 	rsvc.RegisterAdminRoutes(adminRoutes)
 	asvc.Handler.RegisterAdminRoutes(adminRoutes)
+	ssvc.RegisterAdminRoutes(adminRoutes)
 
 	// Shortener public redirect: /r/{code} — lives outside /api/v1
 	ssvc.Handler.RegisterRedirectRoute(r)

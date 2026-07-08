@@ -39,6 +39,10 @@ func (s *Service) RegisterAuthenticatedRoutes(router *mux.Router) {
 	s.Handler.RegisterAuthenticatedRoutes(router)
 }
 
+func (s *Service) RegisterAdminRoutes(router *mux.Router) {
+	s.Handler.RegisterAdminRoutes(router)
+}
+
 func (s *Service) Close() error {
 	return s.Storage.Close()
 }

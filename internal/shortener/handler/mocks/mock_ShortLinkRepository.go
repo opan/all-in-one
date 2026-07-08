@@ -128,6 +128,53 @@ func (_c *MockShortLinkRepository_Delete_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// DeleteByCode provides a mock function with given fields: ctx, code
+func (_m *MockShortLinkRepository) DeleteByCode(ctx context.Context, code string) error {
+	ret := _m.Called(ctx, code)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteByCode")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, code)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockShortLinkRepository_DeleteByCode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteByCode'
+type MockShortLinkRepository_DeleteByCode_Call struct {
+	*mock.Call
+}
+
+// DeleteByCode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - code string
+func (_e *MockShortLinkRepository_Expecter) DeleteByCode(ctx interface{}, code interface{}) *MockShortLinkRepository_DeleteByCode_Call {
+	return &MockShortLinkRepository_DeleteByCode_Call{Call: _e.mock.On("DeleteByCode", ctx, code)}
+}
+
+func (_c *MockShortLinkRepository_DeleteByCode_Call) Run(run func(ctx context.Context, code string)) *MockShortLinkRepository_DeleteByCode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockShortLinkRepository_DeleteByCode_Call) Return(_a0 error) *MockShortLinkRepository_DeleteByCode_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockShortLinkRepository_DeleteByCode_Call) RunAndReturn(run func(context.Context, string) error) *MockShortLinkRepository_DeleteByCode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByCode provides a mock function with given fields: ctx, code
 func (_m *MockShortLinkRepository) GetByCode(ctx context.Context, code string) (model.ShortLink, error) {
 	ret := _m.Called(ctx, code)
@@ -291,6 +338,73 @@ func (_c *MockShortLinkRepository_IncrementClick_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// ListAll provides a mock function with given fields: ctx, page, pageSize
+func (_m *MockShortLinkRepository) ListAll(ctx context.Context, page uint32, pageSize uint32) ([]model.ShortLinkWithOwner, uint32, error) {
+	ret := _m.Called(ctx, page, pageSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAll")
+	}
+
+	var r0 []model.ShortLinkWithOwner
+	var r1 uint32
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, uint32) ([]model.ShortLinkWithOwner, uint32, error)); ok {
+		return rf(ctx, page, pageSize)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, uint32) []model.ShortLinkWithOwner); ok {
+		r0 = rf(ctx, page, pageSize)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.ShortLinkWithOwner)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint32, uint32) uint32); ok {
+		r1 = rf(ctx, page, pageSize)
+	} else {
+		r1 = ret.Get(1).(uint32)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, uint32, uint32) error); ok {
+		r2 = rf(ctx, page, pageSize)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockShortLinkRepository_ListAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAll'
+type MockShortLinkRepository_ListAll_Call struct {
+	*mock.Call
+}
+
+// ListAll is a helper method to define mock.On call
+//   - ctx context.Context
+//   - page uint32
+//   - pageSize uint32
+func (_e *MockShortLinkRepository_Expecter) ListAll(ctx interface{}, page interface{}, pageSize interface{}) *MockShortLinkRepository_ListAll_Call {
+	return &MockShortLinkRepository_ListAll_Call{Call: _e.mock.On("ListAll", ctx, page, pageSize)}
+}
+
+func (_c *MockShortLinkRepository_ListAll_Call) Run(run func(ctx context.Context, page uint32, pageSize uint32)) *MockShortLinkRepository_ListAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint32), args[2].(uint32))
+	})
+	return _c
+}
+
+func (_c *MockShortLinkRepository_ListAll_Call) Return(_a0 []model.ShortLinkWithOwner, _a1 uint32, _a2 error) *MockShortLinkRepository_ListAll_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockShortLinkRepository_ListAll_Call) RunAndReturn(run func(context.Context, uint32, uint32) ([]model.ShortLinkWithOwner, uint32, error)) *MockShortLinkRepository_ListAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListByOwner provides a mock function with given fields: ctx, ownerID, page, pageSize
 func (_m *MockShortLinkRepository) ListByOwner(ctx context.Context, ownerID string, page uint32, pageSize uint32) ([]model.ShortLink, uint32, error) {
 	ret := _m.Called(ctx, ownerID, page, pageSize)
@@ -355,6 +469,54 @@ func (_c *MockShortLinkRepository_ListByOwner_Call) Return(_a0 []model.ShortLink
 }
 
 func (_c *MockShortLinkRepository_ListByOwner_Call) RunAndReturn(run func(context.Context, string, uint32, uint32) ([]model.ShortLink, uint32, error)) *MockShortLinkRepository_ListByOwner_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetActiveByCode provides a mock function with given fields: ctx, code, active
+func (_m *MockShortLinkRepository) SetActiveByCode(ctx context.Context, code string, active bool) error {
+	ret := _m.Called(ctx, code, active)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetActiveByCode")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) error); ok {
+		r0 = rf(ctx, code, active)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockShortLinkRepository_SetActiveByCode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetActiveByCode'
+type MockShortLinkRepository_SetActiveByCode_Call struct {
+	*mock.Call
+}
+
+// SetActiveByCode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - code string
+//   - active bool
+func (_e *MockShortLinkRepository_Expecter) SetActiveByCode(ctx interface{}, code interface{}, active interface{}) *MockShortLinkRepository_SetActiveByCode_Call {
+	return &MockShortLinkRepository_SetActiveByCode_Call{Call: _e.mock.On("SetActiveByCode", ctx, code, active)}
+}
+
+func (_c *MockShortLinkRepository_SetActiveByCode_Call) Run(run func(ctx context.Context, code string, active bool)) *MockShortLinkRepository_SetActiveByCode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
+	})
+	return _c
+}
+
+func (_c *MockShortLinkRepository_SetActiveByCode_Call) Return(_a0 error) *MockShortLinkRepository_SetActiveByCode_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockShortLinkRepository_SetActiveByCode_Call) RunAndReturn(run func(context.Context, string, bool) error) *MockShortLinkRepository_SetActiveByCode_Call {
 	_c.Call.Return(run)
 	return _c
 }
