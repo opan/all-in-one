@@ -169,3 +169,57 @@ func (r *shortLinkRepository) IncrementClick(ctx context.Context, code string, n
 	}
 	return nil
 }
+
+func (r *shortLinkRepository) ListAll(ctx context.Context, page, pageSize uint32) ([]model.ShortLinkWithOwner, uint32, error) {
+	if page == 0 {
+		page = 1
+	}
+	if pageSize == 0 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+
+	var total uint32
+	if err := r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM short_links`); err != nil {
+		return nil, 0, err
+	}
+
+	var links []model.ShortLinkWithOwner
+	err := r.db.SelectContext(ctx, &links, `
+		SELECT sl.id, sl.code, sl.target_url, sl.created_at, sl.expires_at, sl.is_active, sl.click_count, sl.last_accessed_at,
+		       COALESCE(slo.user_id, '') AS owner_id, COALESCE(u.username, '') AS owner_username
+		FROM short_links sl
+		LEFT JOIN short_link_owners slo ON sl.code = slo.code
+		LEFT JOIN users u ON slo.user_id = u.id
+		ORDER BY sl.created_at DESC
+		LIMIT $1 OFFSET $2
+	`, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return links, total, nil
+}
+
+func (r *shortLinkRepository) DeleteByCode(ctx context.Context, code string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM short_links WHERE code = $1`, code)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return httpHelper.ErrNotFound
+	}
+	return nil
+}
+
+func (r *shortLinkRepository) SetActiveByCode(ctx context.Context, code string, active bool) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE short_links SET is_active = $1 WHERE code = $2`, active, code)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return httpHelper.ErrNotFound
+	}
+	return nil
+}

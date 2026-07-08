@@ -23,6 +23,15 @@ type ShortLinkRepository interface {
 
 	// IncrementClick atomically updates click_count and last_accessed_at in a single statement — no select-then-update race.
 	IncrementClick(ctx context.Context, code string, now string) error
+
+	// ListAll is the owner-agnostic admin list: every link across all owners, paginated.
+	ListAll(ctx context.Context, page, pageSize uint32) ([]model.ShortLinkWithOwner, uint32, error)
+
+	// DeleteByCode is the owner-agnostic admin delete (sibling of Delete).
+	DeleteByCode(ctx context.Context, code string) error
+
+	// SetActiveByCode is the owner-agnostic admin moderation toggle (sibling of Update).
+	SetActiveByCode(ctx context.Context, code string, active bool) error
 }
 
 type Storage interface {
