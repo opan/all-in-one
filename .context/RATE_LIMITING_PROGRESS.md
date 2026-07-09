@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 10 done — resuming at Phase 11.
+**Overall status:** 🟡 Phase 11 done — resuming at Phase 12.
 
-**Resume here:** Phase 11 (admin write API: PATCH + reset + reset-defaults).
+**Resume here:** Phase 12 (mount admin API on the server; enforcement still not wired).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -32,7 +32,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Handler (admin API)** _(need P6, P7)_
 - ✅ **P10 — Read API** · `Handler` + `RegisterAdminRoutes` + `GET /ratelimit/targets` + swagger + mocks
-- ⬜ **P11 — Write API** · PATCH + reset + reset-defaults + `config.changed` metric + tests
+- ✅ **P11 — Write API** · PATCH + reset + reset-defaults + `config.changed` metric + tests
 
 **Wiring** _(need P9, P10, P11)_
 - ⬜ **P12 — Mount admin API (no enforcement)** · construct `rlsvc` + `defer Close` + `RegisterAdminRoutes`
@@ -72,6 +72,12 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P11: the PATCH body is decoded directly into `model.TargetPatch` (from P7) rather than a separate
+  handler-local request struct — its pointer fields and `json` tags already matched what P11 needed.
+  `window_unit` enum validation relies entirely on the service layer's `ratelimit.ErrInvalidWindowUnit` →
+  400 mapping (no duplicate enum check in the handler); only `limit_count ≥ 1` is validated at the handler
+  layer, per the plan's explicit callout. `updated_by` comes from `auth.GetUserFromContext(ctx).Username`
+  (the route is admin-gated, so JWTAuth has already populated it by the time this handler runs).
 - P10: skipped an empty `handler/metrics.go` (the plan lists it as a P10 file) since `ListTargets` needs no
   metric — no admin write action exists yet. `handlerMetrics` will be introduced in P11 alongside the
   `aio.ratelimit.config.changed` counter it's actually for; a metrics.go with nothing in it would be dead

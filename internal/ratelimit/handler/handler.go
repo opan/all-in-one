@@ -16,6 +16,9 @@ import (
 // internal/rbac/handler's Service pattern).
 type Service interface {
 	ListTargets(ctx context.Context) ([]model.Target, error)
+	UpdateTarget(ctx context.Context, key string, patch model.TargetPatch, updatedBy string) (model.Target, error)
+	ResetCounters(ctx context.Context, key string) error
+	ResetDefaults(ctx context.Context, key string) (model.Target, error)
 }
 
 // Handler serves the admin-only Rate Limiting management API
@@ -25,12 +28,14 @@ type Service interface {
 type Handler struct {
 	service Service
 	config  config.Config
+	metrics *handlerMetrics
 }
 
 func NewHandler(service Service, config config.Config) *Handler {
 	return &Handler{
 		service: service,
 		config:  config,
+		metrics: newHandlerMetrics(),
 	}
 }
 
@@ -38,4 +43,7 @@ func NewHandler(service Service, config config.Config) *Handler {
 // must apply admin-only gating (RequireAdmin) to router beforehand.
 func (h *Handler) RegisterAdminRoutes(router *mux.Router) {
 	router.HandleFunc("/ratelimit/targets", h.ListTargets).Methods(http.MethodGet)
+	router.HandleFunc("/ratelimit/targets/{key}", h.UpdateTarget).Methods(http.MethodPatch)
+	router.HandleFunc("/ratelimit/targets/{key}/reset", h.ResetCounters).Methods(http.MethodPost)
+	router.HandleFunc("/ratelimit/targets/{key}/reset-defaults", h.ResetDefaults).Methods(http.MethodPost)
 }

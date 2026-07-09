@@ -1845,6 +1845,207 @@ const docTemplate = `{
                 }
             }
         },
+        "/ratelimit/targets/{key}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Partially update a target's enabled/limit/window (admin-only). Omitted fields are left unchanged (pointer semantics).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Update a rate limit target's rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "patch",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TargetPatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated target",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Target"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ratelimit/targets/{key}/reset": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Clears today's daily-quota counters for a target (admin-only). Does not clear an in-memory throttle bucket (per-process state).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Reset a target's counters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reset acknowledged",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ratelimit/targets/{key}/reset-defaults": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Overwrites a target's enabled/limit/window back to its Registry defaults, clearing any prior admin edit (admin-only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Reset a target's rule to its code-defined defaults",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Target reset to defaults",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Target"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/sessions": {
             "post": {
                 "description": "Authenticate user and create a new session with access and refresh tokens",
@@ -3233,6 +3434,23 @@ const docTemplate = `{
                 },
                 "updated_by": {
                     "type": "string"
+                },
+                "window_unit": {
+                    "$ref": "#/definitions/model.WindowUnit"
+                },
+                "window_value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.TargetPatch": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "limit_count": {
+                    "type": "integer"
                 },
                 "window_unit": {
                     "$ref": "#/definitions/model.WindowUnit"

@@ -80,6 +80,169 @@ func (_c *MockService_ListTargets_Call) RunAndReturn(run func(context.Context) (
 	return _c
 }
 
+// ResetCounters provides a mock function with given fields: ctx, key
+func (_m *MockService) ResetCounters(ctx context.Context, key string) error {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetCounters")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, key)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockService_ResetCounters_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetCounters'
+type MockService_ResetCounters_Call struct {
+	*mock.Call
+}
+
+// ResetCounters is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockService_Expecter) ResetCounters(ctx interface{}, key interface{}) *MockService_ResetCounters_Call {
+	return &MockService_ResetCounters_Call{Call: _e.mock.On("ResetCounters", ctx, key)}
+}
+
+func (_c *MockService_ResetCounters_Call) Run(run func(ctx context.Context, key string)) *MockService_ResetCounters_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_ResetCounters_Call) Return(_a0 error) *MockService_ResetCounters_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockService_ResetCounters_Call) RunAndReturn(run func(context.Context, string) error) *MockService_ResetCounters_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetDefaults provides a mock function with given fields: ctx, key
+func (_m *MockService) ResetDefaults(ctx context.Context, key string) (model.Target, error) {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetDefaults")
+	}
+
+	var r0 model.Target
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (model.Target, error)); ok {
+		return rf(ctx, key)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) model.Target); ok {
+		r0 = rf(ctx, key)
+	} else {
+		r0 = ret.Get(0).(model.Target)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_ResetDefaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetDefaults'
+type MockService_ResetDefaults_Call struct {
+	*mock.Call
+}
+
+// ResetDefaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockService_Expecter) ResetDefaults(ctx interface{}, key interface{}) *MockService_ResetDefaults_Call {
+	return &MockService_ResetDefaults_Call{Call: _e.mock.On("ResetDefaults", ctx, key)}
+}
+
+func (_c *MockService_ResetDefaults_Call) Run(run func(ctx context.Context, key string)) *MockService_ResetDefaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_ResetDefaults_Call) Return(_a0 model.Target, _a1 error) *MockService_ResetDefaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_ResetDefaults_Call) RunAndReturn(run func(context.Context, string) (model.Target, error)) *MockService_ResetDefaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateTarget provides a mock function with given fields: ctx, key, patch, updatedBy
+func (_m *MockService) UpdateTarget(ctx context.Context, key string, patch model.TargetPatch, updatedBy string) (model.Target, error) {
+	ret := _m.Called(ctx, key, patch, updatedBy)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateTarget")
+	}
+
+	var r0 model.Target
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, model.TargetPatch, string) (model.Target, error)); ok {
+		return rf(ctx, key, patch, updatedBy)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, model.TargetPatch, string) model.Target); ok {
+		r0 = rf(ctx, key, patch, updatedBy)
+	} else {
+		r0 = ret.Get(0).(model.Target)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, model.TargetPatch, string) error); ok {
+		r1 = rf(ctx, key, patch, updatedBy)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_UpdateTarget_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateTarget'
+type MockService_UpdateTarget_Call struct {
+	*mock.Call
+}
+
+// UpdateTarget is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - patch model.TargetPatch
+//   - updatedBy string
+func (_e *MockService_Expecter) UpdateTarget(ctx interface{}, key interface{}, patch interface{}, updatedBy interface{}) *MockService_UpdateTarget_Call {
+	return &MockService_UpdateTarget_Call{Call: _e.mock.On("UpdateTarget", ctx, key, patch, updatedBy)}
+}
+
+func (_c *MockService_UpdateTarget_Call) Run(run func(ctx context.Context, key string, patch model.TargetPatch, updatedBy string)) *MockService_UpdateTarget_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(model.TargetPatch), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateTarget_Call) Return(_a0 model.Target, _a1 error) *MockService_UpdateTarget_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_UpdateTarget_Call) RunAndReturn(run func(context.Context, string, model.TargetPatch, string) (model.Target, error)) *MockService_UpdateTarget_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockService creates a new instance of MockService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockService(t interface {
