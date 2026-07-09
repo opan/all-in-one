@@ -125,6 +125,12 @@
       icon: ShieldCheck,
       isExpandable: false,
     },
+    {
+      title: "Shortener",
+      url: "/admin/shortener",
+      icon: Link2,
+      isExpandable: false,
+    },
   ];
 
   // The whole Admin section only renders for admins. The backend RequireAdmin
