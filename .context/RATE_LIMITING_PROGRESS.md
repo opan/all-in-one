@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 15 done — resuming at Phase 16.
+**Overall status:** 🟡 Phase 16 done — resuming at Phase 17.
 
-**Resume here:** Phase 16 (admin page: list + enable toggle).
+**Resume here:** Phase 17 (admin page: edit dialog + reset).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -41,7 +41,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Frontend** _(need P10, P11)_
 - ✅ **P15 — API client + sidebar** · `ratelimit-api.ts` + `adminItems` entry · `npm run check`/`build`
-- ⬜ **P16 — Admin page: list + toggle** · `Table` + `Switch` optimistic
+- ✅ **P16 — Admin page: list + toggle** · `Table` + `Switch` optimistic
 - ⬜ **P17 — Admin page: edit + reset** · edit `Dialog` (limit/window) + reset `AlertDialog`
 
 **Closeout**
@@ -72,6 +72,13 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P16: DoD verified live via the `frontend-browser-testing` skill (seeded scratch DB, real server, headless
+  Chromium): table lists all 6 targets with name/key/scope-badge/kind-badge/limit/window; clicking the
+  `auth.login` switch flips it and a page reload confirms the change persisted server-side (8/8 checks
+  passed, screenshots saved then discarded with the scratch dir). Scope/kind use hand-rolled badge spans
+  colored via the same Tailwind pattern as the existing shortener Active/Inactive badge (blue=ip,
+  purple=user, amber=throttle, teal=daily quota) — not the dataviz skill's palette, since these are simple
+  categorical status badges consistent with the app's existing design language, not a chart/visualization.
 - P15: `node`/`npm` aren't on `PATH` by default in this sandbox — available via `nvm` (`export
   NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"` then the normal commands, all in one Bash call since env
   doesn't persist across tool calls). `npm run check` (0 errors, only pre-existing unrelated warnings) and
