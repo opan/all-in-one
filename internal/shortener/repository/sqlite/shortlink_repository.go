@@ -179,7 +179,7 @@ func (r *shortLinkRepository) ListAll(ctx context.Context, page, pageSize uint32
 		return nil, 0, err
 	}
 
-	var links []model.ShortLinkWithOwner
+	links := make([]model.ShortLinkWithOwner, 0)
 	err := r.db.SelectContext(ctx, &links, `
 		SELECT sl.id, sl.code, sl.target_url, sl.created_at, sl.expires_at, sl.is_active, sl.click_count, sl.last_accessed_at,
 		       COALESCE(slo.user_id, '') AS owner_id, COALESCE(u.username, '') AS owner_username

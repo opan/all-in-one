@@ -5,7 +5,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index';
 	import * as Table from '$lib/components/ui/table/index';
 	import { toast, Toaster } from 'svelte-sonner';
-	import { Link2, Trash2, Loader2 } from '@lucide/svelte/icons';
+	import { Trash2, Loader2 } from '@lucide/svelte/icons';
 	import {
 		listAllShortLinks,
 		adminSetShortLinkActive,
@@ -13,10 +13,15 @@
 		type AdminShortLink
 	} from '$lib/shortener-admin-api';
 
+	const PAGE_SIZE = 20;
+
 	let links = $state<AdminShortLink[]>([]);
 	let total = $state(0);
+	let page = $state(1);
 	let loading = $state(true);
 	let error = $state('');
+
+	let totalPages = $derived(Math.max(1, Math.ceil(total / PAGE_SIZE)));
 
 	// Delete confirmation
 	let deleteOpen = $state(false);
@@ -26,20 +31,29 @@
 	// Per-row toggle loading
 	let toggling = $state<Record<string, boolean>>({});
 
-	onMount(load);
+	onMount(() => load(1));
 
-	async function load() {
+	async function load(targetPage: number) {
 		loading = true;
 		error = '';
 		try {
-			const page = await listAllShortLinks(1, 100);
-			links = page.links;
-			total = page.total;
+			const res = await listAllShortLinks(targetPage, PAGE_SIZE);
+			links = res.links;
+			total = res.total;
+			page = res.page;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load short links';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function prevPage() {
+		if (page > 1) load(page - 1);
+	}
+
+	function nextPage() {
+		if (page < totalPages) load(page + 1);
 	}
 
 	async function handleToggleActive(link: AdminShortLink) {
@@ -63,12 +77,15 @@
 		if (!linkToDelete) return;
 		deleting = true;
 		try {
-			await adminDeleteShortLink(linkToDelete.code);
-			links = links.filter((l) => l.code !== linkToDelete!.code);
-			total = Math.max(0, total - 1);
-			toast.success(`${linkToDelete.code} deleted`);
+			const code = linkToDelete.code;
+			await adminDeleteShortLink(code);
+			toast.success(`${code} deleted`);
 			deleteOpen = false;
 			linkToDelete = null;
+			// Refetch rather than filter locally: deleting the last row on a page
+			// (other than page 1) should fall back to the previous page instead
+			// of showing an empty page, and total must reflect the server.
+			await load(links.length === 1 && page > 1 ? page - 1 : page);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Failed to delete short link');
 		} finally {
@@ -95,25 +112,30 @@
 		<div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>
 	{/if}
 
-	{#if !loading && links.length === 0 && !error}
-		<div class="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-muted-foreground">
-			<Link2 class="size-10 opacity-40" />
-			<p class="text-sm">No short links yet.</p>
-		</div>
-	{:else}
-		<div class="rounded-md border">
-			<Table.Root>
-				<Table.Header>
+	<div class="rounded-md border">
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head class="w-32">Short code</Table.Head>
+					<Table.Head>Target URL</Table.Head>
+					<Table.Head class="w-32">Owner</Table.Head>
+					<Table.Head class="w-20 text-right">Clicks</Table.Head>
+					<Table.Head class="w-20">Status</Table.Head>
+					<Table.Head class="w-24 text-right">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#if !loading && links.length === 0}
 					<Table.Row>
-						<Table.Head class="w-32">Short code</Table.Head>
-						<Table.Head>Target URL</Table.Head>
-						<Table.Head class="w-32">Owner</Table.Head>
-						<Table.Head class="w-20 text-right">Clicks</Table.Head>
-						<Table.Head class="w-20">Status</Table.Head>
-						<Table.Head class="w-24 text-right">Actions</Table.Head>
+						<Table.Cell colspan={6} class="h-24 text-center text-muted-foreground">
+							{#if error}
+								No short links to show.
+							{:else}
+								No short links yet.
+							{/if}
+						</Table.Cell>
 					</Table.Row>
-				</Table.Header>
-				<Table.Body>
+				{:else}
 					{#each links as link (link.code)}
 						<Table.Row class={link.is_active ? '' : 'opacity-50'}>
 							<Table.Cell class="font-mono text-sm">{link.code}</Table.Cell>
@@ -173,10 +195,29 @@
 							</Table.Cell>
 						</Table.Row>
 					{/each}
-				</Table.Body>
-			</Table.Root>
+				{/if}
+			</Table.Body>
+		</Table.Root>
+	</div>
+
+	<div class="flex items-center justify-between">
+		<p class="text-sm text-muted-foreground">
+			{#if total > 0}
+				Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+			{:else}
+				0 results
+			{/if}
+		</p>
+		<div class="flex items-center gap-2">
+			<span class="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
+			<Button variant="outline" size="sm" onclick={prevPage} disabled={loading || page <= 1}>
+				Previous
+			</Button>
+			<Button variant="outline" size="sm" onclick={nextPage} disabled={loading || page >= totalPages}>
+				Next
+			</Button>
 		</div>
-	{/if}
+	</div>
 </div>
 
 <!-- Delete confirmation -->

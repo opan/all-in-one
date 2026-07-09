@@ -27,7 +27,8 @@ export async function listAllShortLinks(page = 1, pageSize = 100): Promise<Admin
 	const res = await apiClient(`${BASE}?page=${page}&page_size=${pageSize}`);
 	if (!res.ok) throw new Error('Failed to fetch short links');
 	const body = await res.json();
-	return (body.data ?? { links: [], total: 0, page }) as AdminShortLinksPage;
+	const data = body.data ?? { links: [], total: 0, page };
+	return { ...data, links: data.links ?? [] } as AdminShortLinksPage;
 }
 
 export async function adminSetShortLinkActive(code: string, active: boolean): Promise<void> {
