@@ -8,17 +8,20 @@ import (
 
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/ratelimit"
+	"github.com/all-in-one/internal/ratelimit/handler"
 	"github.com/all-in-one/internal/ratelimit/model"
 	"github.com/all-in-one/internal/ratelimit/repository"
+	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 )
 
 // Service composes the ratelimit repository layer, keeps the in-memory rule
-// cache warm, and runs the background refresh/cleanup tickers. Its admin API
-// Handler is constructed once the handler package exists (P10).
+// cache warm, runs the background refresh/cleanup tickers, and serves the
+// admin-only management API via Handler.
 type Service struct {
-	Store repository.Storage
+	Store   repository.Storage
+	Handler *handler.Handler
 
 	cache  *ruleCache
 	config config.Config
@@ -43,6 +46,7 @@ func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zero
 		log:    log,
 		stop:   make(chan struct{}),
 	}
+	s.Handler = handler.NewHandler(s, config)
 
 	if err := s.seed(ctx); err != nil {
 		return nil, fmt.Errorf("seed rate limit rules: %w", err)
@@ -54,6 +58,12 @@ func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zero
 	s.startTickers()
 
 	return s, nil
+}
+
+// RegisterAdminRoutes registers the Rate Limiting management API. Callers
+// must apply admin-only gating (RequireAdmin) to router beforehand.
+func (s *Service) RegisterAdminRoutes(router *mux.Router) {
+	s.Handler.RegisterAdminRoutes(router)
 }
 
 // seed inserts one rate_limit_rules row per Registry target (insert-if-

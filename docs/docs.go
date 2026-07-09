@@ -1792,6 +1792,59 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/ratelimit/targets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "List every rate-limited target, merging its code-defined identity (scope/kind/route) with its current effective rule (admin-only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "List rate limit targets",
+                "responses": {
+                    "200": {
+                        "description": "List of targets",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Target"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/sessions": {
             "post": {
                 "description": "Authenticate user and create a new session with access and refresh tokens",
@@ -3101,6 +3154,17 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Kind": {
+            "type": "string",
+            "enum": [
+                "throttle",
+                "daily_quota"
+            ],
+            "x-enum-varnames": [
+                "KindThrottle",
+                "KindDailyQuota"
+            ]
+        },
         "model.LoginRequest": {
             "type": "object",
             "properties": {
@@ -3118,6 +3182,63 @@ const docTemplate = `{
                 "action": {
                     "description": "\"accept\" or \"decline\"",
                     "type": "string"
+                }
+            }
+        },
+        "model.Scope": {
+            "type": "string",
+            "enum": [
+                "ip",
+                "user",
+                "global"
+            ],
+            "x-enum-varnames": [
+                "ScopeIP",
+                "ScopeUser",
+                "ScopeGlobal"
+            ]
+        },
+        "model.Target": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/definitions/model.Kind"
+                },
+                "limit_count": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "scope": {
+                    "$ref": "#/definitions/model.Scope"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "window_unit": {
+                    "$ref": "#/definitions/model.WindowUnit"
+                },
+                "window_value": {
+                    "type": "integer"
                 }
             }
         },
@@ -3279,6 +3400,21 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "model.WindowUnit": {
+            "type": "string",
+            "enum": [
+                "second",
+                "minute",
+                "hour",
+                "day"
+            ],
+            "x-enum-varnames": [
+                "WindowSecond",
+                "WindowMinute",
+                "WindowHour",
+                "WindowDay"
+            ]
         }
     },
     "securityDefinitions": {

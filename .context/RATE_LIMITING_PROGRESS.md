@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 9 done — resuming at Phase 10.
+**Overall status:** 🟡 Phase 10 done — resuming at Phase 11.
 
-**Resume here:** Phase 10 (admin read API: `Handler` + `GET /ratelimit/targets`).
+**Resume here:** Phase 11 (admin write API: PATCH + reset + reset-defaults).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -31,7 +31,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P9 — Limiter middleware** · dispatch + `clientIP` + reject/fail-open + metrics + mux/httptest tests
 
 **Handler (admin API)** _(need P6, P7)_
-- ⬜ **P10 — Read API** · `Handler` + `RegisterAdminRoutes` + `GET /ratelimit/targets` + swagger + mocks
+- ✅ **P10 — Read API** · `Handler` + `RegisterAdminRoutes` + `GET /ratelimit/targets` + swagger + mocks
 - ⬜ **P11 — Write API** · PATCH + reset + reset-defaults + `config.changed` metric + tests
 
 **Wiring** _(need P9, P10, P11)_
@@ -72,6 +72,11 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P10: skipped an empty `handler/metrics.go` (the plan lists it as a P10 file) since `ListTargets` needs no
+  metric — no admin write action exists yet. `handlerMetrics` will be introduced in P11 alongside the
+  `aio.ratelimit.config.changed` counter it's actually for; a metrics.go with nothing in it would be dead
+  code. `Handler` construction is wired into `service.NewService` (`s.Handler = handler.NewHandler(s,
+  config)`) and `Service.RegisterAdminRoutes` passes through to it, exactly as the plan specified.
 - P9: `Limiter`/`Middleware()` is built and fully tested standalone (constructed directly with a
   `RuleProvider`/`CounterStore` in tests), per the plan's file list (`middleware/limiter.go`,
   `middleware/metrics.go` only). `Service.LimiterMiddleware()` — the glue that constructs a real
