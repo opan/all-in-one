@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Planning complete — awaiting user review of ADR + plan before Phase 1.
+**Overall status:** 🟡 Phase 1 done — resuming at Phase 2.
 
-**Resume here:** Phase 1 (migration 08). Nothing implemented yet.
+**Resume here:** Phase 2 (models + errors + registry).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -14,7 +14,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 ## Phase checklist
 
 **Foundations** _(P1–P3 independent; any order)_
-- ⬜ **P1 — Migration 08 (schema only)** · both backends · `db:migrate up`/`down` clean on SQLite+Postgres
+- ✅ **P1 — Migration 08 (schema only)** · both backends · `db:migrate up`/`down` clean on SQLite+Postgres
 - ⬜ **P2 — Models + errors + registry** · `model.go`, `errors.go`, `registry.go` (6 targets) + lookup tests
 - ⬜ **P3 — Config** · `RateLimitConfig` + defaults + per-key `BindEnv` + `config.yml` block
 
@@ -72,4 +72,10 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
-_(record any implementation deviation from a locked decision here, then amend the ADR.)_
+- P1: verified `db:migrate up` → `down --steps 1` → `up` clean on **SQLite** only (scratch DB, schema
+  diffed via `sqlite_master`, matches migration exactly). Postgres was not reachable in the build sandbox
+  (no docker/psql) — the Postgres migration mirrors the SQLite one exactly (only `BOOLEAN`/`TRUE` vs
+  `INTEGER`/`1`, same pattern as migration 06's twin files) but has not been live-tested. Run
+  `make db-migrate-up` / `db-migrate-down` against `storage.type: postgres` before this phase is considered
+  fully closed.
+
