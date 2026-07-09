@@ -52,6 +52,22 @@ type Counter struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// EffectiveRule is the in-memory-cached merge of a target's code-defined
+// identity (Scope/Kind, from the Registry) and its DB-backed tunables
+// (Enabled/LimitCount/Window), with WindowUnit already resolved to a
+// time.Duration. It is what the limiter middleware reads per request
+// (docs/adr/RATE_LIMITING_ADR.md ADR-008) — declared here, not in the
+// service or middleware package, so both can reference the same type
+// without an import cycle.
+type EffectiveRule struct {
+	Key        string
+	Scope      Scope
+	Kind       Kind
+	Enabled    bool
+	LimitCount int
+	Window     time.Duration
+}
+
 // Target is the admin API's read view of one registry target merged with
 // its effective (DB-overlaid) rule: code metadata plus current config.
 type Target struct {

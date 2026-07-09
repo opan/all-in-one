@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 5 done — resuming at Phase 6.
+**Overall status:** 🟡 Phase 6 done — resuming at Phase 7.
 
-**Resume here:** Phase 6 (service core: compose + seed + cache + lifecycle).
+**Resume here:** Phase 7 (service admin operations: List/Update/ResetCounters/ResetDefaults).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -23,7 +23,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P5 — Counter repository** · atomic `IncrAndGet` (`ON CONFLICT … RETURNING`) + concurrency test + mocks
 
 **Service** _(need P4, P5, P3)_
-- ⬜ **P6 — Service core** · `NewService` + seed + `ruleCache` (RuleProvider) + tickers + `Close` + tests
+- ✅ **P6 — Service core** · `NewService` + seed + `ruleCache` (RuleProvider) + tickers + `Close` + tests
 - ⬜ **P7 — Service admin ops** · List/Update/ResetCounters/ResetDefaults + reload-on-write + tests
 
 **Middleware** _(need P2, P3; P9 needs P8)_
@@ -72,6 +72,10 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P6: `EffectiveRule` was placed in `model` (not declared inline in `service`) so both `service` (P6) and
+  the future `middleware` package (P9) can reference the identical type for `RuleProvider.Effective` without
+  an import cycle. `middleware.RuleProvider` itself is still to be declared in P9 — `ruleCache`'s
+  `Effective`/`Reload` methods already match the shape the plan specifies and will satisfy it structurally.
 - P1: verified `db:migrate up` → `down --steps 1` → `up` clean on **SQLite** only (scratch DB, schema
   diffed via `sqlite_master`, matches migration exactly). Postgres was not reachable in the build sandbox
   (no docker/psql) — the Postgres migration mirrors the SQLite one exactly (only `BOOLEAN`/`TRUE` vs
