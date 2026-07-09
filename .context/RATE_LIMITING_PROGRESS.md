@@ -3,15 +3,13 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟨 Feature-complete and fully verified on SQLite. **One item outstanding: Postgres
-verification** — every phase's Postgres code path was written and reviewed against the same test/DoD intent
-as its SQLite twin, but a live Postgres instance was never reachable in the sandbox this was built in (no
-docker, no psql, port 5432 unreachable — checked at the very start and re-confirmed at every phase that
-touched a backend-specific query). See "Postgres verification checklist" below before treating this as
-production-ready for a `storage.type: postgres` deployment.
+**Overall status:** ✅ **Done.** All 18 phases complete and verified on both SQLite and Postgres. Docker was
+installed in the sandbox (`docker.io` + `docker-compose-v2` via apt) and `docker compose up -d postgres`
+gave a reachable Postgres instance, closing the one outstanding gap from earlier sessions — see the
+Postgres verification checklist below for what was run.
 
-**Resume here:** run the Postgres verification checklist below (needs an environment with a reachable
-Postgres — e.g. `docker compose up -d postgres` from repo root), then flip this line and the P18 box to ✅.
+**Nothing left to resume.** Remaining open items (reverse-proxy config, SQLite WAL hardening) are operator
+decisions, not implementation work — see "Open items needing operator action" below.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -51,8 +49,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P17 — Admin page: edit + reset** · edit `Dialog` (limit/window) + reset `AlertDialog`
 
 **Closeout**
-- 🟨 **P18 — Metrics doc + verification** · `docs/metrics.md` ✅ · SQLite curl walkthrough ✅ · **Postgres
-  walkthrough outstanding** (see checklist below) · tracker → done once Postgres is verified
+- ✅ **P18 — Metrics doc + verification** · `docs/metrics.md` · curl walkthrough on SQLite **and** Postgres · tracker → done
 
 ---
 
@@ -71,29 +68,37 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | 9 | Client IP opt-in proxy-aware (`trust_proxy_headers`, default false) | ADR-009 |
 | 10 | Admins not exempt in v1 | ADR-010 |
 
-## Postgres verification checklist (blocking full P18 closeout)
+## Postgres verification checklist — ✅ completed 2026-07-09
 
-Every backend-specific code path below was written to mirror its SQLite twin exactly (same test/DoD intent)
-but has **never run against a live Postgres**. Run these once Postgres is reachable (`docker compose up -d
-postgres` from repo root, or point `storage.postgres.*` in `config/config.yml` / the `ALLINONE_STORAGE_POSTGRES_*`
-env vars at any reachable instance), then check each off:
+Ran against a real Postgres 15.18 via `docker compose up -d postgres` (repo root) once Docker was installed
+in the sandbox (`sudo apt install docker.io docker-compose-v2`, `usermod -aG docker`, `newgrp docker`).
+`docker.io` alone does **not** include the compose plugin — needed `docker-compose-v2` separately, and a
+fresh shell/`newgrp` after the group change (both tripped the user before landing on the working combo).
 
-- ⬜ **Migration 08** — `storage.type: postgres`, `make db-migrate-up` then `make db-migrate-down`; confirm
-  `rate_limit_rules`/`rate_limit_counters`/the index exist after up and are fully gone after down. *(P1)*
-- ⬜ **Rule repository** — either adapt `internal/ratelimit/repository/sqlite/rule_repository_test.go`'s
-  cases against a real `postgres` `*sqlx.DB` (new `_test.go` in the `postgres` package, or a build-tag
-  integration test), or at minimum boot the server on Postgres and exercise the full admin API
-  (`GET`/`PATCH`/`reset`/`reset-defaults` on `/api/v1/ratelimit/targets`) as done for SQLite in P12. *(P4)*
-- ⬜ **Counter repository** — same as above for `IncrAndGet`/`DeleteForTargetDay`/`DeleteOlderThan`; the
-  concurrency test matters most here since Postgres's `ON CONFLICT ... DO UPDATE SET count =
-  rate_limit_counters.count + 1` (the qualified-column form Postgres requires, unlike SQLite's bare `count`)
-  is the one piece of SQL that's structurally different, not just placeholder-style. *(P5)*
-- ⬜ **Full enforcement walkthrough on Postgres** — repeat the exact curl sequence run on SQLite for P18
-  below (login throttle → 429, signup quota → 429, records/user/day → 429, then `PATCH .../auth.login
-  {"enabled":false}` → login passes again without restart) with `storage.type: postgres`.
+- ✅ **Migration 08** — `up` against an empty DB, confirmed via `information_schema.columns` that both
+  tables + `idx_rate_limit_counters_day` exist with the expected Postgres types (`enabled boolean`, not
+  `integer` — confirms the twin migration's `BOOLEAN`/`INTEGER` split is correct); `down --steps 1` confirmed
+  both tables fully gone (`pg_tables` count → 0). *(P1)*
+- ✅ **Rule repository** — booted the server with `storage.type=postgres` (boot log: `"targets":6 ...
+  bound`), exercised the full admin API for real: `GET` list, `PATCH` (limit + `updated_by`), `POST
+  reset-defaults`, `POST reset`, unknown-key `PATCH` → 404 — all matched SQLite behavior exactly. *(P4)*
+- ✅ **Counter repository** — the daily-quota walkthrough (`auth.signup.ip`) hit `IncrAndGet` for real:
+  count-on-entry held through a request that itself 500'd, then 429'd on the 3rd attempt. Went further than
+  the checklist asked: fired **30 concurrent** `POST /api/v1/topics/{id}/items` requests (`xargs -P 30`)
+  against `listing.item.create` and read `rate_limit_counters` directly afterward — `count = 30` exactly,
+  proving Postgres's qualified-column `ON CONFLICT ... DO UPDATE SET count = rate_limit_counters.count + 1`
+  form (the one structurally-different piece of SQL vs. SQLite) has no lost updates under real concurrency.
+  *(P5)*
+- ✅ **Full enforcement walkthrough on Postgres** — login throttle → 429 (+`Retry-After`), signup quota →
+  429, records/user/day (`listing.item.create`) → 429, then `PATCH .../auth.login {"enabled":false}` → login
+  passed again immediately, no restart. Identical to the SQLite walkthrough in every observable respect.
+  Bonus: also reconfirmed that *raising* a throttled target's limit via `PATCH` un-sticks it immediately
+  (cache-reload-on-write, ADR-008) — needed this twice mid-walkthrough just to get a fresh login through
+  after intentionally exhausting `auth.login` in an earlier step.
 
-If all of the above pass, flip this section's items and the P18 checklist line to ✅ and update the overall
-status line at the top of this file.
+All scratch server processes and temp files from this verification were cleaned up afterward. The
+`docker compose` Postgres container itself was left running (operator's infrastructure, not a scratch
+artifact) — stop it with `docker compose down` if it's no longer needed.
 
 ## Open items needing operator action (carried from plan)
 
@@ -115,8 +120,8 @@ status line at the top of this file.
   `PATCH .../auth.login {"enabled":false}` → login passes again (404 for bad creds, not 429) with **no
   restart**. Bonus: also confirmed *raising* a throttle's limit via PATCH immediately un-sticks an
   already-throttled bucket (cache reload takes effect on the very next request), which the plan didn't
-  explicitly call for but follows directly from ADR-008. **Postgres was not reachable in this sandbox** —
-  see the checklist above; this is the one gap between "implemented" and "done" for this feature.
+  explicitly call for but follows directly from ADR-008. Postgres wasn't reachable in this sandbox at the
+  time — **resolved**, see the Postgres verification checklist above (repeated this exact walkthrough there).
 - P17: added a "Defaults" (reset-to-defaults) row action beyond the plan's minimum ask, sharing one
   `AlertDialog` parameterized by `resetAction: 'reset' | 'reset-defaults'` rather than two separate dialogs.
   DoD verified live via the browser-testing skill: opened the Edit dialog, changed limit to 25 and window to
@@ -194,22 +199,19 @@ status line at the top of this file.
   the future `middleware` package (P9) can reference the identical type for `RuleProvider.Effective` without
   an import cycle. `middleware.RuleProvider` itself is still to be declared in P9 — `ruleCache`'s
   `Effective`/`Reload` methods already match the shape the plan specifies and will satisfy it structurally.
-- P1: verified `db:migrate up` → `down --steps 1` → `up` clean on **SQLite** only (scratch DB, schema
-  diffed via `sqlite_master`, matches migration exactly). Postgres was not reachable in the build sandbox
-  (no docker/psql) — the Postgres migration mirrors the SQLite one exactly (only `BOOLEAN`/`TRUE` vs
-  `INTEGER`/`1`, same pattern as migration 06's twin files) but has not been live-tested. Run
-  `make db-migrate-up` / `db-migrate-down` against `storage.type: postgres` before this phase is considered
-  fully closed.
-- P4: same sandbox limitation — `RuleRepository` integration tests (Seed idempotency, List/Get/Update/
-  ResetToDefault) only ran against SQLite (`:memory:`). The Postgres implementation was written and
-  reviewed against the same test cases' intent but not executed (no reachable Postgres in this sandbox);
-  only its `?`→`$N` positional placeholder in `Get` and `ON CONFLICT DO NOTHING` in `Seed` differ from the
-  SQLite twin, `Update`/`ResetToDefault` use identical named-parameter SQL. Recommend running the
-  equivalent tests against `storage.type: postgres` (or at minimum a manual boot + admin-API smoke test
-  once P10–P12 land) before considering the repository layer fully verified on that backend.
-- P5: same sandbox limitation applies to `CounterRepository.IncrAndGet` — verified the
-  `INSERT ... ON CONFLICT ... RETURNING` atomic upsert (incl. a 50-goroutine `-race` concurrency test) only
-  against SQLite. The Postgres version differs only in placeholder style and the `rate_limit_counters.count`
-  qualifier Postgres requires in the `DO UPDATE SET` clause (unqualified `count` is ambiguous there);
-  not live-tested.
+- P1: verified `db:migrate up` → `down --steps 1` → `up` clean on **SQLite** only at the time (scratch DB,
+  schema diffed via `sqlite_master`, matches migration exactly). Postgres wasn't reachable in the build
+  sandbox then — **resolved**, see the Postgres verification checklist above.
+- P4: same sandbox limitation at the time — `RuleRepository` integration tests (Seed idempotency,
+  List/Get/Update/ResetToDefault) only ran against SQLite (`:memory:`); only `?`→`$N` in `Get` and
+  `ON CONFLICT DO NOTHING` in `Seed` differ from the SQLite twin, `Update`/`ResetToDefault` use identical
+  named-parameter SQL. **Resolved** — see the Postgres verification checklist above (verified via the full
+  admin API against a live Postgres rather than a repository-level `_test.go`, per that checklist's
+  "at minimum" option).
+- P5: same sandbox limitation at the time for `CounterRepository.IncrAndGet` — the 50-goroutine `-race`
+  concurrency test only ran against SQLite; the Postgres version differs from SQLite in the
+  `rate_limit_counters.count` qualifier Postgres requires in `DO UPDATE SET` (unqualified `count` is
+  ambiguous there), not just placeholder style. **Resolved** — see the Postgres verification checklist above
+  (30-concurrent-request burst against a live Postgres, verified via the persisted counter value rather than
+  a repository-level test).
 
