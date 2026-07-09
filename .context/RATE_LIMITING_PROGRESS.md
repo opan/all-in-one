@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 8 done — resuming at Phase 9.
+**Overall status:** 🟡 Phase 9 done — resuming at Phase 10.
 
-**Resume here:** Phase 9 (limiter middleware + clientIP + metrics — highest-complexity phase so far).
+**Resume here:** Phase 10 (admin read API: `Handler` + `GET /ratelimit/targets`).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -28,7 +28,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Middleware** _(need P2, P3; P9 needs P8)_
 - ✅ **P8 — In-memory store (`memStore`)** · per-call limit/window + cleanup + `Stop` + tests
-- ⬜ **P9 — Limiter middleware** · dispatch + `clientIP` + reject/fail-open + metrics + mux/httptest tests
+- ✅ **P9 — Limiter middleware** · dispatch + `clientIP` + reject/fail-open + metrics + mux/httptest tests
 
 **Handler (admin API)** _(need P6, P7)_
 - ⬜ **P10 — Read API** · `Handler` + `RegisterAdminRoutes` + `GET /ratelimit/targets` + swagger + mocks
@@ -72,6 +72,15 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P9: `Limiter`/`Middleware()` is built and fully tested standalone (constructed directly with a
+  `RuleProvider`/`CounterStore` in tests), per the plan's file list (`middleware/limiter.go`,
+  `middleware/metrics.go` only). `Service.LimiterMiddleware()` — the glue that constructs a real
+  `*middleware.Limiter` from `s.cache` (satisfies `RuleProvider` structurally) and
+  `s.Store.CounterRepo()` (satisfies `CounterStore`) — is deferred to P12 (Wiring), since that's where
+  `server.go` actually needs it and touching `service.go` for it now would go beyond P9's stated scope.
+  `Limiter.Stop()` must be called wherever that glue method is added (mirrors `rlsvc.Close()`).
+  Retry-After for a rejected daily quota is seconds-until-midnight in the configured timezone (not yet
+  specified by the plan; ADR-006 defines the day boundary this derives from).
 - P7: added `TargetPatch` to `model` (pointer fields for the P11 PATCH endpoint) and a `Service.location()`/
   `today()` helper pair that resolves `ratelimit.timezone` (falling back to UTC) — used by `ResetCounters`
   and retrofitted into P6's cleanup-ticker cutoff calculation, which had hard-coded UTC. Not a plan
