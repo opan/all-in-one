@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 3 done — resuming at Phase 4.
+**Overall status:** 🟡 Phase 4 done — resuming at Phase 5.
 
-**Resume here:** Phase 4 (rule repository, dual backend).
+**Resume here:** Phase 5 (counter repository, dual backend).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -19,7 +19,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P3 — Config** · `RateLimitConfig` + defaults + per-key `BindEnv` + `config.yml` block
 
 **Repository** _(need P1, P2)_
-- ⬜ **P4 — Rule repository** · interface/factory/adapter + sqlite/postgres + seed-idempotency tests + mocks
+- ✅ **P4 — Rule repository** · interface/factory/adapter + sqlite/postgres + seed-idempotency tests + mocks
 - ⬜ **P5 — Counter repository** · atomic `IncrAndGet` (`ON CONFLICT … RETURNING`) + concurrency test + mocks
 
 **Service** _(need P4, P5, P3)_
@@ -78,4 +78,11 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
   `INTEGER`/`1`, same pattern as migration 06's twin files) but has not been live-tested. Run
   `make db-migrate-up` / `db-migrate-down` against `storage.type: postgres` before this phase is considered
   fully closed.
+- P4: same sandbox limitation — `RuleRepository` integration tests (Seed idempotency, List/Get/Update/
+  ResetToDefault) only ran against SQLite (`:memory:`). The Postgres implementation was written and
+  reviewed against the same test cases' intent but not executed (no reachable Postgres in this sandbox);
+  only its `?`→`$N` positional placeholder in `Get` and `ON CONFLICT DO NOTHING` in `Seed` differ from the
+  SQLite twin, `Update`/`ResetToDefault` use identical named-parameter SQL. Recommend running the
+  equivalent tests against `storage.type: postgres` (or at minimum a manual boot + admin-API smoke test
+  once P10–P12 land) before considering the repository layer fully verified on that backend.
 
