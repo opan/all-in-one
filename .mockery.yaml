@@ -62,3 +62,57 @@ packages:
           filename: "mock_{{.InterfaceName}}.go"
           mockname: "Mock{{.InterfaceName}}"
           outpkg: mocks
+  github.com/all-in-one/internal/rbac/repository:
+    interfaces:
+      FeatureRepository:
+        config:
+          dir: "internal/rbac/service/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      GroupRepository:
+        config:
+          dir: "internal/rbac/service/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      GroupFeatureRepository:
+        config:
+          dir: "internal/rbac/service/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      OverrideRepository:
+        config:
+          dir: "internal/rbac/service/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      UserGroupRepository:
+        config:
+          dir: "internal/rbac/service/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      Storage:
+        config:
+          dir: "internal/rbac/service/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+  github.com/all-in-one/internal/rbac/handler:
+    interfaces:
+      Service:
+        config:
+          dir: "internal/rbac/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+  github.com/all-in-one/internal/authnz/handler:
+    interfaces:
+      AccessResolver:
+        config:
+          dir: "internal/authnz/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks

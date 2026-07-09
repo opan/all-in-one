@@ -16,7 +16,11 @@ import (
 	"github.com/all-in-one/internal/config"
 	httpHelper "github.com/all-in-one/internal/http"
 	listingSvc "github.com/all-in-one/internal/listing/service"
+	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/observability"
+	"github.com/all-in-one/internal/rbac"
+	rbacMw "github.com/all-in-one/internal/rbac/middleware"
+	rbacSvc "github.com/all-in-one/internal/rbac/service"
 	shortenerSvc "github.com/all-in-one/internal/shortener/service"
 	"github.com/all-in-one/internal/storage"
 	"github.com/rs/cors"
@@ -50,6 +54,12 @@ func (s *server) Start() error {
 	// Create context for server lifetime
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Attach the logger so any code that pulls a logger from context (e.g.
+	// logging.GetLoggerFromContext, used by RBAC bootstrap) logs to the real
+	// output instead of silently falling back to a no-op logger — mirrors
+	// what h.LoggingMiddleware does per-request (internal/http/http.go).
+	ctx = context.WithValue(ctx, logging.LoggerKey, &s.log)
 
 	s.log.Info().Msg("Initiating server start...")
 
@@ -92,6 +102,17 @@ func (s *server) Start() error {
 		s.log.Error().Err(err).Msg("Failed to create authnz service")
 		return err
 	}
+
+	rsvc, err := rbacSvc.NewService(ctx, db, s.config, s.log)
+	if err != nil {
+		s.log.Error().Err(err).Msg("Failed to create rbac service")
+		return err
+	}
+	if err := rsvc.Bootstrap(ctx, asvc.Store.UserRepo()); err != nil {
+		s.log.Error().Err(err).Msg("RBAC bootstrap failed")
+		return err
+	}
+	asvc.Handler.SetAccessResolver(rsvc.Resolver)
 
 	lsvc, err := listingSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
@@ -140,14 +161,39 @@ func (s *server) Start() error {
 	asvc.RegisterPublicRoutes(publicRoutes)
 	ssvc.RegisterPublicRoutes(publicRoutes)
 
-	// Authenticated routes (JWT required)
+	// Authenticated routes (JWT required), split into RBAC-gated siblings —
+	// per-app subrouters are used instead of a single shared one because
+	// routes are not cleanly path-prefixed (e.g. chat's /users/search vs
+	// authnz's /users/me); see docs/adr/ACCESS_MANAGEMENT_ADR.md ADR-006.
 	jwtMiddleware := middleware.NewJWTMiddleware(s.config, asvc.Store.SessionRepo())
-	authenticatedRoutes := api.NewRoute().Subrouter()
-	authenticatedRoutes.Use(jwtMiddleware.JWTAuth)
-	lsvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
-	asvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
-	csvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
-	ssvc.RegisterAuthenticatedRoutes(authenticatedRoutes)
+	authz := rbacMw.NewAuthz(rsvc.Resolver, s.config)
+
+	// authnz self-service (profile, password reset, 2FA, session management)
+	// — authenticated but not feature-gated.
+	selfRoutes := api.NewRoute().Subrouter()
+	selfRoutes.Use(jwtMiddleware.JWTAuth)
+	asvc.RegisterAuthenticatedRoutes(selfRoutes)
+
+	// mkGated builds a subrouter gated by JWT auth plus the named feature.
+	mkGated := func(feature string) *mux.Router {
+		sr := api.NewRoute().Subrouter()
+		sr.Use(jwtMiddleware.JWTAuth)
+		sr.Use(authz.RequireFeature(feature))
+		return sr
+	}
+	lsvc.RegisterAuthenticatedRoutes(mkGated(rbac.FeatureListing))
+	csvc.RegisterAuthenticatedRoutes(mkGated(rbac.FeatureChat))
+	ssvc.RegisterAuthenticatedRoutes(mkGated(rbac.FeatureShortener))
+
+	// Admin-only management APIs: RBAC under /api/v1/access/*, user management
+	// under /api/v1/admin/users/*, shortener moderation under
+	// /api/v1/admin/shortener/*. All share the RequireAdmin subrouter.
+	adminRoutes := api.NewRoute().Subrouter()
+	adminRoutes.Use(jwtMiddleware.JWTAuth)
+	adminRoutes.Use(authz.RequireAdmin)
+	rsvc.RegisterAdminRoutes(adminRoutes)
+	asvc.Handler.RegisterAdminRoutes(adminRoutes)
+	ssvc.RegisterAdminRoutes(adminRoutes)
 
 	// Shortener public redirect: /r/{code} — lives outside /api/v1
 	ssvc.Handler.RegisterRedirectRoute(r)

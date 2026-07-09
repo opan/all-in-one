@@ -260,6 +260,54 @@ func (_c *MockUserRepository_GetAll_Call) RunAndReturn(run func(context.Context)
 	return _c
 }
 
+// SetBlocked provides a mock function with given fields: ctx, id, blocked
+func (_m *MockUserRepository) SetBlocked(ctx context.Context, id uuid.UUID, blocked bool) error {
+	ret := _m.Called(ctx, id, blocked)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetBlocked")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
+		r0 = rf(ctx, id, blocked)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockUserRepository_SetBlocked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetBlocked'
+type MockUserRepository_SetBlocked_Call struct {
+	*mock.Call
+}
+
+// SetBlocked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - blocked bool
+func (_e *MockUserRepository_Expecter) SetBlocked(ctx interface{}, id interface{}, blocked interface{}) *MockUserRepository_SetBlocked_Call {
+	return &MockUserRepository_SetBlocked_Call{Call: _e.mock.On("SetBlocked", ctx, id, blocked)}
+}
+
+func (_c *MockUserRepository_SetBlocked_Call) Run(run func(ctx context.Context, id uuid.UUID, blocked bool)) *MockUserRepository_SetBlocked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(bool))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetBlocked_Call) Return(_a0 error) *MockUserRepository_SetBlocked_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockUserRepository_SetBlocked_Call) RunAndReturn(run func(context.Context, uuid.UUID, bool) error) *MockUserRepository_SetBlocked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function with given fields: ctx, id, user, opts
 func (_m *MockUserRepository) Update(ctx context.Context, id uuid.UUID, user model.User, opts ...query.QueryOptions) error {
 	_va := make([]interface{}, len(opts))
@@ -319,6 +367,54 @@ func (_c *MockUserRepository_Update_Call) Return(_a0 error) *MockUserRepository_
 }
 
 func (_c *MockUserRepository_Update_Call) RunAndReturn(run func(context.Context, uuid.UUID, model.User, ...query.QueryOptions) error) *MockUserRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateEmail provides a mock function with given fields: ctx, id, email
+func (_m *MockUserRepository) UpdateEmail(ctx context.Context, id uuid.UUID, email string) error {
+	ret := _m.Called(ctx, id, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateEmail")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = rf(ctx, id, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockUserRepository_UpdateEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateEmail'
+type MockUserRepository_UpdateEmail_Call struct {
+	*mock.Call
+}
+
+// UpdateEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - email string
+func (_e *MockUserRepository_Expecter) UpdateEmail(ctx interface{}, id interface{}, email interface{}) *MockUserRepository_UpdateEmail_Call {
+	return &MockUserRepository_UpdateEmail_Call{Call: _e.mock.On("UpdateEmail", ctx, id, email)}
+}
+
+func (_c *MockUserRepository_UpdateEmail_Call) Run(run func(ctx context.Context, id uuid.UUID, email string)) *MockUserRepository_UpdateEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateEmail_Call) Return(_a0 error) *MockUserRepository_UpdateEmail_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockUserRepository_UpdateEmail_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) error) *MockUserRepository_UpdateEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }

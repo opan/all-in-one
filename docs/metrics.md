@@ -52,16 +52,20 @@ rate(aio_listing_items_created_total[5m]) * 60
 | `aio_authnz_registrations_total` | Counter | `result` | Registration attempts by outcome |
 | `aio_authnz_2fa_verifications_total` | Counter | `method`, `result` | 2FA verification attempts |
 | `aio_authnz_2fa_state_changes_total` | Counter | `action` | 2FA enable/disable events |
+| `aio_admin_user_email_updated_total` | Counter | — | Admin changed another user's email (`internal/authnz/handler`) |
+| `aio_admin_user_blocked_total` | Counter | `result` | Admin blocked a user's login |
+| `aio_admin_user_unblocked_total` | Counter | — | Admin unblocked a user's login |
 
 **Label values**
 
 | Label | Metric | Values |
 |---|---|---|
-| `result` | `logins_total` | `success`, `invalid_credentials`, `user_not_found`, `2fa_required` |
+| `result` | `logins_total` | `success`, `invalid_credentials`, `user_not_found`, `2fa_required`, `blocked` |
 | `result` | `registrations_total` | `success`, `failure` |
 | `method` | `2fa_verifications_total` | `totp`, `recovery_code` |
 | `result` | `2fa_verifications_total` | `success`, `failure` |
 | `action` | `2fa_state_changes_total` | `enabled`, `disabled` |
+| `result` | `admin_user_blocked_total` | `success` |
 
 **Example queries**
 
@@ -93,6 +97,8 @@ rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
 | `aio_shortener_links_resolved_total` | Counter | `result` | Short link resolution attempts |
 | `aio_shortener_links_deleted_total` | Counter | — | Short links deleted successfully |
 | `aio_shortener_rate_limited_total` | Counter | `scope` | Requests rejected by rate limiter |
+| `aio_admin_shortener_link_deleted_total` | Counter | — | Admin deleted a short link regardless of owner (`internal/shortener/handler`) |
+| `aio_admin_shortener_link_moderated_total` | Counter | `action` | Admin activated/deactivated a short link regardless of owner |
 
 **Label values**
 
@@ -101,6 +107,7 @@ rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
 | `result` | `links_created_total` | `success`, `failure` |
 | `result` | `links_resolved_total` | `success`, `not_found`, `disabled`, `expired` |
 | `scope` | `rate_limited_total` | `create`, `resolve` |
+| `action` | `admin_shortener_link_moderated_total` | `activate`, `deactivate` |
 
 **Example queries**
 
@@ -118,6 +125,38 @@ rate(aio_shortener_links_resolved_total[5m])
 
 # Rate limit pressure by scope
 rate(aio_shortener_rate_limited_total[5m])
+```
+
+---
+
+### RBAC
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `aio_rbac_access_denied_total` | Counter | `feature`, `reason` | Requests denied by RBAC feature/admin gating (`internal/rbac/middleware`) |
+| `aio_rbac_groups_changed_total` | Counter | `action` | Admin group management actions (`internal/rbac/handler`) |
+| `aio_rbac_user_group_assigned_total` | Counter | — | Times an admin reassigned a user's group |
+| `aio_rbac_user_overrides_set_total` | Counter | — | Times an admin replaced a user's feature overrides |
+
+**Label values**
+
+| Label | Metric | Values |
+|---|---|---|
+| `feature` | `access_denied_total` | `listing`, `chat`, `shortener`, `access-management` |
+| `reason` | `access_denied_total` | `feature_denied` (no grant/override for the feature), `not_admin` (RequireAdmin gate), `direct_auth_not_admin` (dev bypass with `rbac.direct_auth_is_admin=false`) |
+| `action` | `groups_changed_total` | `created`, `updated`, `deleted`, `features_set` |
+
+**Example queries**
+
+```promql
+# Denials by feature (which app is being blocked most)
+sum by (feature) (rate(aio_rbac_access_denied_total[5m]))
+
+# Denials by reason
+sum by (reason) (rate(aio_rbac_access_denied_total[5m]))
+
+# Admin group changes by action
+sum by (action) (rate(aio_rbac_groups_changed_total[1h]))
 ```
 
 ---
@@ -229,18 +268,25 @@ Total series count at steady state (worst case, all label combinations observed)
 
 | App | Metric | Max series |
 |---|---|---|
-| Authnz | `logins_total` | 4 (`result`) |
+| Authnz | `logins_total` | 5 (`result`) |
 | Authnz | `registrations_total` | 2 |
 | Authnz | `2fa_verifications_total` | 4 (2 × 2) |
 | Authnz | `2fa_state_changes_total` | 2 |
+| Admin | `admin_user_blocked_total` | 1 (`result`) |
+| Admin | `admin_user_unblocked_total` | 1 |
+| Admin | `admin_user_email_updated_total` | 1 |
 | Shortener | `links_created_total` | 2 |
 | Shortener | `links_resolved_total` | 4 |
 | Shortener | `rate_limited_total` | 2 |
+| Admin | `admin_shortener_link_deleted_total` | 1 |
+| Admin | `admin_shortener_link_moderated_total` | 2 (`action`) |
+| RBAC | `access_denied_total` | 8 (4 `feature` × up to 2 valid `reason`s each) |
+| RBAC | `groups_changed_total` | 4 (`action`) |
 | Chat | `invites_responded_total` | 2 |
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
-| All others | — | 1 each (15 metrics) |
+| All others | — | 1 each (17 metrics) |
 
-**Total: ~38 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~59 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

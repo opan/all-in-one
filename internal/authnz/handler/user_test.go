@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockStorage is a wrapper for generated mocks
@@ -659,4 +660,131 @@ func TestResetPasswordUser_UpdateError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	mockUserRepo.AssertExpectations(t)
+}
+
+func decodeCurrentUserResponse(t *testing.T, rr *httptest.ResponseRecorder) CurrentUserResponse {
+	t.Helper()
+	var envelope httpHelper.Response
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&envelope))
+	assert.True(t, envelope.Success)
+
+	raw, err := json.Marshal(envelope.Data)
+	require.NoError(t, err)
+
+	var cu CurrentUserResponse
+	require.NoError(t, json.Unmarshal(raw, &cu))
+	return cu
+}
+
+func TestGetCurrentUser_PopulatesRBACInfoForAdmin(t *testing.T) {
+	userID := uuid.New()
+	groupID := uuid.New()
+
+	mockUserRepo := mocks.NewMockUserRepository(t)
+	mockUserRepo.On("Find", mock.Anything, userID).Return(model.User{ID: userID, Username: "admin"}, nil)
+
+	mockResolver := mocks.NewMockAccessResolver(t)
+	mockResolver.On("EffectiveFeatures", mock.Anything, userID).
+		Return(true, groupID, "admin", []string{"listing", "chat", "shortener"}, nil)
+
+	storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mocks.NewMockSessionRepository(t)}
+	handler := NewHandler(storage, config.Config{})
+	handler.SetAccessResolver(mockResolver)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+	req = req.WithContext(tester.ContextWithUser(userID.String(), "admin", "admin@example.com", uuid.New().String()))
+	rr := httptest.NewRecorder()
+
+	handler.GetCurrentUser(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	cu := decodeCurrentUserResponse(t, rr)
+	assert.True(t, cu.IsAdmin)
+	require.NotNil(t, cu.Group)
+	assert.Equal(t, "admin", cu.Group.Name)
+	assert.Equal(t, groupID.String(), cu.Group.ID)
+	assert.Equal(t, []string{"listing", "chat", "shortener"}, cu.Features)
+}
+
+func TestGetCurrentUser_PopulatesRBACInfoForRegularUser(t *testing.T) {
+	userID := uuid.New()
+	groupID := uuid.New()
+
+	mockUserRepo := mocks.NewMockUserRepository(t)
+	mockUserRepo.On("Find", mock.Anything, userID).Return(model.User{ID: userID, Username: "user"}, nil)
+
+	mockResolver := mocks.NewMockAccessResolver(t)
+	mockResolver.On("EffectiveFeatures", mock.Anything, userID).
+		Return(false, groupID, "regular-user", []string{"listing", "chat", "shortener"}, nil)
+
+	storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mocks.NewMockSessionRepository(t)}
+	handler := NewHandler(storage, config.Config{})
+	handler.SetAccessResolver(mockResolver)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+	req = req.WithContext(tester.ContextWithUser(userID.String(), "user", "user@example.com", uuid.New().String()))
+	rr := httptest.NewRecorder()
+
+	handler.GetCurrentUser(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	cu := decodeCurrentUserResponse(t, rr)
+	assert.False(t, cu.IsAdmin)
+	require.NotNil(t, cu.Group)
+	assert.Equal(t, "regular-user", cu.Group.Name)
+}
+
+func TestGetCurrentUser_AccessResolverError(t *testing.T) {
+	userID := uuid.New()
+
+	mockUserRepo := mocks.NewMockUserRepository(t)
+	mockUserRepo.On("Find", mock.Anything, userID).Return(model.User{ID: userID, Username: "user"}, nil)
+
+	mockResolver := mocks.NewMockAccessResolver(t)
+	mockResolver.On("EffectiveFeatures", mock.Anything, userID).
+		Return(false, uuid.Nil, "", nil, errors.New("db unavailable"))
+
+	storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mocks.NewMockSessionRepository(t)}
+	handler := NewHandler(storage, config.Config{})
+	handler.SetAccessResolver(mockResolver)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+	req = req.WithContext(tester.ContextWithUser(userID.String(), "user", "user@example.com", uuid.New().String()))
+	rr := httptest.NewRecorder()
+
+	handler.GetCurrentUser(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestGetCurrentUser_DirectAuth_ConfiguredAsAdmin(t *testing.T) {
+	storage := &MockStorage{userRepo: mocks.NewMockUserRepository(t), sessionRepo: mocks.NewMockSessionRepository(t)}
+	handler := NewHandler(storage, config.Config{RBAC: config.RBACConfig{DirectAuthIsAdmin: true}})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+	req = req.WithContext(tester.ContextWithUser("someuser", "someuser", "someuser@example.com", "direct-auth"))
+	rr := httptest.NewRecorder()
+
+	handler.GetCurrentUser(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	cu := decodeCurrentUserResponse(t, rr)
+	assert.True(t, cu.IsAdmin)
+	assert.Equal(t, "someuser", cu.Username)
+	assert.Nil(t, cu.Group)
+}
+
+func TestGetCurrentUser_DirectAuth_NotConfiguredAsAdmin(t *testing.T) {
+	storage := &MockStorage{userRepo: mocks.NewMockUserRepository(t), sessionRepo: mocks.NewMockSessionRepository(t)}
+	handler := NewHandler(storage, config.Config{RBAC: config.RBACConfig{DirectAuthIsAdmin: false}})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+	req = req.WithContext(tester.ContextWithUser("someuser", "someuser", "someuser@example.com", "direct-auth"))
+	rr := httptest.NewRecorder()
+
+	handler.GetCurrentUser(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	cu := decodeCurrentUserResponse(t, rr)
+	assert.False(t, cu.IsAdmin)
 }

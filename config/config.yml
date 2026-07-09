@@ -28,6 +28,10 @@ auth:
   secure_cookie: false # Set to true in production with HTTPS
   totp_encryption_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"  # 32-byte hex key - REPLACE in production!
 
+rbac:
+  admin_username: "admin"          # initial admin; assigned to the admin group only when it's empty
+  direct_auth_is_admin: true       # dev bypass (x-direct-auth-username) is treated as superuser
+
 shortener:
   code_length: 7
   max_create_retries: 5

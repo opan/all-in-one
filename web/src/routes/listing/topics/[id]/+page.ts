@@ -1,5 +1,5 @@
 // SvelteKit load function to fetch topic details and items from backend API
-import { apiLoad } from "$lib/api";
+import { apiLoad, throwApiError } from "$lib/api";
 
 export const load = async ({ params, fetch, parent }) => {
 	const topicId = params.id;
@@ -7,14 +7,14 @@ export const load = async ({ params, fetch, parent }) => {
 	// Fetch topic details
 	const topicRes = await apiLoad(fetch, `/api/v1/topics/${topicId}`);
 	if (!topicRes.ok) {
-		throw new Error("Failed to fetch topic");
+		await throwApiError(topicRes, "Failed to fetch topic");
 	}
 	const topicData = await topicRes.json();
 
 	// Fetch items for this topic
 	const itemsRes = await apiLoad(fetch, `/api/v1/topics/${topicId}/items`);
 	if (!itemsRes.ok) {
-		throw new Error("Failed to fetch items");
+		await throwApiError(itemsRes, "Failed to fetch items");
 	}
 	const itemsData = await itemsRes.json();
 

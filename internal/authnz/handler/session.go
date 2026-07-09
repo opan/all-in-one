@@ -68,6 +68,16 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Blocked accounts cannot obtain a session. Checked after the password so a
+	// blocked user still sees "invalid credentials" for a wrong password, and
+	// before the 2FA branch so a blocked user with 2FA gets no challenge either.
+	if u.Blocked {
+		log.Warn().Str("username", rl.Username).Msg("blocked user attempted login")
+		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "blocked")))
+		httpHelper.SendError(w, "account is blocked", http.StatusForbidden)
+		return
+	}
+
 	// If user has 2FA enabled, create a challenge instead of a session
 	if u.TOTPEnabled {
 		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "2fa_required")))

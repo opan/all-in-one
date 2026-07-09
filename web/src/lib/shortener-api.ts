@@ -1,4 +1,4 @@
-import { apiClient, apiLoad, apiPost, apiDelete } from '$lib/api';
+import { apiClient, apiLoad, apiPost, apiDelete, throwApiError } from '$lib/api';
 
 // Mirrors internal/shortener/model/shortlink.go JSON tags
 export interface ShortLink {
@@ -63,7 +63,7 @@ export async function deleteShortLink(code: string): Promise<void> {
 // Used by the +page.ts server-side load function
 export async function loadShortLinks(fetchFn: typeof fetch): Promise<ShortLinksPage> {
 	const res = await apiLoad(fetchFn, `${BASE}?page=1&page_size=50`);
-	if (!res.ok) throw new Error('Failed to fetch short links');
+	if (!res.ok) await throwApiError(res, 'Failed to fetch short links');
 	const body = await res.json();
 	return (body.data ?? { links: [], total: 0, page: 1 }) as ShortLinksPage;
 }
