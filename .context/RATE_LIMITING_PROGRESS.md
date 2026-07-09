@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 7 done — resuming at Phase 8.
+**Overall status:** 🟡 Phase 8 done — resuming at Phase 9.
 
-**Resume here:** Phase 8 (in-memory throttle store, `memStore`).
+**Resume here:** Phase 9 (limiter middleware + clientIP + metrics — highest-complexity phase so far).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -27,7 +27,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P7 — Service admin ops** · List/Update/ResetCounters/ResetDefaults + reload-on-write + tests
 
 **Middleware** _(need P2, P3; P9 needs P8)_
-- ⬜ **P8 — In-memory store (`memStore`)** · per-call limit/window + cleanup + `Stop` + tests
+- ✅ **P8 — In-memory store (`memStore`)** · per-call limit/window + cleanup + `Stop` + tests
 - ⬜ **P9 — Limiter middleware** · dispatch + `clientIP` + reject/fail-open + metrics + mux/httptest tests
 
 **Handler (admin API)** _(need P6, P7)_
