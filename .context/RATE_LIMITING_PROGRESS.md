@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 12 done — resuming at Phase 13.
+**Overall status:** 🟡 Phase 13 done — resuming at Phase 14.
 
-**Resume here:** Phase 13 (enforce on public routes: login/sign-up).
+**Resume here:** Phase 14 (enforce on gated routes + boot-time route-binding validation — highest-risk phase).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -36,7 +36,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Wiring** _(need P9, P10, P11)_
 - ✅ **P12 — Mount admin API (no enforcement)** · construct `rlsvc` + `defer Close` + `RegisterAdminRoutes`
-- ⬜ **P13 — Enforce public routes** · `publicRoutes.Use(rlMw)` → login/signup 429
+- ✅ **P13 — Enforce public routes** · `publicRoutes.Use(rlMw)` → login/signup 429
 - ⬜ **P14 — Enforce gated routes + boot validation** · `sr.Use(rlMw)` in `mkGated` + `r.Walk` check · regression
 
 **Frontend** _(need P10, P11)_
@@ -72,6 +72,18 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P13: `Service.LimiterMiddleware()` (deferred from P9, see that note) is now built: `Service` gained a
+  `limiter *middleware.Limiter` field, constructed eagerly in `NewService` from `s.cache` (satisfies
+  `RuleProvider`) and `store.CounterRepo()` (satisfies `CounterStore`); `Close()` now also stops it. Existing
+  service tests' `newTestService` helper needed a real (non-nil) limiter too — `Close()` unconditionally
+  calls `s.limiter.Stop()`, which nil-panics on a zero-value `Service`; fixed by constructing
+  `middleware.NewLimiter(cache, nil, cfg)` in the test helper (the `nil` counters arg is never dereferenced
+  by `Stop()`). DoD verified live: booted against a scratch DB, used the admin PATCH API to drop
+  `auth.login`/`auth.signup.ip` limits to 3 for a fast test, then confirmed both throttle (429 +
+  `Retry-After` after 3 requests/minute) and daily-quota (429 + `Retry-After` ≈ seconds-to-midnight after 3
+  requests/day, counted on entry regardless of the signup's own success/failure — a `UNIQUE constraint`
+  500 on repeated usernames still consumed quota, confirming ADR-006 count-on-entry) enforcement fire
+  correctly, and a normal first request passes through untouched (201).
 - P12: DoD verified live (not just built) — booted the server twice against scratch SQLite DBs
   (`ALLINONE_STORAGE_SQLITE_DB_PATH=/tmp/...`), once with `rbac.direct_auth_is_admin=true` (GET/PATCH/reset/
   reset-defaults all 200, unknown-key PATCH 404) and once with it `false` (GET → 403). Confirmed 12 rapid

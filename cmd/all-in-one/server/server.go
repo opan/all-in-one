@@ -165,6 +165,7 @@ func (s *server) Start() error {
 
 	// Public routes (no authentication required)
 	publicRoutes := api.NewRoute().Subrouter()
+	publicRoutes.Use(rlsvc.LimiterMiddleware())
 	lsvc.RegisterRoutes(publicRoutes)
 	asvc.RegisterPublicRoutes(publicRoutes)
 	ssvc.RegisterPublicRoutes(publicRoutes)

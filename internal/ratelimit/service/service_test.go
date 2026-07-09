@@ -7,6 +7,7 @@ import (
 
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/ratelimit"
+	"github.com/all-in-one/internal/ratelimit/middleware"
 	"github.com/all-in-one/internal/ratelimit/model"
 	"github.com/all-in-one/internal/ratelimit/service/mocks"
 	"github.com/rs/zerolog"
@@ -17,19 +18,24 @@ import (
 
 func newTestService(t *testing.T, store *mocks.MockStorage) *Service {
 	t.Helper()
-	return &Service{
-		Store: store,
-		cache: newRuleCache(store),
-		config: config.Config{
-			RateLimit: config.RateLimitConfig{
-				CacheRefreshInterval: time.Hour,
-				CleanupInterval:      time.Hour,
-				CounterRetentionDays: 3,
-			},
+	cfg := config.Config{
+		RateLimit: config.RateLimitConfig{
+			CacheRefreshInterval: time.Hour,
+			CleanupInterval:      time.Hour,
+			CounterRetentionDays: 3,
 		},
-		log:  zerolog.Nop(),
-		stop: make(chan struct{}),
 	}
+	cache := newRuleCache(store)
+	s := &Service{
+		Store:   store,
+		cache:   cache,
+		limiter: middleware.NewLimiter(cache, nil, cfg),
+		config:  cfg,
+		log:     zerolog.Nop(),
+		stop:    make(chan struct{}),
+	}
+	t.Cleanup(func() { s.limiter.Stop() })
+	return s
 }
 
 func TestService_Seed_SeedsEveryRegistryTarget(t *testing.T) {

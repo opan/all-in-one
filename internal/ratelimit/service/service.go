@@ -9,6 +9,7 @@ import (
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/ratelimit"
 	"github.com/all-in-one/internal/ratelimit/handler"
+	"github.com/all-in-one/internal/ratelimit/middleware"
 	"github.com/all-in-one/internal/ratelimit/model"
 	"github.com/all-in-one/internal/ratelimit/repository"
 	"github.com/gorilla/mux"
@@ -17,15 +18,17 @@ import (
 )
 
 // Service composes the ratelimit repository layer, keeps the in-memory rule
-// cache warm, runs the background refresh/cleanup tickers, and serves the
-// admin-only management API via Handler.
+// cache warm, runs the background refresh/cleanup tickers, serves the
+// admin-only management API via Handler, and exposes the enforcement
+// middleware via LimiterMiddleware.
 type Service struct {
 	Store   repository.Storage
 	Handler *handler.Handler
 
-	cache  *ruleCache
-	config config.Config
-	log    zerolog.Logger
+	cache   *ruleCache
+	limiter *middleware.Limiter
+	config  config.Config
+	log     zerolog.Logger
 
 	stopOnce sync.Once
 	stop     chan struct{}
@@ -39,12 +42,14 @@ func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zero
 		return nil, err
 	}
 
+	cache := newRuleCache(store)
 	s := &Service{
-		Store:  store,
-		cache:  newRuleCache(store),
-		config: config,
-		log:    log,
-		stop:   make(chan struct{}),
+		Store:   store,
+		cache:   cache,
+		limiter: middleware.NewLimiter(cache, store.CounterRepo(), config),
+		config:  config,
+		log:     log,
+		stop:    make(chan struct{}),
 	}
 	s.Handler = handler.NewHandler(s, config)
 
@@ -64,6 +69,14 @@ func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zero
 // must apply admin-only gating (RequireAdmin) to router beforehand.
 func (s *Service) RegisterAdminRoutes(router *mux.Router) {
 	s.Handler.RegisterAdminRoutes(router)
+}
+
+// LimiterMiddleware returns the mux.MiddlewareFunc that enforces rate
+// limits using this service's rule cache and counter repository. Attach it
+// to any subrouter carrying rate-limited routes (docs/adr/RATE_LIMITING_ADR.md
+// ADR-004).
+func (s *Service) LimiterMiddleware() mux.MiddlewareFunc {
+	return s.limiter.Middleware()
 }
 
 // seed inserts one rate_limit_rules row per Registry target (insert-if-
@@ -131,13 +144,14 @@ func (s *Service) runCleanupTicker() {
 	}
 }
 
-// Close stops both background tickers and waits for them to exit. It does
-// not close the underlying storage (owned by the top-level
-// internal/storage.Storage, shared across all app modules). Safe to call
-// more than once.
+// Close stops both background tickers and the limiter's in-memory throttle
+// store, waiting for the tickers to exit. It does not close the underlying
+// storage (owned by the top-level internal/storage.Storage, shared across
+// all app modules). Safe to call more than once.
 func (s *Service) Close() error {
 	s.stopOnce.Do(func() { close(s.stop) })
 	s.wg.Wait()
+	s.limiter.Stop()
 	return nil
 }
 
