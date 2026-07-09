@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 16 done — resuming at Phase 17.
+**Overall status:** 🟡 Phase 17 done — resuming at Phase 18.
 
-**Resume here:** Phase 17 (admin page: edit dialog + reset).
+**Resume here:** Phase 18 (closeout: metrics doc + full SQLite+Postgres verification).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -42,7 +42,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 **Frontend** _(need P10, P11)_
 - ✅ **P15 — API client + sidebar** · `ratelimit-api.ts` + `adminItems` entry · `npm run check`/`build`
 - ✅ **P16 — Admin page: list + toggle** · `Table` + `Switch` optimistic
-- ⬜ **P17 — Admin page: edit + reset** · edit `Dialog` (limit/window) + reset `AlertDialog`
+- ✅ **P17 — Admin page: edit + reset** · edit `Dialog` (limit/window) + reset `AlertDialog`
 
 **Closeout**
 - ⬜ **P18 — Metrics doc + verification** · `docs/metrics.md` · curl walkthrough on SQLite **and** Postgres · tracker → done
@@ -72,6 +72,12 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P17: added a "Defaults" (reset-to-defaults) row action beyond the plan's minimum ask, sharing one
+  `AlertDialog` parameterized by `resetAction: 'reset' | 'reset-defaults'` rather than two separate dialogs.
+  DoD verified live via the browser-testing skill: opened the Edit dialog, changed limit to 25 and window to
+  "2 hours" (using `[data-slot="select-trigger"]` per the skill's documented bits-ui `Select` gotcha, not
+  `role="combobox"`), saved, confirmed the success toast + updated row values, reloaded to confirm server-side
+  persistence, then opened Reset, confirmed, and confirmed its toast too — 9/9 checks passed.
 - P16: DoD verified live via the `frontend-browser-testing` skill (seeded scratch DB, real server, headless
   Chromium): table lists all 6 targets with name/key/scope-badge/kind-badge/limit/window; clicking the
   `auth.login` switch flips it and a page reload confirms the change persisted server-side (8/8 checks
