@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 14 done — resuming at Phase 15.
+**Overall status:** 🟡 Phase 15 done — resuming at Phase 16.
 
-**Resume here:** Phase 15 (frontend: API client + sidebar entry).
+**Resume here:** Phase 16 (admin page: list + enable toggle).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -40,7 +40,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P14 — Enforce gated routes + boot validation** · `sr.Use(rlMw)` in `mkGated` + `r.Walk` check · regression
 
 **Frontend** _(need P10, P11)_
-- ⬜ **P15 — API client + sidebar** · `ratelimit-api.ts` + `adminItems` entry · `npm run check`/`build`
+- ✅ **P15 — API client + sidebar** · `ratelimit-api.ts` + `adminItems` entry · `npm run check`/`build`
 - ⬜ **P16 — Admin page: list + toggle** · `Table` + `Switch` optimistic
 - ⬜ **P17 — Admin page: edit + reset** · edit `Dialog` (limit/window) + reset `AlertDialog`
 
@@ -72,6 +72,12 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P15: `node`/`npm` aren't on `PATH` by default in this sandbox — available via `nvm` (`export
+  NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"` then the normal commands, all in one Bash call since env
+  doesn't persist across tool calls). `npm run check` (0 errors, only pre-existing unrelated warnings) and
+  `npm run build` both passed. Used the `frontend-browser-testing` skill to confirm the "Rate Limits" link
+  (with its Gauge icon) actually renders in the Admin sidebar group for a logged-in admin — 5/5 checks
+  passed, screenshot showed it positioned right after Shortener as expected.
 - P14: `rlMw` (from `rlsvc.LimiterMiddleware()`, computed once) is shared across `publicRoutes` and every
   `mkGated(feature)` subrouter — one `*middleware.Limiter`/`memStore` for the whole process, not one per
   subrouter. Placed `sr.Use(rlMw)` between `JWTAuth` and `RequireFeature` (literal reading of "after
