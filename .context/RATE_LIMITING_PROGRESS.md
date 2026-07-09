@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 13 done — resuming at Phase 14.
+**Overall status:** 🟡 Phase 14 done — resuming at Phase 15.
 
-**Resume here:** Phase 14 (enforce on gated routes + boot-time route-binding validation — highest-risk phase).
+**Resume here:** Phase 15 (frontend: API client + sidebar entry).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -37,7 +37,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 **Wiring** _(need P9, P10, P11)_
 - ✅ **P12 — Mount admin API (no enforcement)** · construct `rlsvc` + `defer Close` + `RegisterAdminRoutes`
 - ✅ **P13 — Enforce public routes** · `publicRoutes.Use(rlMw)` → login/signup 429
-- ⬜ **P14 — Enforce gated routes + boot validation** · `sr.Use(rlMw)` in `mkGated` + `r.Walk` check · regression
+- ✅ **P14 — Enforce gated routes + boot validation** · `sr.Use(rlMw)` in `mkGated` + `r.Walk` check · regression
 
 **Frontend** _(need P10, P11)_
 - ⬜ **P15 — API client + sidebar** · `ratelimit-api.ts` + `adminItems` entry · `npm run check`/`build`
@@ -72,6 +72,18 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P14: `rlMw` (from `rlsvc.LimiterMiddleware()`, computed once) is shared across `publicRoutes` and every
+  `mkGated(feature)` subrouter — one `*middleware.Limiter`/`memStore` for the whole process, not one per
+  subrouter. Placed `sr.Use(rlMw)` between `JWTAuth` and `RequireFeature` (literal reading of "after
+  JWTAuth"): a request that fails the feature gate still consumes its rate limit counter. Boot-time
+  validation (`validateRateLimitBindings`, `r.Walk` over the whole router) logs `Fatal` (process exit 1) on
+  any Registry target with no matching registered route. DoD verified live end-to-end against a scratch DB:
+  boot log shows `"targets":6 ... all targets bound to a registered route"`; authed
+  `POST /api/v1/topics/{topic_id}/items` 429s with `Retry-After` after the (admin-lowered) quota, keyed per
+  user via JWT claims; listing/shortener authed traffic still works normally (200/201) through the extra
+  middleware; and a deliberately introduced path typo (`/api/v1/sessions-typo`) made the boot fail with
+  `level:fatal` + exit code 1 and a precise "missing" list — then was reverted (clean `git diff`) before
+  committing.
 - P13: `Service.LimiterMiddleware()` (deferred from P9, see that note) is now built: `Service` gained a
   `limiter *middleware.Limiter` field, constructed eagerly in `NewService` from `s.cache` (satisfies
   `RuleProvider`) and `store.CounterRepo()` (satisfies `CounterStore`); `Close()` now also stops it. Existing
