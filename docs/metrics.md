@@ -97,6 +97,8 @@ rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
 | `aio_shortener_links_resolved_total` | Counter | `result` | Short link resolution attempts |
 | `aio_shortener_links_deleted_total` | Counter | — | Short links deleted successfully |
 | `aio_shortener_rate_limited_total` | Counter | `scope` | Requests rejected by rate limiter |
+| `aio_admin_shortener_link_deleted_total` | Counter | — | Admin deleted a short link regardless of owner (`internal/shortener/handler`) |
+| `aio_admin_shortener_link_moderated_total` | Counter | `action` | Admin activated/deactivated a short link regardless of owner |
 
 **Label values**
 
@@ -105,6 +107,7 @@ rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
 | `result` | `links_created_total` | `success`, `failure` |
 | `result` | `links_resolved_total` | `success`, `not_found`, `disabled`, `expired` |
 | `scope` | `rate_limited_total` | `create`, `resolve` |
+| `action` | `admin_shortener_link_moderated_total` | `activate`, `deactivate` |
 
 **Example queries**
 
@@ -275,13 +278,15 @@ Total series count at steady state (worst case, all label combinations observed)
 | Shortener | `links_created_total` | 2 |
 | Shortener | `links_resolved_total` | 4 |
 | Shortener | `rate_limited_total` | 2 |
+| Admin | `admin_shortener_link_deleted_total` | 1 |
+| Admin | `admin_shortener_link_moderated_total` | 2 (`action`) |
 | RBAC | `access_denied_total` | 8 (4 `feature` × up to 2 valid `reason`s each) |
 | RBAC | `groups_changed_total` | 4 (`action`) |
 | Chat | `invites_responded_total` | 2 |
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
 | All others | — | 1 each (17 metrics) |
 
-**Total: ~56 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~59 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

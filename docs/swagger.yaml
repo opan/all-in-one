@@ -101,6 +101,11 @@ definitions:
       email:
         type: string
     type: object
+  handler.adminModerateShortLinkRequest:
+    properties:
+      is_active:
+        type: boolean
+    type: object
   model.CreateInviteRequest:
     properties:
       participants:
@@ -770,6 +775,94 @@ paths:
       summary: Replace a user's feature overrides
       tags:
       - access-management
+  /admin/shortener/links:
+    get:
+      description: Admin-only. List short links across all owners, paginated.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20, max 100)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Paginated list of short links
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List all short links (admin)
+      tags:
+      - admin-shortener
+  /admin/shortener/links/{code}:
+    delete:
+      description: Admin-only. Delete a short link regardless of owner.
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Link deleted
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Link not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Delete a short link (admin)
+      tags:
+      - admin-shortener
+    patch:
+      consumes:
+      - application/json
+      description: Admin-only. Set a short link's active state regardless of owner.
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      - description: Desired active state
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.adminModerateShortLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Link updated
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Link not found
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Activate or deactivate a short link (admin)
+      tags:
+      - admin-shortener
   /admin/users/{id}:
     patch:
       consumes:

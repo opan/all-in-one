@@ -670,6 +670,144 @@
                 }
             }
         },
+        "/admin/shortener/links": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. List short links across all owners, paginated.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-shortener"
+                ],
+                "summary": "List all short links (admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20, max 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of short links",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shortener/links/{code}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. Delete a short link regardless of owner.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-shortener"
+                ],
+                "summary": "Delete a short link (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Short link code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Link deleted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Link not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. Set a short link's active state regardless of owner.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-shortener"
+                ],
+                "summary": "Activate or deactivate a short link (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Short link code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Desired active state",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.adminModerateShortLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Link updated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Link not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users/{id}": {
             "patch": {
                 "security": [
@@ -2753,6 +2891,14 @@
             "properties": {
                 "email": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.adminModerateShortLinkRequest": {
+            "type": "object",
+            "properties": {
+                "is_active": {
+                    "type": "boolean"
                 }
             }
         },

@@ -371,3 +371,77 @@ disabling a compromised/departed account.
 - `internal/rbac/.../user_group_repository.go` + `internal/rbac/model/model.go` (`blocked` on the roster)
 - `cmd/all-in-one/server/server.go` (wiring), `cmd/all-in-one/db/transfer.go` (backfill)
 - `web/src/components/app-sidebar.svelte`, `web/src/routes/admin/**`, `web/src/lib/admin-api.ts`
+
+---
+
+## ADR-009: Admin content-management pages (pilot: Shortener)
+
+### Status
+Accepted
+
+### Context
+ADR-001–008 gave admins control over *access* (who can use which app-feature) and basic *identity*
+administration (email, block). Neither gives an admin visibility into the actual **content** each app
+produces — short links, listing topics/items, chat sessions/messages — all of which are owned per-user with
+no existing owner-agnostic read or write path. As the platform grows, an admin needs to be able to see and
+moderate that content (e.g. take down an abusive short link) without waiting on the owning user.
+
+### Decision
+1. **Scope: view + moderate, not full CRUD.** Admins can list every record across all owners and
+   activate/deactivate or delete any record. They cannot create or edit content on another user's behalf —
+   that stays exclusively the owning user's action.
+2. **One admin page per app**, under `/admin/<app>`, mirroring `/admin/users`'s page-per-concern layout
+   rather than a single tabbed "Content" page — clearer per-app UX and avoids one page's row-action set
+   leaking into another's.
+3. **Pilot one app before replicating.** Shortener ships first (single record type, already paginated,
+   simplest ownership model — a separate `short_link_owners` join table rather than an owner column). Listing
+   and chat follow later using the same recipe, not as part of this change.
+4. **Gating: `is_admin` only, no feature-registry change.** These pages reuse the existing `RequireAdmin`
+   subrouter (ADR-004) exactly like `/admin/users` and `/admin/access` — no new `admin_only` feature-registry
+   entry, so access can't be delegated via RBAC groups/overrides, only the superuser flag.
+
+**The recipe**, established by the Shortener pilot and intended to repeat per app:
+- Add owner-agnostic sibling methods to the repository (`ListAll`, `DeleteByCode`, `SetActiveByCode` for
+  shortener) alongside the existing owner-scoped ones — every app's repository was built assuming a single
+  owning user, so this is the actual cost of each rollout, not the routing/UI.
+- A new admin handler file (`admin.go`) with its own `RegisterAdminRoutes`, mounted with one line on the
+  `adminRoutes` subrouter already wired in `server.go` — no per-endpoint admin re-check needed, since the
+  subrouter is already `RequireAdmin`-gated.
+- A `/admin/<app>` page mirroring the app's existing user-facing table/dialog patterns (e.g. Shortener's
+  admin page reuses the same Switch-toggle + AlertDialog-delete UI as the user-facing `/shortener` page),
+  plus an owner column since the admin view spans every user.
+
+### Rationale
+- Reusing the existing `RequireAdmin` subrouter and per-app `RegisterAdminRoutes` pattern (ADR-006, ADR-008)
+  means each new admin page is additive wiring, not new infrastructure.
+- Piloting one app first was deliberate: every app needed the same category of change (new owner-agnostic
+  repo methods), so validating the recipe once on the simplest app (Shortener) de-risks the same recipe
+  landing correctly on listing and chat, which have more record types and less mature ownership models (e.g.
+  chat has no message-delete method at all yet, and listing's `TopicRepository` has no list-all).
+- Scoping to view + moderate (not full CRUD) keeps the admin surface to what oversight actually requires;
+  letting admins fabricate content as another user is a materially different (and unrequested) capability.
+
+### Alternatives Considered
+| Option | Rejected because |
+|---|---|
+| Single tabbed `/admin/content` page (Groups/Features-tab style, ADR-008) | Each app's records and row actions differ enough that one page's actions would be irrelevant clutter on another app's tab; per-app pages stay focused. |
+| Ship listing + chat admin pages in the same change | Each app needs new owner-agnostic repository methods with no shared code path between apps; bundling triples the review surface for no coupling benefit. Piloting one app first lets the recipe be corrected before repeating it. |
+| Gate via a new `admin_only` feature (e.g. `shortener-admin`) instead of `is_admin` | Every existing admin page (`/admin/users`, `/admin/access`) already gates on the superuser flag directly; introducing per-page delegable features here would be inconsistent and adds a registry entry with no current use case for delegation. |
+| Full CRUD (admin can create/edit on a user's behalf) | Not requested and expands the trust/audit surface (an admin-authored record indistinguishable from the owner's) for no identified need; view + moderate covers oversight. |
+
+### Consequences
+- Every future app's admin page requires adding owner-agnostic repository methods first — this is the
+  standing cost of the recipe, not a one-time Shortener cost.
+- Listing and chat are explicitly deferred; chat additionally needs a message-delete method that doesn't
+  exist yet, and listing's `TopicRepository` needs a global list-all (today only `ItemRepository.GetAll` is
+  owner-agnostic).
+- Because gating is `is_admin` only, these pages cannot be delegated to a non-admin "moderator" role without
+  a future ADR revisiting decision 4.
+
+### Key files
+- `internal/shortener/repository/interfaces.go` + `sqlite/postgres/shortlink_repository.go` (`ListAll`,
+  `DeleteByCode`, `SetActiveByCode`)
+- `internal/shortener/handler/admin.go` (new), `internal/shortener/service/service.go` (`RegisterAdminRoutes`)
+- `cmd/all-in-one/server/server.go` (`ssvc.RegisterAdminRoutes(adminRoutes)`)
+- `web/src/lib/shortener-admin-api.ts`, `web/src/routes/admin/shortener/+page.svelte`,
+  `web/src/components/app-sidebar.svelte`
