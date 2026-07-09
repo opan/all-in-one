@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 11 done — resuming at Phase 12.
+**Overall status:** 🟡 Phase 12 done — resuming at Phase 13.
 
-**Resume here:** Phase 12 (mount admin API on the server; enforcement still not wired).
+**Resume here:** Phase 13 (enforce on public routes: login/sign-up).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -35,7 +35,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P11 — Write API** · PATCH + reset + reset-defaults + `config.changed` metric + tests
 
 **Wiring** _(need P9, P10, P11)_
-- ⬜ **P12 — Mount admin API (no enforcement)** · construct `rlsvc` + `defer Close` + `RegisterAdminRoutes`
+- ✅ **P12 — Mount admin API (no enforcement)** · construct `rlsvc` + `defer Close` + `RegisterAdminRoutes`
 - ⬜ **P13 — Enforce public routes** · `publicRoutes.Use(rlMw)` → login/signup 429
 - ⬜ **P14 — Enforce gated routes + boot validation** · `sr.Use(rlMw)` in `mkGated` + `r.Walk` check · regression
 
@@ -72,6 +72,12 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P12: DoD verified live (not just built) — booted the server twice against scratch SQLite DBs
+  (`ALLINONE_STORAGE_SQLITE_DB_PATH=/tmp/...`), once with `rbac.direct_auth_is_admin=true` (GET/PATCH/reset/
+  reset-defaults all 200, unknown-key PATCH 404) and once with it `false` (GET → 403). Confirmed 12 rapid
+  `POST /api/v1/sessions` calls all returned 404 (bad credentials), never 429 — enforcement genuinely isn't
+  wired yet. `rlsvc` sits on the same `adminRoutes` subrouter as rbac/authnz/shortener admin APIs, so it
+  inherits the already-proven `RequireAdmin` gating rather than needing its own auth test.
 - P11: the PATCH body is decoded directly into `model.TargetPatch` (from P7) rather than a separate
   handler-local request struct — its pointer fields and `json` tags already matched what P11 needed.
   `window_unit` enum validation relies entirely on the service layer's `ratelimit.ErrInvalidWindowUnit` →

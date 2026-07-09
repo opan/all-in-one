@@ -18,6 +18,7 @@ import (
 	listingSvc "github.com/all-in-one/internal/listing/service"
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/observability"
+	ratelimitSvc "github.com/all-in-one/internal/ratelimit/service"
 	"github.com/all-in-one/internal/rbac"
 	rbacMw "github.com/all-in-one/internal/rbac/middleware"
 	rbacSvc "github.com/all-in-one/internal/rbac/service"
@@ -114,6 +115,13 @@ func (s *server) Start() error {
 	}
 	asvc.Handler.SetAccessResolver(rsvc.Resolver)
 
+	rlsvc, err := ratelimitSvc.NewService(ctx, db, s.config, s.log)
+	if err != nil {
+		s.log.Error().Err(err).Msg("Failed to create ratelimit service")
+		return err
+	}
+	defer rlsvc.Close()
+
 	lsvc, err := listingSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
@@ -187,13 +195,15 @@ func (s *server) Start() error {
 
 	// Admin-only management APIs: RBAC under /api/v1/access/*, user management
 	// under /api/v1/admin/users/*, shortener moderation under
-	// /api/v1/admin/shortener/*. All share the RequireAdmin subrouter.
+	// /api/v1/admin/shortener/*, rate limit config under
+	// /api/v1/ratelimit/*. All share the RequireAdmin subrouter.
 	adminRoutes := api.NewRoute().Subrouter()
 	adminRoutes.Use(jwtMiddleware.JWTAuth)
 	adminRoutes.Use(authz.RequireAdmin)
 	rsvc.RegisterAdminRoutes(adminRoutes)
 	asvc.Handler.RegisterAdminRoutes(adminRoutes)
 	ssvc.RegisterAdminRoutes(adminRoutes)
+	rlsvc.RegisterAdminRoutes(adminRoutes)
 
 	// Shortener public redirect: /r/{code} — lives outside /api/v1
 	ssvc.Handler.RegisterRedirectRoute(r)
