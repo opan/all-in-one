@@ -1,6 +1,8 @@
 # Admin Content-Management Pages — Progress Tracker
 
-**Status:** Pilot (Shortener) — Phases 1-5 complete, Phase 6 (final live verification) remaining.
+**Status:** ✅ Feature complete. Pilot (Shortener) — all 7 phases done and verified (unit tests + a live
+curl walkthrough + a live headless-browser walkthrough). Nothing outstanding; listing/chat replication is
+separate future work, not part of this tracker.
 **Last updated:** 2026-07-09
 **Design rationale:** [docs/adr/ACCESS_MANAGEMENT_ADR.md](../docs/adr/ACCESS_MANAGEMENT_ADR.md) — ADR-009
 **Plan file (session-local, does not travel across machines):** `.claude/plans/while-we-are-including-purrfect-wadler.md`
@@ -47,26 +49,54 @@ later using the same recipe (separate future work, not part of this tracker).
   `docs/swagger.json`/`.yaml`/`docs.go`, clean additive diff); `docs/metrics.md` (2 new counters,
   `action` label values, cardinality ~56 → ~59); ADR-009 added to `docs/adr/ACCESS_MANAGEMENT_ADR.md`; this
   tracker.
-- [ ] **Phase 6 — Final verification.** Not yet started. Needs: scratch SQLite DB + `db:seed` + curl
-  walkthrough as `admin` (list-all across seeded users, deactivate confirms `/r/{code}` 404s, delete confirms
-  404 after); confirm non-admin gets redirected/403; headless-browser (Playwright) walkthrough of the real
-  SPA; optional Postgres parity pass (rootless throwaway cluster, matching the RBAC/user-admin phases' bar).
+- [x] **Phase 6 — Final verification.**
+  - Once a C compiler was installed (this sandbox had none initially — see Environment notes), `go build
+    ./...`, `go vet`, and `go test ./internal/shortener/...` all passed for real (previously only verified via
+    `gofmt`/CI due to the missing cgo toolchain locally).
+  - **Live curl walkthrough** against a scratch SQLite DB (`ALLINONE_STORAGE_SQLITE_DB_PATH`, never
+    `all-in-one.db`) with the real seeded users: created short links as `user` and `demo`, confirmed
+    `GET /api/v1/admin/shortener/links` as `admin` lists both across owners with correct `owner_username` (the
+    `LEFT JOIN` to `users` works); confirmed `user` (non-admin) gets `403 forbidden`; deactivated `demo`'s link
+    as `admin` and confirmed `GET /r/{code}` correctly 404s despite `admin` not owning it; deleted `user`'s
+    link as `admin` and confirmed it's gone from the list and a second delete 404s.
+  - **Live headless-browser walkthrough** (Playwright + Chromium — neither was preinstalled; Chromium
+    (~300MB) and its system libs (`playwright install-deps`, 71 packages) were installed with the user's
+    consent/sudo mid-phase). **13/13 checks passed**: sidebar shows the new Shortener admin item for `admin`
+    and correctly hides it for `user`; `/admin/shortener` renders both seeded links with owner column
+    populated; deactivating via the UI Switch dims the row; the delete `AlertDialog` names the specific short
+    code and removing it updates the table live; non-admin visiting `/admin/shortener` is redirected away and
+    a direct `fetch` of the admin API returns 403; zero unexpected 4xx/5xx from the admin page. Screenshots
+    visually confirmed (not just DOM assertions) — table renders correctly, dialog renders correctly.
+  - Postgres parity pass: **skipped** — not requested for this pilot; the SQLite path (this project's
+    default/primary backend) is fully verified. Revisit if Postgres parity becomes a requirement before
+    merging, following the same rootless-throwaway-cluster recipe used in the RBAC/user-admin phases.
+  - Scratch server, DB, cookies, and screenshots all cleaned up after verification — nothing left running.
 
 ## Environment notes (this sandbox specifically, not project-wide)
 - No Go toolchain preinstalled — installed manually mid-session (`/usr/local/go/bin`).
-- No C compiler (`gcc`/`build-essential`) and no passwordless sudo — `go-sqlite3` requires cgo, so `go build
-  ./...`/`go test ./...` cannot fully run here. Verified affected packages compile via `gofmt`/`go vet` where
-  possible instead, and relied on GitHub Actions CI (which has real cgo) to confirm each phase — every phase's
-  commit was pushed and its CI run checked before proceeding to the next phase.
+- No C compiler (`gcc`/`build-essential`) and no passwordless sudo initially — `go-sqlite3` requires cgo, so
+  `go build ./...`/`go test ./...` couldn't fully run here for Phases 1-5. Verified affected packages via
+  `gofmt`/`go vet` where possible instead, and relied on GitHub Actions CI (real cgo) to confirm each phase —
+  every phase's commit was pushed and its CI run checked before proceeding. The user installed
+  `build-essential` before Phase 6 (which needs to actually *run* the server, not just build it — CI can't
+  substitute for that), after which `go build`/`go vet`/`go test` all passed locally too.
 - Node/npm not on PATH by default but available via `nvm` (`~/.nvm`) — Phase 4 was fully verified locally
   (`npm run check`, `npm run build`) once `nvm use` + `npm install` were run.
 - `mockery` and `swag` CLIs were not preinstalled; installed via `go install` (mockery pinned to the repo's
   existing `v2.53.5` to avoid unrelated version-bump diffs in unrelated mock files).
+- Playwright's Chromium browser and its system libs (`playwright install-deps`, 71 packages — GTK/ATK/font
+  libs for headless Chrome) were not preinstalled; both required the user's consent/sudo and were installed
+  during Phase 6. Follow `.claude/skills/frontend-browser-testing/SKILL.md` verbatim for the scratch-server
+  recipe — it already documents the known-working selectors and bits-ui gotchas.
 
 ## Resume instructions
-- Open this file — only Phase 6 is unchecked. Read that section and the ADR-009 Decision section for scope
-  reminders.
+- All 7 phases are done and independently verified (unit tests, CI, a live curl walkthrough, and a live
+  headless-browser walkthrough). Nothing on this tracker is outstanding for the Shortener pilot.
 - If resuming on another machine/session: this file + `docs/adr/ACCESS_MANAGEMENT_ADR.md` are git-tracked and
   travel with the branch; the plan file under `.claude/plans/` is machine-local and does not.
-- All phase commits are on `feat/rbac` (`fe44a68`, `542c9c9`, `b1b9019`, `259eff6`, and this Phase 5 commit) —
-  each was pushed and its CI run confirmed green before starting the next phase.
+- All phase commits are on `feat/rbac` (`fe44a68`, `542c9c9`, `b1b9019`, `259eff6`, `8ff43f0`, and this Phase 6
+  commit) — each was pushed and its CI run confirmed green before starting the next phase.
+- Next step per ADR-009: replicate the same recipe to **listing** (needs a new global list-all-topics repo
+  method) and **chat** (needs global lists + a message-delete method that doesn't exist yet) — separate future
+  work, not part of this tracker. Otherwise, only normal commit/PR/review remains before this ships (the user
+  plans to merge `feat/rbac` into `main` once done).
