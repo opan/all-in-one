@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 2 done — resuming at Phase 3.
+**Overall status:** 🟡 Phase 3 done — resuming at Phase 4.
 
-**Resume here:** Phase 3 (config).
+**Resume here:** Phase 4 (rule repository, dual backend).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -16,7 +16,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 **Foundations** _(P1–P3 independent; any order)_
 - ✅ **P1 — Migration 08 (schema only)** · both backends · `db:migrate up`/`down` clean on SQLite+Postgres
 - ✅ **P2 — Models + errors + registry** · `model.go`, `errors.go`, `registry.go` (6 targets) + lookup tests
-- ⬜ **P3 — Config** · `RateLimitConfig` + defaults + per-key `BindEnv` + `config.yml` block
+- ✅ **P3 — Config** · `RateLimitConfig` + defaults + per-key `BindEnv` + `config.yml` block
 
 **Repository** _(need P1, P2)_
 - ⬜ **P4 — Rule repository** · interface/factory/adapter + sqlite/postgres + seed-idempotency tests + mocks

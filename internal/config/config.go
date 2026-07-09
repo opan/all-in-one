@@ -18,6 +18,7 @@ type Config struct {
 	Auth      Auth            `mapstructure:"auth"`
 	Shortener ShortenerConfig `mapstructure:"shortener"`
 	RBAC      RBACConfig      `mapstructure:"rbac"`
+	RateLimit RateLimitConfig `mapstructure:"ratelimit"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 }
 
@@ -115,6 +116,33 @@ type RBACConfig struct {
 	DirectAuthIsAdmin bool `mapstructure:"direct_auth_is_admin"`
 }
 
+// RateLimitConfig holds the internal/ratelimit app-feature's boot-time
+// operational knobs. Per-target limits live in the DB (ADR-001 of
+// docs/adr/RATE_LIMITING_ADR.md) — this is only the master switch and the
+// settings that apply platform-wide.
+type RateLimitConfig struct {
+	// Enabled is the master kill switch; read once at boot (ADR-008).
+	Enabled bool `mapstructure:"enabled"`
+	// CacheRefreshInterval is how often the in-memory rule cache is
+	// refreshed from the DB as a backstop (writes also trigger an
+	// immediate reload — ADR-008).
+	CacheRefreshInterval time.Duration `mapstructure:"cache_refresh_interval"`
+	// CleanupInterval is how often expired daily-quota counter rows are
+	// pruned (see CounterRetentionDays).
+	CleanupInterval time.Duration `mapstructure:"cleanup_interval"`
+	// CounterRetentionDays is how many days of daily-quota counter rows to
+	// keep before the cleanup ticker prunes them.
+	CounterRetentionDays int `mapstructure:"counter_retention_days"`
+	// Timezone is the timezone daily-quota calendar-day buckets are
+	// computed in (ADR-006). Defaults to UTC.
+	Timezone string `mapstructure:"timezone"`
+	// TrustProxyHeaders controls whether client IP is resolved from
+	// X-Forwarded-For/X-Real-IP (true) or r.RemoteAddr (false). Defaults to
+	// false since trusting these headers without a sanitizing edge proxy is
+	// spoofable (ADR-009).
+	TrustProxyHeaders bool `mapstructure:"trust_proxy_headers"`
+}
+
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
@@ -144,6 +172,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("shortener.url.blocked_hosts", []string{})
 	viper.SetDefault("rbac.admin_username", "admin")
 	viper.SetDefault("rbac.direct_auth_is_admin", true)
+	viper.SetDefault("ratelimit.enabled", true)
+	viper.SetDefault("ratelimit.cache_refresh_interval", 30*time.Second)
+	viper.SetDefault("ratelimit.cleanup_interval", time.Hour)
+	viper.SetDefault("ratelimit.counter_retention_days", 3)
+	viper.SetDefault("ratelimit.timezone", "UTC")
+	viper.SetDefault("ratelimit.trust_proxy_headers", false)
 	viper.SetDefault("telemetry.enabled", false)
 	viper.SetDefault("telemetry.service_name", "all-in-one")
 	viper.SetDefault("telemetry.service_version", "1.0.0")
@@ -176,6 +210,12 @@ func Load() (*Config, error) {
 	viper.BindEnv("storage.postgres.sslmode", "ALLINONE_STORAGE_POSTGRES_SSLMODE")
 	viper.BindEnv("rbac.admin_username", "ALLINONE_RBAC_ADMIN_USERNAME")
 	viper.BindEnv("rbac.direct_auth_is_admin", "ALLINONE_RBAC_DIRECT_AUTH_IS_ADMIN")
+	viper.BindEnv("ratelimit.enabled", "ALLINONE_RATELIMIT_ENABLED")
+	viper.BindEnv("ratelimit.cache_refresh_interval", "ALLINONE_RATELIMIT_CACHE_REFRESH_INTERVAL")
+	viper.BindEnv("ratelimit.cleanup_interval", "ALLINONE_RATELIMIT_CLEANUP_INTERVAL")
+	viper.BindEnv("ratelimit.counter_retention_days", "ALLINONE_RATELIMIT_COUNTER_RETENTION_DAYS")
+	viper.BindEnv("ratelimit.timezone", "ALLINONE_RATELIMIT_TIMEZONE")
+	viper.BindEnv("ratelimit.trust_proxy_headers", "ALLINONE_RATELIMIT_TRUST_PROXY_HEADERS")
 	viper.BindEnv("telemetry.enabled", "ALLINONE_TELEMETRY_ENABLED")
 	viper.BindEnv("telemetry.service_name", "ALLINONE_TELEMETRY_SERVICE_NAME")
 	viper.BindEnv("telemetry.service_version", "ALLINONE_TELEMETRY_SERVICE_VERSION")
