@@ -172,6 +172,14 @@ validation asserts every registry route-binding matches a registered route.
   Mitigated by the boot-time `r.Walk` validation, which turns a silent failure into a loud one at startup.
 - `GetPathTemplate()` returning the full template (incl. `/api/v1` + path vars) is relied upon and is
   covered by a middleware test.
+- **Middleware order on `mkGated` subrouters:** `rlMw` is registered between `JWTAuth` and
+  `RequireFeature(feature)` (not after both), so a request that fails the RBAC feature check has already
+  consumed its rate-limit counter. This wasn't explicitly specified when this ADR was written; it follows
+  directly from "after JWTAuth so `auth.GetUserFromContext` is populated" above, and keeps rate-limit
+  accounting independent of an orthogonal authorization decision — an unauthorized user hammering a gated
+  endpoint still burns down against *their own* per-user quota (not anyone else's), so this has no
+  cross-user impact. If a future need arises to exempt RBAC-denied requests from counting, swap the
+  registration order.
 
 ### Key files (planned)
 - `cmd/all-in-one/server/server.go`, `internal/ratelimit/middleware/limiter.go`, `internal/ratelimit/registry.go`

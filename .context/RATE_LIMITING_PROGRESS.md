@@ -3,9 +3,15 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 17 done — resuming at Phase 18.
+**Overall status:** 🟨 Feature-complete and fully verified on SQLite. **One item outstanding: Postgres
+verification** — every phase's Postgres code path was written and reviewed against the same test/DoD intent
+as its SQLite twin, but a live Postgres instance was never reachable in the sandbox this was built in (no
+docker, no psql, port 5432 unreachable — checked at the very start and re-confirmed at every phase that
+touched a backend-specific query). See "Postgres verification checklist" below before treating this as
+production-ready for a `storage.type: postgres` deployment.
 
-**Resume here:** Phase 18 (closeout: metrics doc + full SQLite+Postgres verification).
+**Resume here:** run the Postgres verification checklist below (needs an environment with a reachable
+Postgres — e.g. `docker compose up -d postgres` from repo root), then flip this line and the P18 box to ✅.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -45,7 +51,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P17 — Admin page: edit + reset** · edit `Dialog` (limit/window) + reset `AlertDialog`
 
 **Closeout**
-- ⬜ **P18 — Metrics doc + verification** · `docs/metrics.md` · curl walkthrough on SQLite **and** Postgres · tracker → done
+- 🟨 **P18 — Metrics doc + verification** · `docs/metrics.md` ✅ · SQLite curl walkthrough ✅ · **Postgres
+  walkthrough outstanding** (see checklist below) · tracker → done once Postgres is verified
 
 ---
 
@@ -64,6 +71,30 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | 9 | Client IP opt-in proxy-aware (`trust_proxy_headers`, default false) | ADR-009 |
 | 10 | Admins not exempt in v1 | ADR-010 |
 
+## Postgres verification checklist (blocking full P18 closeout)
+
+Every backend-specific code path below was written to mirror its SQLite twin exactly (same test/DoD intent)
+but has **never run against a live Postgres**. Run these once Postgres is reachable (`docker compose up -d
+postgres` from repo root, or point `storage.postgres.*` in `config/config.yml` / the `ALLINONE_STORAGE_POSTGRES_*`
+env vars at any reachable instance), then check each off:
+
+- ⬜ **Migration 08** — `storage.type: postgres`, `make db-migrate-up` then `make db-migrate-down`; confirm
+  `rate_limit_rules`/`rate_limit_counters`/the index exist after up and are fully gone after down. *(P1)*
+- ⬜ **Rule repository** — either adapt `internal/ratelimit/repository/sqlite/rule_repository_test.go`'s
+  cases against a real `postgres` `*sqlx.DB` (new `_test.go` in the `postgres` package, or a build-tag
+  integration test), or at minimum boot the server on Postgres and exercise the full admin API
+  (`GET`/`PATCH`/`reset`/`reset-defaults` on `/api/v1/ratelimit/targets`) as done for SQLite in P12. *(P4)*
+- ⬜ **Counter repository** — same as above for `IncrAndGet`/`DeleteForTargetDay`/`DeleteOlderThan`; the
+  concurrency test matters most here since Postgres's `ON CONFLICT ... DO UPDATE SET count =
+  rate_limit_counters.count + 1` (the qualified-column form Postgres requires, unlike SQLite's bare `count`)
+  is the one piece of SQL that's structurally different, not just placeholder-style. *(P5)*
+- ⬜ **Full enforcement walkthrough on Postgres** — repeat the exact curl sequence run on SQLite for P18
+  below (login throttle → 429, signup quota → 429, records/user/day → 429, then `PATCH .../auth.login
+  {"enabled":false}` → login passes again without restart) with `storage.type: postgres`.
+
+If all of the above pass, flip this section's items and the P18 checklist line to ✅ and update the overall
+status line at the top of this file.
+
 ## Open items needing operator action (carried from plan)
 
 - ⬜ Confirm whether the public deployment is behind a reverse proxy → if yes, set
@@ -72,6 +103,20 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P18: added a "Rate Limiting" section to `docs/metrics.md` (3 metrics, label-values table, cardinality
+  entry: `rejected_total` bounded by target count not the label cross-product since scope/kind are fixed
+  per target, `errors_total` bounded by the 4 `daily_quota` targets since throttle targets never touch the
+  counter store, `config_changed_total` at the full 6×3 target×action product). Added a Consequences bullet
+  to ADR-004 documenting the `rlMw` vs `RequireFeature` ordering decision made in P14 (not explicitly
+  specified when the ADR was written). Full local verification pass: `go build`/`vet`/`test -race` all green
+  repo-wide, `npm run check`/`build` clean, `mockery` regenerated with zero drift in any `ratelimit` mock.
+  Ran the plan's exact SQLite curl walkthrough end-to-end on a fresh scratch DB: login throttle → 429,
+  signup quota → 429 (count-on-entry through a 500), records/user/day (`listing.item.create`) → 429, then
+  `PATCH .../auth.login {"enabled":false}` → login passes again (404 for bad creds, not 429) with **no
+  restart**. Bonus: also confirmed *raising* a throttle's limit via PATCH immediately un-sticks an
+  already-throttled bucket (cache reload takes effect on the very next request), which the plan didn't
+  explicitly call for but follows directly from ADR-008. **Postgres was not reachable in this sandbox** —
+  see the checklist above; this is the one gap between "implemented" and "done" for this feature.
 - P17: added a "Defaults" (reset-to-defaults) row action beyond the plan's minimum ask, sharing one
   `AlertDialog` parameterized by `resetAction: 'reset' | 'reset-defaults'` rather than two separate dialogs.
   DoD verified live via the browser-testing skill: opened the Edit dialog, changed limit to 25 and window to

@@ -201,6 +201,42 @@ rate(aio_chat_websocket_messages_received_total[1m])
 
 ---
 
+### Rate Limiting
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `aio_ratelimit_rejected_total` | Counter | `target`, `scope`, `kind` | Requests rejected with 429 (`internal/ratelimit/middleware`) |
+| `aio_ratelimit_errors_total` | Counter | `target` | Counter-store errors — request still allowed through (fail-open, see ADR-007) |
+| `aio_ratelimit_config_changed_total` | Counter | `target`, `action` | Admin rate limit config changes (`internal/ratelimit/handler`) |
+
+**Label values**
+
+| Label | Metric | Values |
+|---|---|---|
+| `target` | all three | one of the code-registered target keys, e.g. `auth.login`, `auth.signup.ip`, `listing.item.create`, `listing.topic.create`, `chat.session.create`, `chat.message.send` (see `internal/ratelimit/registry.go`) |
+| `scope` | `rejected_total` | `ip`, `user`, `global` |
+| `kind` | `rejected_total` | `throttle`, `daily_quota` |
+| `action` | `config_changed_total` | `update`, `reset`, `reset-defaults` |
+
+> **Note:** `scope` and `kind` are fixed per `target` (each registry entry declares exactly one of each), so
+> `rejected_total`'s real cardinality is bounded by target count, not the `target`×`scope`×`kind` product.
+
+**Example queries**
+
+```promql
+# Rejection rate by target (which endpoint is under the most pressure)
+sum by (target) (rate(aio_ratelimit_rejected_total[5m]))
+
+# Fail-open rate — should be ~0; a sustained non-zero rate means the
+# counter store (DB) is unhealthy and daily-quota enforcement is degraded
+rate(aio_ratelimit_errors_total[5m])
+
+# Admin config changes by action
+sum by (action) (rate(aio_ratelimit_config_changed_total[1h]))
+```
+
+---
+
 ## Framework Metrics
 
 ### HTTP (`otelmux`)
@@ -284,9 +320,12 @@ Total series count at steady state (worst case, all label combinations observed)
 | RBAC | `groups_changed_total` | 4 (`action`) |
 | Chat | `invites_responded_total` | 2 |
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
+| Rate Limiting | `ratelimit_rejected_total` | 6 (bounded by target count, not `target`×`scope`×`kind`) |
+| Rate Limiting | `ratelimit_errors_total` | 4 (only `daily_quota`-kind targets touch the counter store) |
+| Rate Limiting | `ratelimit_config_changed_total` | 18 (6 `target` × 3 `action`) |
 | All others | — | 1 each (17 metrics) |
 
-**Total: ~59 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~87 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 
