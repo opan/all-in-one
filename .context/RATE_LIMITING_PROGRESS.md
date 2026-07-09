@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 6 done — resuming at Phase 7.
+**Overall status:** 🟡 Phase 7 done — resuming at Phase 8.
 
-**Resume here:** Phase 7 (service admin operations: List/Update/ResetCounters/ResetDefaults).
+**Resume here:** Phase 8 (in-memory throttle store, `memStore`).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -24,7 +24,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Service** _(need P4, P5, P3)_
 - ✅ **P6 — Service core** · `NewService` + seed + `ruleCache` (RuleProvider) + tickers + `Close` + tests
-- ⬜ **P7 — Service admin ops** · List/Update/ResetCounters/ResetDefaults + reload-on-write + tests
+- ✅ **P7 — Service admin ops** · List/Update/ResetCounters/ResetDefaults + reload-on-write + tests
 
 **Middleware** _(need P2, P3; P9 needs P8)_
 - ⬜ **P8 — In-memory store (`memStore`)** · per-call limit/window + cleanup + `Stop` + tests
@@ -72,6 +72,10 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Notes / deviations
 
+- P7: added `TargetPatch` to `model` (pointer fields for the P11 PATCH endpoint) and a `Service.location()`/
+  `today()` helper pair that resolves `ratelimit.timezone` (falling back to UTC) — used by `ResetCounters`
+  and retrofitted into P6's cleanup-ticker cutoff calculation, which had hard-coded UTC. Not a plan
+  deviation, just completing ADR-006's "timezone is a config knob" for both call sites that compute "today".
 - P6: `EffectiveRule` was placed in `model` (not declared inline in `service`) so both `service` (P6) and
   the future `middleware` package (P9) can reference the identical type for `RuleProvider.Effective` without
   an import cycle. `middleware.RuleProvider` itself is still to be declared in P9 — `ruleCache`'s

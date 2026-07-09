@@ -85,3 +85,13 @@ type Target struct {
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 	UpdatedBy   *string    `json:"updated_by,omitempty"`
 }
+
+// TargetPatch is a partial edit to a target's rule. Pointer fields let the
+// admin write API (P11) distinguish "omitted" from "set to zero" — nil
+// means leave that field unchanged.
+type TargetPatch struct {
+	Enabled     *bool       `json:"enabled,omitempty"`
+	LimitCount  *int        `json:"limit_count,omitempty"`
+	WindowValue *int        `json:"window_value,omitempty"`
+	WindowUnit  *WindowUnit `json:"window_unit,omitempty"`
+}
