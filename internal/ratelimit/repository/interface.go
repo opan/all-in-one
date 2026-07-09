@@ -21,8 +21,21 @@ type RuleRepository interface {
 	ResetToDefault(ctx context.Context, rule model.Rule, opts ...query.QueryOptions) error
 }
 
+type CounterRepository interface {
+	// IncrAndGet atomically upserts the (target,bucket,day) bucket's count
+	// by 1 and returns the new value, via a single race-safe
+	// INSERT ... ON CONFLICT DO UPDATE ... RETURNING (never check-then-increment).
+	IncrAndGet(ctx context.Context, targetKey, bucketKey, day string) (int, error)
+	// DeleteForTargetDay clears a target's counters for one day (admin "reset").
+	DeleteForTargetDay(ctx context.Context, targetKey, day string) error
+	// DeleteOlderThan prunes counter rows for days strictly before day
+	// (retention cleanup ticker) and returns the number of rows removed.
+	DeleteOlderThan(ctx context.Context, day string) (int64, error)
+}
+
 type Storage interface {
 	RuleRepo() RuleRepository
+	CounterRepo() CounterRepository
 
 	CreateTrx(ctx context.Context) (query.QueryOptions, error)
 	Close() error

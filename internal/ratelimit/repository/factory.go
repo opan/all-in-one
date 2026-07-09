@@ -11,10 +11,10 @@ func NewRepo(db *sqlx.DB, config config.Config) (Storage, error) {
 	switch config.Storage.Type {
 	case "sqlite":
 		s := sqlite.NewStorage(db, config)
-		return &storeAdapter{ruleRepo: s.RuleRepo(), trx: s}, nil
+		return &storeAdapter{ruleRepo: s.RuleRepo(), counterRepo: s.CounterRepo(), trx: s}, nil
 	case "postgres":
 		s := postgres.NewStorage(db, config)
-		return &storeAdapter{ruleRepo: s.RuleRepo(), trx: s}, nil
+		return &storeAdapter{ruleRepo: s.RuleRepo(), counterRepo: s.CounterRepo(), trx: s}, nil
 	default:
 		panic("unsupported storage type: " + config.Storage.Type)
 	}

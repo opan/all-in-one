@@ -3,9 +3,9 @@
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** 🟡 Phase 4 done — resuming at Phase 5.
+**Overall status:** 🟡 Phase 5 done — resuming at Phase 6.
 
-**Resume here:** Phase 5 (counter repository, dual backend).
+**Resume here:** Phase 6 (service core: compose + seed + cache + lifecycle).
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -20,7 +20,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Repository** _(need P1, P2)_
 - ✅ **P4 — Rule repository** · interface/factory/adapter + sqlite/postgres + seed-idempotency tests + mocks
-- ⬜ **P5 — Counter repository** · atomic `IncrAndGet` (`ON CONFLICT … RETURNING`) + concurrency test + mocks
+- ✅ **P5 — Counter repository** · atomic `IncrAndGet` (`ON CONFLICT … RETURNING`) + concurrency test + mocks
 
 **Service** _(need P4, P5, P3)_
 - ⬜ **P6 — Service core** · `NewService` + seed + `ruleCache` (RuleProvider) + tickers + `Close` + tests
@@ -85,4 +85,9 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
   SQLite twin, `Update`/`ResetToDefault` use identical named-parameter SQL. Recommend running the
   equivalent tests against `storage.type: postgres` (or at minimum a manual boot + admin-API smoke test
   once P10–P12 land) before considering the repository layer fully verified on that backend.
+- P5: same sandbox limitation applies to `CounterRepository.IncrAndGet` — verified the
+  `INSERT ... ON CONFLICT ... RETURNING` atomic upsert (incl. a 50-goroutine `-race` concurrency test) only
+  against SQLite. The Postgres version differs only in placeholder style and the `rate_limit_counters.count`
+  qualifier Postgres requires in the `DO UPDATE SET` clause (unqualified `count` is ambiguous there);
+  not live-tested.
 

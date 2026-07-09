@@ -68,6 +68,53 @@ func (_c *MockStorage_Close_Call) RunAndReturn(run func() error) *MockStorage_Cl
 	return _c
 }
 
+// CounterRepo provides a mock function with no fields
+func (_m *MockStorage) CounterRepo() repository.CounterRepository {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CounterRepo")
+	}
+
+	var r0 repository.CounterRepository
+	if rf, ok := ret.Get(0).(func() repository.CounterRepository); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(repository.CounterRepository)
+		}
+	}
+
+	return r0
+}
+
+// MockStorage_CounterRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CounterRepo'
+type MockStorage_CounterRepo_Call struct {
+	*mock.Call
+}
+
+// CounterRepo is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) CounterRepo() *MockStorage_CounterRepo_Call {
+	return &MockStorage_CounterRepo_Call{Call: _e.mock.On("CounterRepo")}
+}
+
+func (_c *MockStorage_CounterRepo_Call) Run(run func()) *MockStorage_CounterRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockStorage_CounterRepo_Call) Return(_a0 repository.CounterRepository) *MockStorage_CounterRepo_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_CounterRepo_Call) RunAndReturn(run func() repository.CounterRepository) *MockStorage_CounterRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateTrx provides a mock function with given fields: ctx
 func (_m *MockStorage) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	ret := _m.Called(ctx)

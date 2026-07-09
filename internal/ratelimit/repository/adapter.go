@@ -16,11 +16,13 @@ type trxCreator interface {
 // postgres) to the driver-agnostic Storage interface consumed by the rest
 // of the ratelimit package.
 type storeAdapter struct {
-	ruleRepo RuleRepository
-	trx      trxCreator
+	ruleRepo    RuleRepository
+	counterRepo CounterRepository
+	trx         trxCreator
 }
 
-func (a *storeAdapter) RuleRepo() RuleRepository { return a.ruleRepo }
+func (a *storeAdapter) RuleRepo() RuleRepository       { return a.ruleRepo }
+func (a *storeAdapter) CounterRepo() CounterRepository { return a.counterRepo }
 
 func (a *storeAdapter) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	return a.trx.CreateTrx(ctx)

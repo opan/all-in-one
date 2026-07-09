@@ -9,18 +9,21 @@ import (
 )
 
 type storage struct {
-	db       *sqlx.DB
-	ruleRepo *ruleRepository
+	db          *sqlx.DB
+	ruleRepo    *ruleRepository
+	counterRepo *counterRepository
 }
 
 func NewStorage(db *sqlx.DB, config config.Config) *storage {
 	return &storage{
-		db:       db,
-		ruleRepo: newRuleRepository(db),
+		db:          db,
+		ruleRepo:    newRuleRepository(db),
+		counterRepo: newCounterRepository(db),
 	}
 }
 
-func (s *storage) RuleRepo() *ruleRepository { return s.ruleRepo }
+func (s *storage) RuleRepo() *ruleRepository       { return s.ruleRepo }
+func (s *storage) CounterRepo() *counterRepository { return s.counterRepo }
 
 func (s *storage) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	return createTrx(ctx, s.db)
