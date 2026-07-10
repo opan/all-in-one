@@ -96,9 +96,23 @@ fresh shell/`newgrp` after the group change (both tripped the user before landin
   (cache-reload-on-write, ADR-008) — needed this twice mid-walkthrough just to get a fresh login through
   after intentionally exhausting `auth.login` in an earlier step.
 
+- ✅ **Frontend/UI against Postgres** — the earlier curl walkthrough only exercised the API; separately ran
+  the exact P16/P17 Playwright checks (`frontend-browser-testing` skill) against a Postgres-backed server.
+  Needed an admin login for the real browser form (unlike curl, the SPA can't use the `x-direct-auth-username`
+  header trick), and `db:seed` had skipped creating the usual `admin/admin123` user since `pguser1` already
+  existed from the earlier curl testing — promoted `pguser1` to the admin group via the RBAC admin API
+  instead (explicitly user-authorized after the safety classifier correctly blocked the first unprompted
+  attempt — a fair block, since only a status question had been asked, not an instruction to do this).
+  9/9 checks passed: sidebar link visible, table lists all 6 targets, enable/disable toggle persists through
+  a reload, and an edited limit (`auth.login` → 42) persists through a reload — all round-tripping through
+  real Postgres, not just the API layer.
+
 All scratch server processes and temp files from this verification were cleaned up afterward. The
 `docker compose` Postgres container itself was left running (operator's infrastructure, not a scratch
-artifact) — stop it with `docker compose down` if it's no longer needed.
+artifact) — stop it with `docker compose down` if it's no longer needed. Its data now includes verification
+scratch state (`pguser1`/`pguser2`/`pguser3` test users, `pguser1` promoted to admin, a test topic, and
+various limit/enabled edits from both the curl and browser passes) — harmless for a throwaway verification
+DB, but worth a `docker compose down -v` (drops the volume) before using this container for anything else.
 
 ## Open items needing operator action (carried from plan)
 
