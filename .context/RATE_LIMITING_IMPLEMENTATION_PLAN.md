@@ -5,9 +5,10 @@
 > This is the git-tracked, portable copy of the approved plan (the plan-mode copy lives at
 > `~/.claude/plans/`, which is machine-local — do not rely on it for resume).
 
-This plan is deliberately sliced into **18 small phases**. Each phase (a) touches a handful of files,
-(b) **leaves the tree green** — `go build ./...` passes and its own tests pass — and (c) is independently
-committable. A fresh chat session can resume at any phase boundary by reading just that phase's section plus
+This plan is sliced into **18 small phases** for the v1 build, plus a **2-phase shortener migration (P19–P20,
+ADR-011)** added afterward. Each phase (a) touches a handful of files, (b) **leaves the tree green** —
+`go build ./...` passes and its own tests pass — and (c) is independently committable. A fresh chat session
+can resume at any phase boundary by reading just that phase's section plus
 [RATE_LIMITING_PROGRESS.md](RATE_LIMITING_PROGRESS.md). Commit after each phase (suggested message in the
 phase's DoD).
 
@@ -20,6 +21,7 @@ Handler       P10 read-API   →  P11 write-API                           (need 
 Wiring        P12 mount-admin → P13 enforce-public → P14 enforce-gated+validate   (need P9,P10,P11)
 Frontend      P15 client+nav →  P16 list+toggle → P17 edit+reset         (need P10,P11)
 Closeout      P18 metrics-doc + full verification (SQLite+Postgres) + tracker closeout
+Shortener     P19 migrate-swap → P20 delete-old-limiter+config           (ADR-011; need whole v1, esp. P14)
 ```
 
 ## Context
@@ -64,6 +66,11 @@ middleware, idempotent seed-on-boot, dual-DB migrations, per-package OTel metric
 | `listing.topic.create` | user | daily_quota | POST /api/v1/topics | 100 / day |
 | `chat.session.create` | user | daily_quota | POST /api/v1/chats | 100 / day |
 | `chat.message.send` | user | throttle | POST /api/v1/chats/{id}/messages | 60 / minute |
+| `shortener.link.create` † | user | throttle | POST /api/v1/shortener/links | 100 / 15 minute |
+| `shortener.link.resolve` † | ip | throttle | GET /r/{code} | 300 / minute |
+
+† Not part of v1 — added by the **shortener migration (ADR-011, P19)**. `shortener.link.resolve` lives on the
+root router **outside `/api/v1`**, so its registry `Path` is exactly `/r/{code}` (Appendix A #11).
 
 ---
 
@@ -337,6 +344,67 @@ cardinality note); tracker fully checked → status done. Commit: `docs(ratelimi
 
 ---
 
+# Shortener limiter migration (post-v1, ADR-011)
+
+Folds the shortener's own config-file limiter into this app-feature so there is **one** place to configure a
+rate limit. Depends on the whole v1 build (P1–P18) being live — in particular P14 (`rlMw` on every gated
+subrouter + boot-time binding validation). Two phases: P19 swaps enforcement atomically (no transient
+double-limit or gap); P20 deletes the now-dead code, config, and metric. See ADR-011 for the *why*, incl.
+the per-code → per-IP resolve keying change.
+
+## Phase 19 — Migrate shortener create + resolve into the registry (atomic enforcement swap)
+**Goal:** both shortener limits are enforced by `rlMw` via registry targets; the shortener-owned limiter no
+longer wraps any route — with **no** window where a route is double-limited or unprotected. **Depends on:** P14.
+**Files:** `internal/ratelimit/registry.go`, `cmd/all-in-one/server/server.go`,
+`internal/shortener/handler/handler.go`.
+- `registry.go`: add two `TargetDef`s —
+  `shortener.link.create` (scope `user`, kind `throttle`, `POST /api/v1/shortener/links`, **100 / 15 minute**)
+  and `shortener.link.resolve` (scope `ip`, kind `throttle`, `GET /r/{code}`, **300 / minute**). Add matching
+  `TargetShortenerLinkCreate`/`...Resolve` key constants.
+- `server.go`: the redirect route lives on the **root router, outside `/api/v1`**. Replace
+  `ssvc.Handler.RegisterRedirectRoute(r)` with a subrouter carrying `rlMw`:
+  ```go
+  redirectRoutes := r.NewRoute().Subrouter()
+  redirectRoutes.Use(rlMw)
+  ssvc.Handler.RegisterRedirectRoute(redirectRoutes)
+  ```
+  Keep it **before** the SPA catch-all `r.PathPrefix("/")` (same ordering as today). The create route needs
+  no server.go change — `mkGated(rbac.FeatureShortener)` already carries `rlMw` (P14).
+- `handler.go`: drop the two `*middleware.RateLimiter` fields, the `NewRateLimiter` construction (stop
+  reading `cfg.Shortener.RateLimit`), the `.Wrap`/`.WrapWithKey` wrapping (both routes become plain
+  `HandleFunc`), the two `onRejected` metric callbacks, the `resolveKey` helper, and the now-unused
+  `time` / `shortener/middleware` / `attribute` / `metric` imports.
+- **Why atomic:** create's subrouter already has `rlMw` and resolve's now does; adding both targets while
+  removing the old wrapping in one commit transitions each route *old-limiter-only → app-feature-only* with
+  no overlap (double 429s) and no gap (0 enforcement). Boot-time validation (P14) now also asserts these two
+  bindings — `GET /r/{code}`'s template has **no `/api/v1` prefix** (it's on the root router), so the
+  registry `Path` must be exactly `/r/{code}` (Appendix A #11).
+**DoD:** `go build ./... && go test ./...`; boot log shows `"targets":8 ... all targets bound`; drop
+`shortener.link.resolve` to a tiny limit via `PATCH .../targets/shortener.link.resolve` then loop
+`GET /r/{code}` → 429 + `Retry-After` (per IP); same for `shortener.link.create` on `POST .../shortener/links`;
+a single normal create/resolve passes. Commit: `feat(ratelimit): migrate shortener limits into the app-feature (ADR-011)`.
+
+## Phase 20 — Delete shortener-owned limiter, config, and metric (cleanup)
+**Goal:** remove everything P19 orphaned; docs match reality. **Depends on:** P19.
+**Files:** `internal/shortener/middleware/ratelimit.go` + `ratelimit_test.go` (**delete** — the package has no
+other files, so the `shortener/middleware` package is removed), `internal/shortener/handler/metrics.go`,
+`internal/config/config.go`, `config/config.yml`, `docs/metrics.md`.
+- `metrics.go`: remove the `rateLimited` counter field + its `Int64Counter("aio.shortener.rate_limited.total"…)`
+  init (orphaned by P19).
+- `config.go`: delete the `ShortenerRateLimit` struct, the `RateLimit` field on `ShortenerConfig`, and the
+  **already-dead** `PublicCreateEnabled` / `PublicCreatesPerWindow` fields; drop their `viper.SetDefault`
+  lines (`shortener.rate_limit.*`, `shortener.public_create_enabled`) and any `BindEnv`.
+- `config.yml`: delete the `rate_limit:` block and `public_create_enabled:` under `shortener:`.
+- `docs/metrics.md`: drop the `aio_shortener_rate_limited_total` row + its label-values/cardinality entries;
+  bump the `aio_ratelimit_rejected_total` cardinality note from **6 targets → 8** (add `shortener.link.create`
+  /`shortener.link.resolve` to the `target` label-value list).
+**DoD:** `go build ./... && go vet ./...` green; `grep -r` finds **no** references to `ShortenerRateLimit`,
+`shortener.rate_limit`, `public_create`, or `shortener/middleware`; `go test ./...` green; server boots and
+the shortener still creates/resolves normally (now limited only by the app-feature). Commit:
+`refactor(ratelimit): remove shortener-owned limiter + config (ADR-011)`.
+
+---
+
 ## ⚠️ Attention (operator decisions surfaced during planning)
 
 1. **Reverse proxy / X-Forwarded-For (important for the public deployment):** IP is keyed off `r.RemoteAddr`
@@ -369,3 +437,7 @@ cardinality note); tracker fully checked → status done. Commit: `docs(ratelimi
 9. **Mock regen** — after P4/P5 (repo interfaces) and P10 (handler `Service`).
 10. **Onboarding a new limited endpoint** *(future maintenance)* — add a `TargetDef` to `registry.go` with its
     `(method, path)`; ensure the owning subrouter has `rlMw`; the rule row seeds on next boot.
+11. **Routes outside `/api/v1`** *(P19)* — `GetPathTemplate()` returns whatever the route was registered with,
+    so a root-router route like `/r/{code}` has **no `/api/v1` prefix**; its registry `Path` is exactly
+    `/r/{code}`. Such a route also doesn't inherit `rlMw` from `publicRoutes`/`mkGated` — it needs its own
+    subrouter with `rlMw` applied (mirrors ADR-011's shortener-resolve wiring).

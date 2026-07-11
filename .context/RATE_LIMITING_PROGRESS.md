@@ -1,15 +1,16 @@
 # Rate Limiting App-Feature — Progress Tracker
 
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
-> Live status of the build (18 small phases). Tick each box, update **Resume here**, and commit after each phase.
+> Live status of the build (18 v1 phases + a 2-phase shortener migration, P19–P20). Tick each box, update
+> **Resume here**, and commit after each phase.
 
-**Overall status:** ✅ **Done.** All 18 phases complete and verified on both SQLite and Postgres. Docker was
-installed in the sandbox (`docker.io` + `docker-compose-v2` via apt) and `docker compose up -d postgres`
-gave a reachable Postgres instance, closing the one outstanding gap from earlier sessions — see the
-Postgres verification checklist below for what was run.
+**Overall status:** ✅ **v1 done** (P1–P18) — complete and verified on both SQLite and Postgres. 🟨 **Follow-up
+planned, not started: shortener limiter migration (P19–P20, ADR-011)** — folds the shortener's config-file
+limiter into this app-feature so there's one place to configure limits. ADR-011 + plan phases P19–P20 are
+written; no code for them yet.
 
-**Nothing left to resume.** Remaining open items (reverse-proxy config, SQLite WAL hardening) are operator
-decisions, not implementation work — see "Open items needing operator action" below.
+**Resume here:** Phase 19 (migrate shortener create + resolve into the registry — atomic enforcement swap).
+Docker is installed and `docker compose up -d postgres` gives a reachable Postgres for the P19/P20 DoDs.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -51,6 +52,10 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 **Closeout**
 - ✅ **P18 — Metrics doc + verification** · `docs/metrics.md` · curl walkthrough on SQLite **and** Postgres · tracker → done
 
+**Shortener migration** _(ADR-011; need whole v1, esp. P14)_
+- ⬜ **P19 — Migrate shortener create + resolve into registry** · +2 targets · `/r/{code}` subrouter w/ `rlMw` · drop shortener limiter wrapping · atomic swap
+- ⬜ **P20 — Delete shortener-owned limiter + config + metric** · delete `shortener/middleware` · drop `shortener.rate_limit.*` + dead `public_create` · update `docs/metrics.md`
+
 ---
 
 ## Decision log (quick reference — full rationale in the ADR)
@@ -67,6 +72,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | 8 | Rule cache reloaded on write; master switch boot-time | ADR-008 |
 | 9 | Client IP opt-in proxy-aware (`trust_proxy_headers`, default false) | ADR-009 |
 | 10 | Admins not exempt in v1 | ADR-010 |
+| 11 | Fold shortener config-file limiter into the app-feature (resolve → per-IP) | ADR-011 |
 
 ## Postgres verification checklist — ✅ completed 2026-07-09
 

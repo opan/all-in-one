@@ -43,8 +43,10 @@ a user-facing "app".
 | Config-file-only limits (viper) | Every limit change would require an edit + redeploy/restart — the opposite of the "react to traffic quickly" requirement. |
 
 ### Consequences
-- The shortener keeps its own existing limiter for now; no shortener targets are registered in v1, so the
-  new middleware is a no-op on shortener routes. Unifying them is possible future work, not part of this.
+- The shortener kept its own existing limiter in v1; no shortener targets were registered, so the new
+  middleware was a no-op on shortener routes. **This is now superseded by ADR-011**, which folds the
+  shortener's create/resolve limits into this app-feature (single source of truth) and deletes the
+  shortener-owned limiter and its `config.yml` block.
 - Onboarding a new limited endpoint is a small, centralized code change (ADR-003) plus runtime config.
 
 ### Key files (planned)
@@ -406,3 +408,87 @@ experience via generous default limits, per-target runtime toggles, and the mast
 
 ### Key files (planned)
 - `internal/ratelimit/middleware/limiter.go` (future `isExempt` hook), `cmd/all-in-one/server/server.go`
+
+---
+
+## ADR-011: Fold the shortener's config-file limiter into the app-feature (single source of truth)
+
+### Status
+Accepted (supersedes the "future work" note in ADR-001's Consequences)
+
+### Context
+The shortener shipped its own in-memory limiter (`internal/shortener/middleware/ratelimit.go`) *before* this
+app-feature existed. It is configured from `config.yml` (`shortener.rate_limit.*`), read once at handler
+construction, and enforces two limits: **create** (`POST /api/v1/shortener/links`, user-scoped, 100/15min)
+and **resolve** (`GET /r/{code}`, keyed per short-code, 300/min). ADR-001 deferred unifying it as "future
+work," so v1 registered no shortener targets and the app-feature middleware is a no-op on shortener routes
+today.
+
+That leaves the system with **two places to configure a rate limit** (`config.yml` for the shortener, the
+admin API/DB for everything else) and **two limiter implementations**. This is the exact "config-file limits
+require a redeploy to change" problem ADR-001 was created to solve, still live for the shortener. The
+operator flagged the split as undesirable.
+
+### Decision
+Migrate both shortener limits into the app-feature as registry targets, delete the shortener-owned limiter
+and its config, and retire the shortener's bespoke rate-limit metric:
+
+| Key | Scope | Kind | Route | Default |
+|---|---|---|---|---|
+| `shortener.link.create` | user | throttle | `POST /api/v1/shortener/links` | 100 / 15 minute |
+| `shortener.link.resolve` | ip | throttle | `GET /r/{code}` | 300 / minute |
+
+- **create** maps 1:1: its subrouter (`mkGated(rbac.FeatureShortener)`) already carries `rlMw`, so adding
+  the target *is* the migration for this route — the handler simply stops wrapping the route in its own
+  limiter.
+- **resolve** changes from **per-short-code** keying to **per-IP** (ADR-005's `ip` scope). The `/r/{code}`
+  redirect lives on the **root router, outside `/api/v1`** and does not currently carry `rlMw`; it is moved
+  onto a small subrouter that has `rlMw` applied (mirroring `publicRoutes`), so the route-resolving
+  middleware (ADR-004) and boot-time binding validation both see it.
+
+The `shortener.rate_limit.*` config block, the `ShortenerRateLimit` struct, and the already-dead
+`shortener.public_create_enabled` / `public_creates_per_window` fields (defined but never read in Go) are all
+removed.
+
+### Rationale
+- **Single source of truth.** After this, *every* rate limit is DB-backed, admin-editable at runtime, and
+  visible in one admin UI — no redeploy to tune the shortener, no second config surface.
+- **One implementation, one metric family.** The shortener limiter was already the *algorithmic* template
+  for the app-feature's in-memory throttle (ADR-002); folding it in deletes the duplicate rather than
+  maintaining two fixed-window maps and two rejection metrics.
+- **Per-IP resolve is a better protection shape than per-code.** Per-code keying globally caps a *single*
+  link at 300/min — which throttles a legitimately viral link for everyone — while an abuser rotating across
+  many codes evades it entirely. Per-IP throttles the abusive *client* across all codes and leaves popular
+  links alone. It also fits the existing scope model with no new machinery.
+
+### Alternatives Considered
+| Option | Rejected because |
+|---|---|
+| Keep the shortener limiter as-is | Preserves the dual-config split that motivated this ADR; the shortener's limits stay un-editable at runtime. |
+| Add a per-resource `Scope` (key on a route path var) to preserve exact per-code behavior | Expands the scope model (ADR-005) and the registry (a target must declare which var to key on) to reproduce a *weaker* protection shape (see rationale). Can be added later if a real per-resource need appears. |
+| Drop resolve limiting entirely | Leaves the most-hit public endpoint with no flood protection; the app-feature exists precisely to protect such endpoints. |
+
+### Consequences
+- **Behavior change on a public endpoint:** `/r/{code}` is now throttled per client IP (300/min per IP),
+  not per short-code. Because it is now IP-scoped, its accuracy behind a proxy depends on
+  `ratelimit.trust_proxy_headers` (ADR-009) — the same caveat that already applies to login/sign-up.
+- **Metric removed:** `aio.shortener.rate_limited.total{scope}` is deleted; shortener rejections now surface
+  through `aio.ratelimit.rejected.total{target,scope,kind}` like every other target. `docs/metrics.md` must
+  be updated (drop the shortener `rate_limited` row; the two new targets raise `ratelimit.rejected`'s
+  bounded cardinality from 6 targets to 8).
+- **Deletions:** `internal/shortener/middleware/ratelimit.go` (+ its test) and the `shortener.rate_limit.*`
+  config are removed. (Aside: the shortener limiter's cleanup goroutine `Stop()` was never actually called
+  anywhere — a pre-existing minor leak that this deletion also resolves.)
+- **New wiring:** `/r/{code}` moves onto a subrouter carrying `rlMw`; boot-time validation now also asserts
+  the `shortener.link.create` and `shortener.link.resolve` bindings, so a future rename of either route
+  fails loudly (ADR-004).
+- The `FeatureShortener` RBAC gate is unchanged — create is still feature-gated *and* now rate-limited; the
+  two middlewares compose on the same subrouter (rate limit runs after JWTAuth, before/independent of the
+  feature gate, per ADR-004).
+
+### Key files (planned)
+- `internal/ratelimit/registry.go` (2 new targets), `cmd/all-in-one/server/server.go` (resolve subrouter +
+  `rlMw`), `internal/shortener/handler/handler.go` (drop limiter wrapping) + `metrics.go` (drop
+  `rate_limited`), `internal/shortener/middleware/ratelimit.go` (**delete**),
+  `internal/config/config.go` + `config/config.yml` (drop `shortener.rate_limit.*` + dead `public_create`),
+  `docs/metrics.md`.
