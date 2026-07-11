@@ -51,6 +51,17 @@ var Registry = []TargetDef{
 		Method: "POST", Path: "/api/v1/sessions",
 		DefaultLimit: 10, DefaultWindowValue: 1, DefaultWindowUnit: model.WindowMinute,
 	},
+	// FOLLOW-UP (deferred to the future signup branch): this is the only
+	// public/unauthenticated target with no in-memory throttle sharing its
+	// route, so a flood on POST /api/v1/users hits the DB counter on every
+	// request — contrary to ADR-002's "shed floods in-memory before any DB
+	// write" goal (the other daily_quota targets are JWT-gated, so auth sheds
+	// unauthenticated floods before the counter is touched; this public one is
+	// the exception). The signup feature is being built out separately on a
+	// later branch — when it lands, add a per-IP `throttle` TargetDef on
+	// POST /api/v1/users (evaluated first via orderThrottlesFirst, like
+	// auth.login above) so bursts are shed before the DB write. Tracked in
+	// .context/RATE_LIMITING_PROGRESS.md.
 	{
 		Key: TargetAuthSignupIP, Name: "Sign-ups", Description: "Sign-ups per IP per day",
 		Scope: model.ScopeIP, Kind: model.KindDailyQuota,
