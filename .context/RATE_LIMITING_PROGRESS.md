@@ -4,13 +4,12 @@
 > Live status of the build (18 v1 phases + a 2-phase shortener migration, P19–P20). Tick each box, update
 > **Resume here**, and commit after each phase.
 
-**Overall status:** ✅ **v1 done** (P1–P18) — complete and verified on both SQLite and Postgres. 🟨 **Follow-up
-planned, not started: shortener limiter migration (P19–P20, ADR-011)** — folds the shortener's config-file
-limiter into this app-feature so there's one place to configure limits. ADR-011 + plan phases P19–P20 are
-written; no code for them yet.
+**Overall status:** ✅ **Done** (P1–P20). v1 (P1–P18) verified on both SQLite and Postgres; the shortener
+limiter migration (P19–P20, ADR-011) is now implemented — the shortener's config-file limiter is folded into
+this app-feature, so there's a single place to configure every rate limit.
 
-**Resume here:** Phase 19 (migrate shortener create + resolve into the registry — atomic enforcement swap).
-Docker is installed and `docker compose up -d postgres` gives a reachable Postgres for the P19/P20 DoDs.
+**Nothing left to resume.** Remaining open items (reverse-proxy config, SQLite WAL hardening) are operator
+decisions, not implementation work — see "Open items needing operator action" below.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -53,8 +52,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P18 — Metrics doc + verification** · `docs/metrics.md` · curl walkthrough on SQLite **and** Postgres · tracker → done
 
 **Shortener migration** _(ADR-011; need whole v1, esp. P14)_
-- ⬜ **P19 — Migrate shortener create + resolve into registry** · +2 targets · `/r/{code}` subrouter w/ `rlMw` · drop shortener limiter wrapping · atomic swap
-- ⬜ **P20 — Delete shortener-owned limiter + config + metric** · delete `shortener/middleware` · drop `shortener.rate_limit.*` + dead `public_create` · update `docs/metrics.md`
+- ✅ **P19 — Migrate shortener create + resolve into registry** · +2 targets · `/r/{code}` subrouter w/ `rlMw` · drop shortener limiter wrapping · atomic swap
+- ✅ **P20 — Delete shortener-owned limiter + config + metric** · delete `shortener/middleware` · drop `shortener.rate_limit.*` + dead `public_create` · update `docs/metrics.md`
 
 ---
 
@@ -128,6 +127,18 @@ DB, but worth a `docker compose down -v` (drops the volume) before using this co
 
 ## Notes / deviations
 
+- P19: boot-time validation earned its keep — the drift check ran **before** the redirect route was
+  registered (it sits right after the admin routes, and `/r/{code}` was registered later), so adding the
+  `shortener.link.resolve` target made the first boot log-fatal with a precise "missing binding". Fixed by
+  moving `ssvc.Handler.RegisterRedirectRoute(redirectRoutes)` ahead of the `validateRateLimitBindings(r)`
+  call. Verified live on scratch SQLite: `targets:8 all bound`; create 429s per user, resolve 429s per IP,
+  and three distinct codes from one IP all 429 (shared IP bucket) — proving the per-code → per-IP change.
+- P20: found two stale refs `go build` didn't catch — `shortener/handler/integration_test.go` built the
+  now-removed `config.ShortenerRateLimit{}` (fixed; the test had no rate-limit assertions to lose), and
+  `docs/shortener_links.md` documented the old `shortener.rate_limit.*` config (rewrote its Rate Limiting +
+  Config sections to point at the app-feature and note the per-IP resolve change). Also refreshed the
+  `memStore` doc comment that referenced the now-deleted `internal/shortener/middleware/ratelimit.go`.
+  `public_create_enabled`/`public_creates_per_window` were confirmed dead (no Go reads) before removal.
 - P18: added a "Rate Limiting" section to `docs/metrics.md` (3 metrics, label-values table, cardinality
   entry: `rejected_total` bounded by target count not the label cross-product since scope/kind are fixed
   per target, `errors_total` bounded by the 4 `daily_quota` targets since throttle targets never touch the
