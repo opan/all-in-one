@@ -111,6 +111,8 @@ Support authentications:
 - `listing` - a simple item listing app with CRUD operations and user authentication.
 - `authnz` - authentication and authorization module (JWT + username/password).
 - `chat` - a simple chat app with WebSocket support.
+- `url-shortener` - a url-shortener apps like bit.ly
+- `admin` - a separate admin pages for admin users to manage all resources
 
 ### Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+

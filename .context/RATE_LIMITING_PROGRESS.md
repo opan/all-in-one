@@ -8,8 +8,10 @@
 limiter migration (P19–P20, ADR-011) is now implemented — the shortener's config-file limiter is folded into
 this app-feature, so there's a single place to configure every rate limit.
 
-**Nothing left to resume.** Remaining open items (reverse-proxy config, SQLite WAL hardening) are operator
-decisions, not implementation work — see "Open items needing operator action" below.
+**Nothing left to resume** for this feature. Remaining open items (reverse-proxy config, SQLite WAL
+hardening) are operator decisions, not implementation work — see "Open items needing operator action"
+below. One code follow-up is intentionally **deferred to the future sign-up branch** (add an in-memory
+throttle in front of the signup quota) — see "Follow-up work (deferred to future branches)" below.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -124,6 +126,35 @@ DB, but worth a `docker compose down -v` (drops the volume) before using this co
 - ⬜ Confirm whether the public deployment is behind a reverse proxy → if yes, set
      `ratelimit.trust_proxy_headers: true` (else per-IP limits collapse). *(ADR-009)*
 - ⬜ Decide whether to include the optional SQLite WAL/`busy_timeout` DSN hardening. *(ADR-007)*
+
+## Follow-up work (deferred to future branches)
+
+- ⬜ **Add an in-memory throttle in front of the signup daily quota** — do this when the sign-up feature is
+     built out on its own branch (developed separately, later). Today `auth.signup.ip` (`POST /api/v1/users`,
+     `daily_quota`) is the only **public/unauthenticated** rate-limit target with no `throttle` sharing its
+     route, so a signup flood performs a DB counter upsert on *every* request — including every request past
+     the quota, since the counter keeps incrementing — contrary to ADR-002's "shed floods in-memory before
+     any DB write" goal. The other three `daily_quota` targets sit behind `JWTAuth`, so auth sheds
+     unauthenticated floods before the counter is touched; signup is the exception. On SQLite this write
+     amplification can also trip `database is locked` → fail-open (ADR-007), disabling the quota under the
+     very load it exists to resist.
+     - **Fix (small, no new machinery):** add a per-IP `throttle` `TargetDef` on `POST /api/v1/users` in
+       `internal/ratelimit/registry.go` (a burst cap, e.g. a few/min). `orderThrottlesFirst` evaluates it
+       before the daily quota, so a burst is shed in-memory while the quota still enforces the slow-drip
+       daily total — exactly the shape `auth.login` already has. Add a matching middleware test.
+     - **General principle:** any *public* (unauthenticated) `daily_quota` target should have a throttle in
+       front of it; JWT-gated quotas are already covered by auth. *(ADR-002)*
+     - Marker left at the `auth.signup.ip` entry in `internal/ratelimit/registry.go`.
+
+- ⬜ **(Watch — no action yet) Per-account throttle for login.** `auth.login` is deliberately **IP-scoped**,
+     and that's a strong default, not a compromise: `ScopeUser` can't apply at login (login *creates* the
+     auth, so there's no user in context), per-username keying would require the body-blind route middleware
+     to parse the request body (ADR-004), and IP is the natural key for the flood/burst threat model a
+     `throttle` targets (ADR-002). Known uncovered case: a **distributed** brute-force against a single known
+     account, where each IP stays under the per-IP limit. **Decision (2026-07-11): keep IP-only until a real
+     case actually happens to the AIO; revisit then.** If it's ever needed, the fix is a failures-only
+     per-username counter inside `authnz` `CreateSession` (not a new registry scope) — and note there's no
+     account-lockout elsewhere today (only the 2FA step caps attempts). *(ADR-005)*
 
 ## Notes / deviations
 
