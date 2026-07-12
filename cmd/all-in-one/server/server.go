@@ -215,9 +215,18 @@ func (s *server) Start() error {
 	ssvc.RegisterAdminRoutes(adminRoutes)
 	rlsvc.RegisterAdminRoutes(adminRoutes)
 
+	// Shortener public redirect: /r/{code} — lives outside /api/v1, on its
+	// own subrouter carrying rlMw so the ratelimit app-feature enforces the
+	// ip-scoped shortener.link.resolve target on it (ADR-011). Registered
+	// before the boot-time validation below so that target's binding is seen.
+	redirectRoutes := r.NewRoute().Subrouter()
+	redirectRoutes.Use(rlMw)
+	ssvc.Handler.RegisterRedirectRoute(redirectRoutes)
+
 	// Boot-time drift protection: every rate limit Registry target must be
 	// bound to a route that's actually registered, or enforcement for it
-	// would silently no-op (e.g. after a route rename) — ADR-004.
+	// would silently no-op (e.g. after a route rename) — ADR-004. Runs after
+	// every rate-limited route (incl. the redirect above) is registered.
 	if missing := validateRateLimitBindings(r); len(missing) > 0 {
 		s.log.Fatal().Strs("missing", missing).
 			Msg("ratelimit: registry targets have no matching registered route — enforcement would silently no-op")
@@ -225,9 +234,6 @@ func (s *server) Start() error {
 		s.log.Info().Int("targets", len(ratelimit.Registered())).
 			Msg("ratelimit: all targets bound to a registered route")
 	}
-
-	// Shortener public redirect: /r/{code} — lives outside /api/v1
-	ssvc.Handler.RegisterRedirectRoute(r)
 
 	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")

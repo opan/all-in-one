@@ -11,12 +11,14 @@ import (
 // limited endpoint = add a constant + a Registry entry here, then ensure
 // the owning subrouter carries the limiter middleware (ADR-003/ADR-004).
 const (
-	TargetAuthLogin          = "auth.login"
-	TargetAuthSignupIP       = "auth.signup.ip"
-	TargetListingItemCreate  = "listing.item.create"
-	TargetListingTopicCreate = "listing.topic.create"
-	TargetChatSessionCreate  = "chat.session.create"
-	TargetChatMessageSend    = "chat.message.send"
+	TargetAuthLogin            = "auth.login"
+	TargetAuthSignupIP         = "auth.signup.ip"
+	TargetListingItemCreate    = "listing.item.create"
+	TargetListingTopicCreate   = "listing.topic.create"
+	TargetChatSessionCreate    = "chat.session.create"
+	TargetChatMessageSend      = "chat.message.send"
+	TargetShortenerLinkCreate  = "shortener.link.create"
+	TargetShortenerLinkResolve = "shortener.link.resolve"
 )
 
 // TargetDef is the code-defined source of truth for one rate-limited
@@ -80,6 +82,20 @@ var Registry = []TargetDef{
 		Scope: model.ScopeUser, Kind: model.KindThrottle,
 		Method: "POST", Path: "/api/v1/chats/{id}/messages",
 		DefaultLimit: 60, DefaultWindowValue: 1, DefaultWindowUnit: model.WindowMinute,
+	},
+	{
+		Key: TargetShortenerLinkCreate, Name: "Short link creation", Description: "Short links created per user",
+		Scope: model.ScopeUser, Kind: model.KindThrottle,
+		Method: "POST", Path: "/api/v1/shortener/links",
+		DefaultLimit: 100, DefaultWindowValue: 15, DefaultWindowUnit: model.WindowMinute,
+	},
+	{
+		// Public redirect — lives on the root router, outside /api/v1, so its
+		// Path has no /api/v1 prefix (ADR-011; plan Appendix A #11).
+		Key: TargetShortenerLinkResolve, Name: "Short link resolution", Description: "Short link redirects per IP",
+		Scope: model.ScopeIP, Kind: model.KindThrottle,
+		Method: "GET", Path: "/r/{code}",
+		DefaultLimit: 300, DefaultWindowValue: 1, DefaultWindowUnit: model.WindowMinute,
 	},
 }
 
