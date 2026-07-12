@@ -6,11 +6,11 @@
 > `~/.claude/plans/`, which is machine-local — do not rely on it for resume).
 
 This plan is sliced into **18 small phases** for the v1 build, plus a **2-phase shortener migration (P19–P20,
-ADR-011)** added afterward. Each phase (a) touches a handful of files, (b) **leaves the tree green** —
-`go build ./...` passes and its own tests pass — and (c) is independently committable. A fresh chat session
-can resume at any phase boundary by reading just that phase's section plus
-[RATE_LIMITING_PROGRESS.md](RATE_LIMITING_PROGRESS.md). Commit after each phase (suggested message in the
-phase's DoD).
+ADR-011)** and a **1-phase Cloudflare client-IP fix (P21, ADR-012)**, both added afterward. Each phase (a)
+touches a handful of files, (b) **leaves the tree green** — `go build ./...` passes and its own tests pass —
+and (c) is independently committable. A fresh chat session can resume at any phase boundary by reading just
+that phase's section plus [RATE_LIMITING_PROGRESS.md](RATE_LIMITING_PROGRESS.md). Commit after each phase
+(suggested message in the phase's DoD).
 
 ```
 Foundations   P1 schema        P2 models+registry     P3 config          (P1–P3 independent; any order)
@@ -22,6 +22,7 @@ Wiring        P12 mount-admin → P13 enforce-public → P14 enforce-gated+valid
 Frontend      P15 client+nav →  P16 list+toggle → P17 edit+reset         (need P10,P11)
 Closeout      P18 metrics-doc + full verification (SQLite+Postgres) + tracker closeout
 Shortener     P19 migrate-swap → P20 delete-old-limiter+config           (ADR-011; need whole v1, esp. P14)
+Cloudflare    P21 CF-Connecting-IP priority                              (ADR-012; need P9 clientIP)
 ```
 
 ## Context
@@ -402,6 +403,34 @@ other files, so the `shortener/middleware` package is removed), `internal/shorte
 `shortener.rate_limit`, `public_create`, or `shortener/middleware`; `go test ./...` green; server boots and
 the shortener still creates/resolves normally (now limited only by the app-feature). Commit:
 `refactor(ratelimit): remove shortener-owned limiter + config (ADR-011)`.
+
+---
+
+# Cloudflare Tunnel client-IP support (post-v1, ADR-012)
+
+## Phase 21 — Trust `CF-Connecting-IP` ahead of `X-Forwarded-For`
+**Goal:** correct per-IP keying for the operator's actual production topology (k3s + default Traefik,
+exposed solely via Cloudflare Tunnel). **Depends on:** P9 (the `clientIP` helper existing at all).
+**Files:** `internal/ratelimit/middleware/limiter.go`, `internal/ratelimit/middleware/limiter_test.go`.
+- `clientIP()`: when `trust_proxy_headers` is true, check (in order) `CF-Connecting-IP` → left-most
+  `X-Forwarded-For` → `X-Real-IP` → `r.RemoteAddr`. No new config flag — folded into the existing opt-in.
+  `CF-Connecting-IP` wins because it's unambiguous by construction when Cloudflare is the sole ingress path
+  (its edge always sets it to the true visitor IP and strips any client-supplied value), unlike
+  `X-Forwarded-For` whose trustworthiness depends on every intermediate hop (`cloudflared`, Traefik)
+  correctly replacing rather than appending to a pre-existing value.
+- Test: add cases to `TestLimiter_ClientIP_TrustProxyHeaders` — `CF-Connecting-IP` alone determines the
+  bucket, and `CF-Connecting-IP` takes priority when both it and a (different) `X-Forwarded-For` are present
+  on the same request.
+**DoD:** `go build ./... && go vet ./... && go test ./... -race` green; live check on scratch SQLite: two
+requests with the same forged `X-Forwarded-For` but different `CF-Connecting-IP` values get independent
+throttle buckets (proves priority, not just presence). Commit:
+`feat(ratelimit): trust CF-Connecting-IP ahead of X-Forwarded-For (ADR-012)`.
+
+**Operator reminder (not code):** this alone doesn't make `trust_proxy_headers: true` safe — nothing may
+reach the AIO pods except through the tunnel. No `LoadBalancer`/`NodePort` may expose Traefik (or the app)
+directly to the internet in parallel with Cloudflare Tunnel, or an attacker bypassing Cloudflare entirely
+could forge `CF-Connecting-IP` themselves. Enforce via K8s `NetworkPolicy` + `ClusterIP`-only Services — see
+ADR-012's Consequences.
 
 ---
 

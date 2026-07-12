@@ -1,12 +1,13 @@
 # Rate Limiting App-Feature — Progress Tracker
 
 > **Plan:** [RATE_LIMITING_IMPLEMENTATION_PLAN.md](RATE_LIMITING_IMPLEMENTATION_PLAN.md) · **Decisions:** [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
-> Live status of the build (18 v1 phases + a 2-phase shortener migration, P19–P20). Tick each box, update
-> **Resume here**, and commit after each phase.
+> Live status of the build (18 v1 phases + a 2-phase shortener migration P19–P20 + a 1-phase Cloudflare
+> client-IP fix P21). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** ✅ **Done** (P1–P20). v1 (P1–P18) verified on both SQLite and Postgres; the shortener
-limiter migration (P19–P20, ADR-011) is now implemented — the shortener's config-file limiter is folded into
-this app-feature, so there's a single place to configure every rate limit.
+**Overall status:** ✅ **Done** (P1–P21). v1 (P1–P18) verified on both SQLite and Postgres; the shortener
+limiter migration (P19–P20, ADR-011) folded the shortener's config-file limiter into this app-feature; P21
+(ADR-012) adds `CF-Connecting-IP` priority for the operator's actual production topology — k3s + default
+Traefik, exposed solely via Cloudflare Tunnel.
 
 **Nothing left to resume** for this feature. Remaining open items (reverse-proxy config, SQLite WAL
 hardening) are operator decisions, not implementation work — see "Open items needing operator action"
@@ -57,6 +58,9 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - ✅ **P19 — Migrate shortener create + resolve into registry** · +2 targets · `/r/{code}` subrouter w/ `rlMw` · drop shortener limiter wrapping · atomic swap
 - ✅ **P20 — Delete shortener-owned limiter + config + metric** · delete `shortener/middleware` · drop `shortener.rate_limit.*` + dead `public_create` · update `docs/metrics.md`
 
+**Cloudflare client-IP fix** _(ADR-012; need P9 `clientIP`)_
+- ✅ **P21 — Trust `CF-Connecting-IP` ahead of `X-Forwarded-For`** · no new config flag · priority test · live verify (same forged XFF, different CF-Connecting-IP → independent buckets)
+
 ---
 
 ## Decision log (quick reference — full rationale in the ADR)
@@ -74,6 +78,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | 9 | Client IP opt-in proxy-aware (`trust_proxy_headers`, default false) | ADR-009 |
 | 10 | Admins not exempt in v1 | ADR-010 |
 | 11 | Fold shortener config-file limiter into the app-feature (resolve → per-IP) | ADR-011 |
+| 12 | Trust `CF-Connecting-IP` ahead of `X-Forwarded-For` for Cloudflare-fronted deployments | ADR-012 |
 
 ## Postgres verification checklist — ✅ completed 2026-07-09
 
@@ -123,8 +128,16 @@ DB, but worth a `docker compose down -v` (drops the volume) before using this co
 
 ## Open items needing operator action (carried from plan)
 
-- ⬜ Confirm whether the public deployment is behind a reverse proxy → if yes, set
-     `ratelimit.trust_proxy_headers: true` (else per-IP limits collapse). *(ADR-009)*
+- ✅ Confirmed: production is k3s + default Traefik, exposed solely via Cloudflare Tunnel. Set
+     `ratelimit.trust_proxy_headers: true` (env: `ALLINONE_RATELIMIT_TRUST_PROXY_HEADERS=true`) — `clientIP()`
+     now reads `CF-Connecting-IP` first (ADR-012), so no `X-Forwarded-For`-only spoofing risk from a naive
+     append-vs-replace hop chain. *(ADR-009/ADR-012)*
+- ⬜ **Still the operator's to verify/enforce**: no `LoadBalancer`/`NodePort` may expose Traefik (or the app)
+     directly to the internet in parallel with the tunnel — otherwise an attacker bypassing Cloudflare
+     entirely could forge `CF-Connecting-IP` themselves, since the app trusts it unconditionally once the
+     flag is on (no IP allowlist in code). Check `kubectl get svc -n kube-system traefik` isn't
+     `LoadBalancer`/`NodePort` with a public IP; enforce with a K8s `NetworkPolicy` restricting ingress on
+     the AIO pods to Traefik's pod selector only. *(ADR-012 Consequences)*
 - ⬜ Decide whether to include the optional SQLite WAL/`busy_timeout` DSN hardening. *(ADR-007)*
 
 ## Follow-up work (deferred to future branches)
@@ -158,6 +171,15 @@ DB, but worth a `docker compose down -v` (drops the volume) before using this co
 
 ## Notes / deviations
 
+- P21: prompted by an operator question about their real production topology (k3s, default Traefik,
+  Cloudflare Tunnel) rather than a plan gap — `X-Forwarded-For`'s left-most entry is ambiguous across a
+  multi-hop chain (`cloudflared` → Traefik) unless every hop is guaranteed to replace rather than append to
+  a pre-existing value; `CF-Connecting-IP` sidesteps that by being unambiguous by construction (only
+  Cloudflare's edge ever sets it). No new config flag — folded into the existing `trust_proxy_headers` opt-in.
+  Verified live on scratch SQLite: identical forged `X-Forwarded-For` across two requests, but different
+  `CF-Connecting-IP` values → independent throttle buckets, proving *priority* (not just presence). Also
+  amended ADR-009 in place (its Decision/Consequences now point to ADR-012) rather than leaving it silently
+  stale.
 - P19: boot-time validation earned its keep — the drift check ran **before** the redirect route was
   registered (it sits right after the admin routes, and `/r/{code}` was registered later), so adding the
   `shortener.link.resolve` target made the first boot log-fatal with a precise "missing binding". Fixed by

@@ -353,7 +353,8 @@ IP-scoped limits (login, sign-up — ADR-005) would collapse into a single globa
 ### Decision
 Add a `clientIP(r, cfg)` helper: when `ratelimit.trust_proxy_headers` is true, take the left-most
 `X-Forwarded-For` entry (falling back to `X-Real-IP`); otherwise use `net.SplitHostPort(r.RemoteAddr)`. The
-flag defaults to **false**.
+flag defaults to **false**. *(Amended by ADR-012: `CF-Connecting-IP` is now checked first, ahead of
+`X-Forwarded-For`, for Cloudflare-fronted deployments.)*
 
 ### Rationale
 - Trusting client-supplied `X-Forwarded-For` unconditionally is spoofable — an attacker could rotate the
@@ -368,7 +369,8 @@ flag defaults to **false**.
 
 ### Consequences
 - **The operator must set `ratelimit.trust_proxy_headers: true` in the public deployment** (and ensure the
-  proxy sets `X-Forwarded-For`) for per-IP limits to work. Documented prominently in the implementation plan.
+  proxy sets `X-Forwarded-For`, or `CF-Connecting-IP` per ADR-012) for per-IP limits to work. Documented
+  prominently in the implementation plan.
 - IP extraction ideally belongs at server scope (request logging would benefit too); scoped to the limiter
   now, unifiable later.
 
@@ -492,3 +494,54 @@ removed.
   `rate_limited`), `internal/shortener/middleware/ratelimit.go` (**delete**),
   `internal/config/config.go` + `config/config.yml` (drop `shortener.rate_limit.*` + dead `public_create`),
   `docs/metrics.md`.
+
+---
+
+## ADR-012: Trust `CF-Connecting-IP` ahead of `X-Forwarded-For` for Cloudflare-fronted deployments
+
+### Status
+Accepted (amends ADR-009)
+
+### Context
+The operator's production deployment is k3s with the bundled default Traefik ingress, exposed to the
+internet **exclusively via Cloudflare Tunnel** (`cloudflared`, outbound-only — no `LoadBalancer`/`NodePort`
+also exposing Traefik publicly). Request chain: `client → Cloudflare edge → cloudflared → Traefik → AIO pod`.
+
+ADR-009's `clientIP()` only reads the left-most `X-Forwarded-For` entry when `trust_proxy_headers` is true.
+That's ambiguous in a multi-hop chain: whether the left-most entry is trustworthy depends on every
+intermediate hop *replacing* (not appending to) a pre-existing header, which isn't guaranteed end-to-end
+across `cloudflared` + Traefik without additional per-hop configuration. Cloudflare provides a
+purpose-built alternative: `CF-Connecting-IP`, which its edge always sets to the true visitor IP and
+strips/overwrites any client-supplied value — unambiguous by construction, not by hop-counting.
+
+### Decision
+`clientIP()` checks `CF-Connecting-IP` first (when `trust_proxy_headers` is true), falling back to the
+existing `X-Forwarded-For` → `X-Real-IP` → `r.RemoteAddr` chain (ADR-009) if absent. No new config flag —
+folded into the existing opt-in.
+
+### Rationale
+- `CF-Connecting-IP` is trustworthy **by construction** when Cloudflare is the sole ingress path: a client
+  cannot reach `cloudflared` except through Cloudflare's edge, which is the only party that ever sets this
+  header, so there is no hop-ordering or append-vs-replace ambiguity to reason about.
+- Checking it unconditionally (whenever `trust_proxy_headers` is on) is harmless for deployments not behind
+  Cloudflare — the header is simply absent and resolution falls through to the ADR-009 behavior unchanged.
+- No new config surface: `trust_proxy_headers` already means "I have a trustworthy edge in front of me and
+  assert its header is safe to read" — which header that is doesn't need its own toggle.
+
+### Alternatives Considered
+| Option | Rejected because |
+|---|---|
+| Keep `X-Forwarded-For` only; tell the operator to configure Traefik's `forwardedHeaders.trustedIPs` carefully | Works, but leaves correctness resting on `cloudflared` and Traefik both handling header replacement correctly across two hops — more moving parts to get right and re-verify than trusting Cloudflare's own dedicated, purpose-built header. |
+| A separate `ratelimit.trusted_ip_header` config naming which header to read | More flexible (supports arbitrary custom headers), but adds a config surface for a need fully covered by checking a well-known, harmless-when-absent header; not needed today. Revisit if a non-Cloudflare, non-XFF proxy header need appears. |
+
+### Consequences
+- **This alone does not make `trust_proxy_headers: true` safe** — ADR-009's requirement stands: nothing may
+  reach the AIO pods except through the trusted edge. For this topology specifically, that means no
+  `LoadBalancer`/`NodePort` may expose Traefik (or the app) directly to the internet in parallel with the
+  tunnel — otherwise an attacker bypassing Cloudflare entirely could forge `CF-Connecting-IP` themselves.
+  This is a K8s `NetworkPolicy`/`Service`-type concern, outside this codebase.
+- Adds one more header to an already-opt-in, already-spoofable-if-misconfigured code path; no change to the
+  spoofing risk for deployments that don't send this header.
+
+### Key files (planned)
+- `internal/ratelimit/middleware/limiter.go` (`clientIP`), `internal/ratelimit/middleware/limiter_test.go`

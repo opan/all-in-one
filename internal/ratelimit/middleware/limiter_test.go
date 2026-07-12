@@ -232,6 +232,51 @@ func TestLimiter_ClientIP_TrustProxyHeaders(t *testing.T) {
 		router.ServeHTTP(rr2, reqWithXFF("203.0.113.2"))
 		assert.Equal(t, http.StatusTooManyRequests, rr2.Code, "XFF must be ignored when untrusted")
 	})
+
+	t.Run("trusted: CF-Connecting-IP determines the bucket (Cloudflare Tunnel, ADR-012)", func(t *testing.T) {
+		l := newTestLimiter(rules, &fakeCounterStore{}, config.RateLimitConfig{Enabled: true, TrustProxyHeaders: true})
+		defer l.Stop()
+		router := newTestRouter(l)
+
+		reqWithCF := func(ip string) *http.Request {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", nil)
+			req.RemoteAddr = "10.0.0.1:1234" // cloudflared's cluster-internal peer address
+			req.Header.Set("CF-Connecting-IP", ip)
+			return req
+		}
+
+		rr1 := httptest.NewRecorder()
+		router.ServeHTTP(rr1, reqWithCF("198.51.100.1"))
+		assert.Equal(t, http.StatusOK, rr1.Code)
+
+		rr2 := httptest.NewRecorder()
+		router.ServeHTTP(rr2, reqWithCF("198.51.100.2"))
+		assert.Equal(t, http.StatusOK, rr2.Code, "a different CF-Connecting-IP client must have its own bucket")
+	})
+
+	t.Run("trusted: CF-Connecting-IP takes priority over XFF", func(t *testing.T) {
+		l := newTestLimiter(rules, &fakeCounterStore{}, config.RateLimitConfig{Enabled: true, TrustProxyHeaders: true})
+		defer l.Stop()
+		router := newTestRouter(l)
+
+		reqWithBoth := func(cfip, xff string) *http.Request {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", nil)
+			req.RemoteAddr = "10.0.0.1:1234"
+			req.Header.Set("CF-Connecting-IP", cfip)
+			req.Header.Set("X-Forwarded-For", xff)
+			return req
+		}
+
+		// Same CF-Connecting-IP, different (attacker-forgeable) XFF — must
+		// share one bucket, proving CF-Connecting-IP wins.
+		rr1 := httptest.NewRecorder()
+		router.ServeHTTP(rr1, reqWithBoth("198.51.100.9", "203.0.113.1"))
+		assert.Equal(t, http.StatusOK, rr1.Code)
+
+		rr2 := httptest.NewRecorder()
+		router.ServeHTTP(rr2, reqWithBoth("198.51.100.9", "203.0.113.2"))
+		assert.Equal(t, http.StatusTooManyRequests, rr2.Code, "same CF-Connecting-IP must throttle even with a different XFF")
+	})
 }
 
 // --- pure unit tests (no mux/HTTP round trip needed) ---

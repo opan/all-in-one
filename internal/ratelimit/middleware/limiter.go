@@ -217,12 +217,22 @@ func orderThrottlesFirst(defs []ratelimit.TargetDef) []ratelimit.TargetDef {
 }
 
 // clientIP resolves the request's client IP. When cfg.RateLimit.TrustProxyHeaders
-// is true, the left-most X-Forwarded-For entry (falling back to X-Real-IP)
-// is trusted; otherwise r.RemoteAddr is used. Trusting these headers
-// unconditionally would be spoofable, so it's an explicit opt-in
-// (ADR-009).
+// is true, it checks (in order): CF-Connecting-IP, the left-most
+// X-Forwarded-For entry, then X-Real-IP; otherwise r.RemoteAddr is used.
+// Trusting these headers unconditionally would be spoofable, so it's an
+// explicit opt-in (ADR-009).
+//
+// CF-Connecting-IP takes priority because it is unambiguous when Cloudflare
+// (e.g. Cloudflare Tunnel) is the sole ingress path: Cloudflare's edge always
+// sets it to the true visitor IP and strips/overwrites any client-supplied
+// value, whereas X-Forwarded-For is only as trustworthy as every hop that
+// appended to it (ADR-012). It's harmless to check unconditionally for
+// deployments that aren't behind Cloudflare — the header is simply absent.
 func clientIP(r *http.Request, cfg config.Config) string {
 	if cfg.RateLimit.TrustProxyHeaders {
+		if cfip := r.Header.Get("CF-Connecting-IP"); cfip != "" {
+			return strings.TrimSpace(cfip)
+		}
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			first := strings.SplitN(xff, ",", 2)[0]
 			return strings.TrimSpace(first)
