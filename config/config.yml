@@ -43,13 +43,8 @@ ratelimit:
 shortener:
   code_length: 7
   max_create_retries: 5
-  public_create_enabled: false
-  rate_limit:
-    creates_per_window: 100
-    window_minutes: 15
-    public_creates_per_window: 20
-    resolve_per_window: 300
-    resolve_window_minutes: 1
+  # Rate limits for link creation/resolution are managed by the ratelimit
+  # app-feature (admin API / DB), not here — see ADR-011.
   url:
     max_length: 2048
     allowed_schemes: ["http", "https"]

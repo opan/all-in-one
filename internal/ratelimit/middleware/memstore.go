@@ -14,10 +14,11 @@ type bucket struct {
 // memStore is the in-memory fixed-window throttle store used for `throttle`
 // targets (docs/adr/RATE_LIMITING_ADR.md ADR-002) — the DB never sees these
 // requests, so a flood is shed with a cheap map lookup instead of hitting
-// the database the limiter exists to protect. Unlike the shortener's
-// original design (internal/shortener/middleware/ratelimit.go), limit and
-// window are passed per call rather than fixed at construction, since an
-// admin can retune a target's rule at runtime (ADR-008).
+// the database the limiter exists to protect. It descends from the
+// shortener's original fixed-window limiter (since folded into this
+// app-feature — ADR-011), but limit and window are passed per call rather
+// than fixed at construction, since an admin can retune a target's rule at
+// runtime (ADR-008).
 type memStore struct {
 	mu      sync.RWMutex
 	buckets map[string]*bucket

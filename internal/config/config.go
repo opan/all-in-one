@@ -34,19 +34,9 @@ type TelemetryConfig struct {
 }
 
 type ShortenerConfig struct {
-	CodeLength          int                 `mapstructure:"code_length"`
-	MaxCreateRetries    int                 `mapstructure:"max_create_retries"`
-	PublicCreateEnabled bool                `mapstructure:"public_create_enabled"`
-	RateLimit           ShortenerRateLimit  `mapstructure:"rate_limit"`
-	URL                 ShortenerURLConfig  `mapstructure:"url"`
-}
-
-type ShortenerRateLimit struct {
-	CreatesPerWindow       int `mapstructure:"creates_per_window"`
-	WindowMinutes          int `mapstructure:"window_minutes"`
-	PublicCreatesPerWindow int `mapstructure:"public_creates_per_window"`
-	ResolvePerWindow       int `mapstructure:"resolve_per_window"`
-	ResolveWindowMinutes   int `mapstructure:"resolve_window_minutes"`
+	CodeLength       int                `mapstructure:"code_length"`
+	MaxCreateRetries int                `mapstructure:"max_create_retries"`
+	URL              ShortenerURLConfig `mapstructure:"url"`
 }
 
 type ShortenerURLConfig struct {
@@ -161,12 +151,6 @@ func Load() (*Config, error) {
 	viper.SetDefault("http.timeout", 30)
 	viper.SetDefault("shortener.code_length", 7)
 	viper.SetDefault("shortener.max_create_retries", 5)
-	viper.SetDefault("shortener.public_create_enabled", false)
-	viper.SetDefault("shortener.rate_limit.creates_per_window", 100)
-	viper.SetDefault("shortener.rate_limit.window_minutes", 15)
-	viper.SetDefault("shortener.rate_limit.public_creates_per_window", 20)
-	viper.SetDefault("shortener.rate_limit.resolve_per_window", 300)
-	viper.SetDefault("shortener.rate_limit.resolve_window_minutes", 1)
 	viper.SetDefault("shortener.url.max_length", 2048)
 	viper.SetDefault("shortener.url.allowed_schemes", []string{"http", "https"})
 	viper.SetDefault("shortener.url.blocked_hosts", []string{})

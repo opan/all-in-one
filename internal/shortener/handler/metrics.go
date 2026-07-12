@@ -9,7 +9,6 @@ type handlerMetrics struct {
 	linksCreated       metric.Int64Counter
 	linksResolved      metric.Int64Counter
 	linksDeleted       metric.Int64Counter
-	rateLimited        metric.Int64Counter
 	adminLinkDeleted   metric.Int64Counter
 	adminLinkModerated metric.Int64Counter
 }
@@ -26,9 +25,6 @@ func newHandlerMetrics() *handlerMetrics {
 	linksDeleted, _ := m.Int64Counter("aio.shortener.links.deleted",
 		metric.WithDescription("Number of short links deleted successfully"),
 	)
-	rateLimited, _ := m.Int64Counter("aio.shortener.rate_limited.total",
-		metric.WithDescription("Number of requests rejected by the rate limiter by scope"),
-	)
 	adminLinkDeleted, _ := m.Int64Counter("aio.admin.shortener_link_deleted.total",
 		metric.WithDescription("Number of times an admin deleted a short link"),
 	)
@@ -40,7 +36,6 @@ func newHandlerMetrics() *handlerMetrics {
 		linksCreated:       linksCreated,
 		linksResolved:      linksResolved,
 		linksDeleted:       linksDeleted,
-		rateLimited:        rateLimited,
 		adminLinkDeleted:   adminLinkDeleted,
 		adminLinkModerated: adminLinkModerated,
 	}
