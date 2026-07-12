@@ -122,6 +122,31 @@ func TestLimiter_DailyQuota_AllowThenReject(t *testing.T) {
 	assert.NotEmpty(t, rr.Header().Get("Retry-After"))
 }
 
+func TestLimiter_ThrottleBeforeDailyQuota_Signup(t *testing.T) {
+	rules := &fakeRuleProvider{rules: map[string]model.EffectiveRule{
+		ratelimit.TargetAuthSignupThrottleIP: {Key: ratelimit.TargetAuthSignupThrottleIP, Scope: model.ScopeIP, Kind: model.KindThrottle, Enabled: true, LimitCount: 1, Window: time.Minute},
+		ratelimit.TargetAuthSignupIP:         {Key: ratelimit.TargetAuthSignupIP, Scope: model.ScopeIP, Kind: model.KindDailyQuota, Enabled: true, LimitCount: 20, Window: 24 * time.Hour},
+	}}
+	counters := &fakeCounterStore{}
+	l := newTestLimiter(rules, counters, config.RateLimitConfig{Enabled: true})
+	defer l.Stop()
+	router := newTestRouter(l)
+
+	rr := doRequest(router, http.MethodPost, "/api/v1/users", "203.0.113.20:1234")
+	assert.Equal(t, http.StatusOK, rr.Code, "first request should be allowed")
+
+	rr = doRequest(router, http.MethodPost, "/api/v1/users", "203.0.113.20:1234")
+	assert.Equal(t, http.StatusTooManyRequests, rr.Code, "second request should be shed by the burst throttle, well under the daily quota's limit of 20")
+
+	// The daily-quota counter is DB-backed (fakeCounterStore here); it must
+	// only have been touched once, by the first allowed request — proving
+	// orderThrottlesFirst shed the second request in-memory before it ever
+	// reached the counter store (ADR-002).
+	counters.mu.Lock()
+	defer counters.mu.Unlock()
+	assert.Len(t, counters.counts, 1, "the throttled request must not have reached the daily-quota counter store")
+}
+
 func TestLimiter_DisabledTarget_Passes(t *testing.T) {
 	rules := &fakeRuleProvider{rules: map[string]model.EffectiveRule{
 		ratelimit.TargetAuthLogin: {Key: ratelimit.TargetAuthLogin, Scope: model.ScopeIP, Kind: model.KindThrottle, Enabled: false, LimitCount: 1, Window: time.Minute},

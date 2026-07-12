@@ -180,7 +180,7 @@ func insertQuery(table string, cols []string, direction string) string {
 type userRow struct {
 	ID                  string         `db:"id"`
 	Username            string         `db:"username"`
-	Email               string         `db:"email"`
+	Email               sql.NullString `db:"email"`
 	Name                sql.NullString `db:"name"`
 	PasswordHash        string         `db:"password_hash"`
 	LastLogin           nullableTime   `db:"last_login"`
