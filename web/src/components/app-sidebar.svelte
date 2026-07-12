@@ -13,6 +13,7 @@
     Link2,
     Users,
     ShieldCheck,
+    Gauge,
   } from "@lucide/svelte/icons";
   import type { IconProps } from '@lucide/svelte';
 	import TableBody from '$lib/components/ui/table/table-body.svelte';
@@ -129,6 +130,12 @@
       title: "Shortener",
       url: "/admin/shortener",
       icon: Link2,
+      isExpandable: false,
+    },
+    {
+      title: "Rate Limits",
+      url: "/admin/ratelimit",
+      icon: Gauge,
       isExpandable: false,
     },
   ];

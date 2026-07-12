@@ -32,16 +32,19 @@ rbac:
   admin_username: "admin"          # initial admin; assigned to the admin group only when it's empty
   direct_auth_is_admin: true       # dev bypass (x-direct-auth-username) is treated as superuser
 
+ratelimit:
+  enabled: true             # master kill switch; per-target limits/toggles live in the DB (admin-editable)
+  cache_refresh_interval: 30s  # backstop refresh of the in-memory rule cache (writes also reload immediately)
+  cleanup_interval: 1h      # how often expired daily-quota counter rows are pruned
+  counter_retention_days: 3 # how many days of daily-quota counter rows to keep
+  timezone: "UTC"           # timezone daily-quota calendar-day buckets are computed in
+  trust_proxy_headers: false # set true only behind a sanitizing reverse proxy that sets X-Forwarded-For
+
 shortener:
   code_length: 7
   max_create_retries: 5
-  public_create_enabled: false
-  rate_limit:
-    creates_per_window: 100
-    window_minutes: 15
-    public_creates_per_window: 20
-    resolve_per_window: 300
-    resolve_window_minutes: 1
+  # Rate limits for link creation/resolution are managed by the ratelimit
+  # app-feature (admin API / DB), not here — see ADR-011.
   url:
     max_length: 2048
     allowed_schemes: ["http", "https"]

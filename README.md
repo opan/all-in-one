@@ -125,17 +125,20 @@ auth:
 shortener:
   code_length: 7                  # Length of generated short codes
   max_create_retries: 5           # Retries on UNIQUE collision before giving up
-  public_create_enabled: false    # Allow unauthenticated link creation (not yet wired)
-  rate_limit:
-    creates_per_window: 100       # Max authenticated creates per window
-    window_minutes: 15            # Window size for create rate limit
-    public_creates_per_window: 20 # Max anonymous creates per window (when public_create_enabled=true)
-    resolve_per_window: 300       # Max redirects per short code per window
-    resolve_window_minutes: 1     # Window size for resolve rate limit
+  # Rate limits for link creation/resolution are managed by the ratelimit
+  # app-feature (admin API / DB), not here — see ratelimit: below.
   url:
     max_length: 2048              # Max target URL length
     allowed_schemes: ["http", "https"]
     blocked_hosts: []             # Hostnames to reject (e.g. internal services)
+
+ratelimit:
+  enabled: true                # master kill switch; per-target limits/toggles live in the DB (admin-editable)
+  cache_refresh_interval: 30s  # backstop refresh of the in-memory rule cache (writes also reload immediately)
+  cleanup_interval: 1h         # how often expired daily-quota counter rows are pruned
+  counter_retention_days: 3    # how many days of daily-quota counter rows to keep
+  timezone: "UTC"              # timezone daily-quota calendar-day buckets are computed in
+  trust_proxy_headers: false   # set true only behind a sanitizing reverse proxy that sets X-Forwarded-For
 
 telemetry:
   enabled: false                  # Toggle OTel on/off without rebuilding

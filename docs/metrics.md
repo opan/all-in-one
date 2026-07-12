@@ -96,7 +96,6 @@ rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
 | `aio_shortener_links_created_total` | Counter | `result` | Short link creation attempts |
 | `aio_shortener_links_resolved_total` | Counter | `result` | Short link resolution attempts |
 | `aio_shortener_links_deleted_total` | Counter | — | Short links deleted successfully |
-| `aio_shortener_rate_limited_total` | Counter | `scope` | Requests rejected by rate limiter |
 | `aio_admin_shortener_link_deleted_total` | Counter | — | Admin deleted a short link regardless of owner (`internal/shortener/handler`) |
 | `aio_admin_shortener_link_moderated_total` | Counter | `action` | Admin activated/deactivated a short link regardless of owner |
 
@@ -106,7 +105,6 @@ rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
 |---|---|---|
 | `result` | `links_created_total` | `success`, `failure` |
 | `result` | `links_resolved_total` | `success`, `not_found`, `disabled`, `expired` |
-| `scope` | `rate_limited_total` | `create`, `resolve` |
 | `action` | `admin_shortener_link_moderated_total` | `activate`, `deactivate` |
 
 **Example queries**
@@ -122,10 +120,10 @@ sum by (result) (rate(aio_shortener_links_resolved_total[5m]))
 rate(aio_shortener_links_resolved_total{result="not_found"}[5m])
   /
 rate(aio_shortener_links_resolved_total[5m])
-
-# Rate limit pressure by scope
-rate(aio_shortener_rate_limited_total[5m])
 ```
+
+> Shortener create/resolve rate limiting is enforced by the ratelimit app-feature (ADR-011), not the
+> shortener itself. Rejections surface via `aio_ratelimit_rejected_total{target="shortener.link.create"|"shortener.link.resolve"}` (see the **Rate Limiting** section below), which replaced the former `aio_shortener_rate_limited_total`.
 
 ---
 
@@ -197,6 +195,42 @@ rate(aio_chat_invites_responded_total[5m])
 
 # WebSocket message throughput
 rate(aio_chat_websocket_messages_received_total[1m])
+```
+
+---
+
+### Rate Limiting
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `aio_ratelimit_rejected_total` | Counter | `target`, `scope`, `kind` | Requests rejected with 429 (`internal/ratelimit/middleware`) |
+| `aio_ratelimit_errors_total` | Counter | `target` | Counter-store errors — request still allowed through (fail-open, see ADR-007) |
+| `aio_ratelimit_config_changed_total` | Counter | `target`, `action` | Admin rate limit config changes (`internal/ratelimit/handler`) |
+
+**Label values**
+
+| Label | Metric | Values |
+|---|---|---|
+| `target` | all three | one of the code-registered target keys: `auth.login`, `auth.signup.ip`, `listing.item.create`, `listing.topic.create`, `chat.session.create`, `chat.message.send`, `shortener.link.create`, `shortener.link.resolve` (see `internal/ratelimit/registry.go`) |
+| `scope` | `rejected_total` | `ip`, `user`, `global` |
+| `kind` | `rejected_total` | `throttle`, `daily_quota` |
+| `action` | `config_changed_total` | `update`, `reset`, `reset-defaults` |
+
+> **Note:** `scope` and `kind` are fixed per `target` (each registry entry declares exactly one of each), so
+> `rejected_total`'s real cardinality is bounded by target count, not the `target`×`scope`×`kind` product.
+
+**Example queries**
+
+```promql
+# Rejection rate by target (which endpoint is under the most pressure)
+sum by (target) (rate(aio_ratelimit_rejected_total[5m]))
+
+# Fail-open rate — should be ~0; a sustained non-zero rate means the
+# counter store (DB) is unhealthy and daily-quota enforcement is degraded
+rate(aio_ratelimit_errors_total[5m])
+
+# Admin config changes by action
+sum by (action) (rate(aio_ratelimit_config_changed_total[1h]))
 ```
 
 ---
@@ -277,16 +311,18 @@ Total series count at steady state (worst case, all label combinations observed)
 | Admin | `admin_user_email_updated_total` | 1 |
 | Shortener | `links_created_total` | 2 |
 | Shortener | `links_resolved_total` | 4 |
-| Shortener | `rate_limited_total` | 2 |
 | Admin | `admin_shortener_link_deleted_total` | 1 |
 | Admin | `admin_shortener_link_moderated_total` | 2 (`action`) |
 | RBAC | `access_denied_total` | 8 (4 `feature` × up to 2 valid `reason`s each) |
 | RBAC | `groups_changed_total` | 4 (`action`) |
 | Chat | `invites_responded_total` | 2 |
 | Chat | `websocket_messages_received_total` | 2 (`message`, `typing`) |
+| Rate Limiting | `ratelimit_rejected_total` | 8 (bounded by target count, not `target`×`scope`×`kind`) |
+| Rate Limiting | `ratelimit_errors_total` | 4 (only `daily_quota`-kind targets touch the counter store) |
+| Rate Limiting | `ratelimit_config_changed_total` | 24 (8 `target` × 3 `action`) |
 | All others | — | 1 each (17 metrics) |
 
-**Total: ~59 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~93 series** — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

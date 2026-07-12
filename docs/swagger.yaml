@@ -237,6 +237,14 @@ definitions:
       type:
         type: string
     type: object
+  model.Kind:
+    enum:
+    - throttle
+    - daily_quota
+    type: string
+    x-enum-varnames:
+    - KindThrottle
+    - KindDailyQuota
   model.LoginRequest:
     properties:
       password:
@@ -249,6 +257,56 @@ definitions:
       action:
         description: '"accept" or "decline"'
         type: string
+    type: object
+  model.Scope:
+    enum:
+    - ip
+    - user
+    - global
+    type: string
+    x-enum-varnames:
+    - ScopeIP
+    - ScopeUser
+    - ScopeGlobal
+  model.Target:
+    properties:
+      description:
+        type: string
+      enabled:
+        type: boolean
+      key:
+        type: string
+      kind:
+        $ref: '#/definitions/model.Kind'
+      limit_count:
+        type: integer
+      method:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      scope:
+        $ref: '#/definitions/model.Scope'
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      window_unit:
+        $ref: '#/definitions/model.WindowUnit'
+      window_value:
+        type: integer
+    type: object
+  model.TargetPatch:
+    properties:
+      enabled:
+        type: boolean
+      limit_count:
+        type: integer
+      window_unit:
+        $ref: '#/definitions/model.WindowUnit'
+      window_value:
+        type: integer
     type: object
   model.Topic:
     properties:
@@ -355,6 +413,18 @@ definitions:
       password:
         type: string
     type: object
+  model.WindowUnit:
+    enum:
+    - second
+    - minute
+    - hour
+    - day
+    type: string
+    x-enum-varnames:
+    - WindowSecond
+    - WindowMinute
+    - WindowHour
+    - WindowDay
 host: localhost:8080
 info:
   contact:
@@ -1492,6 +1562,165 @@ paths:
       summary: Get sent invites
       tags:
       - chat-invites
+  /ratelimit/targets:
+    get:
+      description: List every rate-limited target, merging its code-defined identity
+        (scope/kind/route) with its current effective rule (admin-only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of targets
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Target'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List rate limit targets
+      tags:
+      - rate-limiting
+  /ratelimit/targets/{key}:
+    patch:
+      consumes:
+      - application/json
+      description: Partially update a target's enabled/limit/window (admin-only).
+        Omitted fields are left unchanged (pointer semantics).
+      parameters:
+      - description: Target key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: patch
+        required: true
+        schema:
+          $ref: '#/definitions/model.TargetPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated target
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Target'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Unknown target
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Update a rate limit target's rule
+      tags:
+      - rate-limiting
+  /ratelimit/targets/{key}/reset:
+    post:
+      description: Clears today's daily-quota counters for a target (admin-only).
+        Does not clear an in-memory throttle bucket (per-process state).
+      parameters:
+      - description: Target key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset acknowledged
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Unknown target
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Reset a target's counters
+      tags:
+      - rate-limiting
+  /ratelimit/targets/{key}/reset-defaults:
+    post:
+      description: Overwrites a target's enabled/limit/window back to its Registry
+        defaults, clearing any prior admin edit (admin-only)
+      parameters:
+      - description: Target key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Target reset to defaults
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Target'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Unknown target
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Reset a target's rule to its code-defined defaults
+      tags:
+      - rate-limiting
   /sessions:
     delete:
       description: Invalidate the current session and clear authentication cookies

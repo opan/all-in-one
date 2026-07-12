@@ -58,10 +58,6 @@ func newIntegHandler(t *testing.T) (*Handler, *sqlx.DB) {
 		Shortener: config.ShortenerConfig{
 			CodeLength:       7,
 			MaxCreateRetries: 5,
-			RateLimit: config.ShortenerRateLimit{
-				CreatesPerWindow: 100,
-				WindowMinutes:    15,
-			},
 			URL: config.ShortenerURLConfig{
 				MaxLength:      2048,
 				AllowedSchemes: []string{"http", "https"},

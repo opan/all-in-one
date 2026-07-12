@@ -18,6 +18,8 @@ import (
 	listingSvc "github.com/all-in-one/internal/listing/service"
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/observability"
+	"github.com/all-in-one/internal/ratelimit"
+	ratelimitSvc "github.com/all-in-one/internal/ratelimit/service"
 	"github.com/all-in-one/internal/rbac"
 	rbacMw "github.com/all-in-one/internal/rbac/middleware"
 	rbacSvc "github.com/all-in-one/internal/rbac/service"
@@ -114,6 +116,13 @@ func (s *server) Start() error {
 	}
 	asvc.Handler.SetAccessResolver(rsvc.Resolver)
 
+	rlsvc, err := ratelimitSvc.NewService(ctx, db, s.config, s.log)
+	if err != nil {
+		s.log.Error().Err(err).Msg("Failed to create ratelimit service")
+		return err
+	}
+	defer rlsvc.Close()
+
 	lsvc, err := listingSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create listing service")
@@ -155,8 +164,14 @@ func (s *server) Start() error {
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 
+	// Shared rate limit enforcement middleware — one *middleware.Limiter (one
+	// in-memory throttle store) reused across every subrouter it's attached
+	// to (docs/adr/RATE_LIMITING_ADR.md ADR-004).
+	rlMw := rlsvc.LimiterMiddleware()
+
 	// Public routes (no authentication required)
 	publicRoutes := api.NewRoute().Subrouter()
+	publicRoutes.Use(rlMw)
 	lsvc.RegisterRoutes(publicRoutes)
 	asvc.RegisterPublicRoutes(publicRoutes)
 	ssvc.RegisterPublicRoutes(publicRoutes)
@@ -175,9 +190,12 @@ func (s *server) Start() error {
 	asvc.RegisterAuthenticatedRoutes(selfRoutes)
 
 	// mkGated builds a subrouter gated by JWT auth plus the named feature.
+	// rlMw runs right after JWTAuth so user-scoped targets can key by the
+	// authenticated user id (auth.GetUserFromContext) — ADR-004.
 	mkGated := func(feature string) *mux.Router {
 		sr := api.NewRoute().Subrouter()
 		sr.Use(jwtMiddleware.JWTAuth)
+		sr.Use(rlMw)
 		sr.Use(authz.RequireFeature(feature))
 		return sr
 	}
@@ -187,16 +205,35 @@ func (s *server) Start() error {
 
 	// Admin-only management APIs: RBAC under /api/v1/access/*, user management
 	// under /api/v1/admin/users/*, shortener moderation under
-	// /api/v1/admin/shortener/*. All share the RequireAdmin subrouter.
+	// /api/v1/admin/shortener/*, rate limit config under
+	// /api/v1/ratelimit/*. All share the RequireAdmin subrouter.
 	adminRoutes := api.NewRoute().Subrouter()
 	adminRoutes.Use(jwtMiddleware.JWTAuth)
 	adminRoutes.Use(authz.RequireAdmin)
 	rsvc.RegisterAdminRoutes(adminRoutes)
 	asvc.Handler.RegisterAdminRoutes(adminRoutes)
 	ssvc.RegisterAdminRoutes(adminRoutes)
+	rlsvc.RegisterAdminRoutes(adminRoutes)
 
-	// Shortener public redirect: /r/{code} — lives outside /api/v1
-	ssvc.Handler.RegisterRedirectRoute(r)
+	// Shortener public redirect: /r/{code} — lives outside /api/v1, on its
+	// own subrouter carrying rlMw so the ratelimit app-feature enforces the
+	// ip-scoped shortener.link.resolve target on it (ADR-011). Registered
+	// before the boot-time validation below so that target's binding is seen.
+	redirectRoutes := r.NewRoute().Subrouter()
+	redirectRoutes.Use(rlMw)
+	ssvc.Handler.RegisterRedirectRoute(redirectRoutes)
+
+	// Boot-time drift protection: every rate limit Registry target must be
+	// bound to a route that's actually registered, or enforcement for it
+	// would silently no-op (e.g. after a route rename) — ADR-004. Runs after
+	// every rate-limited route (incl. the redirect above) is registered.
+	if missing := validateRateLimitBindings(r); len(missing) > 0 {
+		s.log.Fatal().Strs("missing", missing).
+			Msg("ratelimit: registry targets have no matching registered route — enforcement would silently no-op")
+	} else {
+		s.log.Info().Int("targets", len(ratelimit.Registered())).
+			Msg("ratelimit: all targets bound to a registered route")
+	}
 
 	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
@@ -280,6 +317,38 @@ func (s *server) Start() error {
 	}
 
 	return nil
+}
+
+// validateRateLimitBindings walks every registered mux route and returns a
+// human-readable entry for each ratelimit.Registry target whose (method,
+// path template) doesn't match an actually-registered route. Compares
+// against the full template gorilla/mux exposes via GetPathTemplate
+// (including the /api/v1 prefix and any {var} placeholders), matching
+// exactly what the limiter middleware resolves at request time.
+func validateRateLimitBindings(r *mux.Router) []string {
+	registered := make(map[string]bool)
+	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		methods, err := route.GetMethods()
+		if err != nil {
+			return nil // no Methods() matcher (e.g. the SPA catch-all) — not a rate limit target
+		}
+		tmpl, err := route.GetPathTemplate()
+		if err != nil {
+			return nil
+		}
+		for _, m := range methods {
+			registered[m+" "+tmpl] = true
+		}
+		return nil
+	})
+
+	var missing []string
+	for _, t := range ratelimit.Registered() {
+		if !registered[t.Method+" "+t.Path] {
+			missing = append(missing, t.Key+" ("+t.Method+" "+t.Path+")")
+		}
+	}
+	return missing
 }
 
 // shouldTrace returns true for requests we want to record as spans.

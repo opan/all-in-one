@@ -2,65 +2,36 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/all-in-one/internal/config"
-	"github.com/all-in-one/internal/shortener/middleware"
 	"github.com/all-in-one/internal/shortener/repository"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 type Handler struct {
-	storage        repository.Storage
-	config         config.Config
-	log            zerolog.Logger
-	metrics        *handlerMetrics
-	rateLimiter    *middleware.RateLimiter
-	resolveLimiter *middleware.RateLimiter
+	storage repository.Storage
+	config  config.Config
+	log     zerolog.Logger
+	metrics *handlerMetrics
 }
 
 func NewHandler(storage repository.Storage, cfg config.Config, log zerolog.Logger) *Handler {
-	rl := cfg.Shortener.RateLimit
-
-	createLimit := rl.CreatesPerWindow
-	if createLimit == 0 {
-		createLimit = 100
-	}
-	createWindow := rl.WindowMinutes
-	if createWindow == 0 {
-		createWindow = 15
-	}
-
-	resolveLimit := rl.ResolvePerWindow
-	if resolveLimit == 0 {
-		resolveLimit = 300
-	}
-	resolveWindow := rl.ResolveWindowMinutes
-	if resolveWindow == 0 {
-		resolveWindow = 1
-	}
-
-	m := newHandlerMetrics()
-
 	return &Handler{
-		storage:        storage,
-		config:         cfg,
-		log:            log,
-		metrics:        m,
-		rateLimiter:    middleware.NewRateLimiter(createLimit, time.Duration(createWindow)*time.Minute),
-		resolveLimiter: middleware.NewRateLimiter(resolveLimit, time.Duration(resolveWindow)*time.Minute),
+		storage: storage,
+		config:  cfg,
+		log:     log,
+		metrics: newHandlerMetrics(),
 	}
 }
 
 func (h *Handler) RegisterPublicRoutes(router *mux.Router) {}
 
 func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
-	router.Handle("/shortener/links", h.rateLimiter.Wrap(h.CreateShortLink, func(r *http.Request) {
-		h.metrics.rateLimited.Add(r.Context(), 1, metric.WithAttributes(attribute.String("scope", "create")))
-	})).Methods(http.MethodPost)
+	// Create is rate-limited by the ratelimit app-feature via the
+	// shortener.link.create target — this subrouter already carries rlMw
+	// (mkGated(FeatureShortener) in server.go). See ADR-011.
+	router.HandleFunc("/shortener/links", h.CreateShortLink).Methods(http.MethodPost)
 	router.HandleFunc("/shortener/links", h.ListShortLinks).Methods(http.MethodGet)
 	router.HandleFunc("/shortener/links/{code}", h.GetShortLink).Methods(http.MethodGet)
 	router.HandleFunc("/shortener/links/{code}", h.UpdateShortLink).Methods(http.MethodPatch)
@@ -68,11 +39,8 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 }
 
 func (h *Handler) RegisterRedirectRoute(router *mux.Router) {
-	router.Handle("/r/{code}", h.resolveLimiter.WrapWithKey(h.ResolveShortLink, resolveKey, func(r *http.Request) {
-		h.metrics.rateLimited.Add(r.Context(), 1, metric.WithAttributes(attribute.String("scope", "resolve")))
-	})).Methods(http.MethodGet)
-}
-
-func resolveKey(r *http.Request) string {
-	return "resolve:" + mux.Vars(r)["code"]
+	// Resolve is rate-limited by the ratelimit app-feature via the
+	// shortener.link.resolve target (ip-scoped) — router must carry rlMw.
+	// See ADR-011.
+	router.HandleFunc("/r/{code}", h.ResolveShortLink).Methods(http.MethodGet)
 }
