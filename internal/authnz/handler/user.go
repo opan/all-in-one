@@ -129,7 +129,7 @@ func (h *Handler) directAuthCurrentUser(username, email string) CurrentUserRespo
 // @Failure      400   {object}  httpHelper.Response  "Invalid request body or missing required fields"
 // @Failure      409   {object}  httpHelper.Response  "User already exists"
 // @Failure      500   {object}  httpHelper.Response  "Internal server error"
-// @Router       /users/register [post]
+// @Router       /users [post]
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)

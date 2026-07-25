@@ -11,8 +11,8 @@ Traefik, exposed solely via Cloudflare Tunnel.
 
 **Nothing left to resume** for this feature. Remaining open items (reverse-proxy config, SQLite WAL
 hardening) are operator decisions, not implementation work — see "Open items needing operator action"
-below. One code follow-up is intentionally **deferred to the future sign-up branch** (add an in-memory
-throttle in front of the signup quota) — see "Follow-up work (deferred to future branches)" below.
+below. The one deferred code follow-up (an in-memory throttle in front of the signup quota) was
+completed on `feat/signup` — see "Follow-up work (deferred to future branches)" below.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -142,22 +142,18 @@ DB, but worth a `docker compose down -v` (drops the volume) before using this co
 
 ## Follow-up work (deferred to future branches)
 
-- ⬜ **Add an in-memory throttle in front of the signup daily quota** — do this when the sign-up feature is
-     built out on its own branch (developed separately, later). Today `auth.signup.ip` (`POST /api/v1/users`,
-     `daily_quota`) is the only **public/unauthenticated** rate-limit target with no `throttle` sharing its
-     route, so a signup flood performs a DB counter upsert on *every* request — including every request past
-     the quota, since the counter keeps incrementing — contrary to ADR-002's "shed floods in-memory before
-     any DB write" goal. The other three `daily_quota` targets sit behind `JWTAuth`, so auth sheds
-     unauthenticated floods before the counter is touched; signup is the exception. On SQLite this write
-     amplification can also trip `database is locked` → fail-open (ADR-007), disabling the quota under the
-     very load it exists to resist.
-     - **Fix (small, no new machinery):** add a per-IP `throttle` `TargetDef` on `POST /api/v1/users` in
-       `internal/ratelimit/registry.go` (a burst cap, e.g. a few/min). `orderThrottlesFirst` evaluates it
-       before the daily quota, so a burst is shed in-memory while the quota still enforces the slow-drip
-       daily total — exactly the shape `auth.login` already has. Add a matching middleware test.
-     - **General principle:** any *public* (unauthenticated) `daily_quota` target should have a throttle in
-       front of it; JWT-gated quotas are already covered by auth. *(ADR-002)*
-     - Marker left at the `auth.signup.ip` entry in `internal/ratelimit/registry.go`.
+- ✅ **Add an in-memory throttle in front of the signup daily quota** — done on `feat/signup`. Added
+     `TargetAuthSignupThrottleIP` (`auth.signup.throttle.ip`, per-IP `throttle`, 5/minute default) to
+     `internal/ratelimit/registry.go`, bound to the same `POST /api/v1/users` route as `auth.signup.ip`.
+     `orderThrottlesFirst` evaluates it before the daily quota with zero changes needed elsewhere — the
+     route already carried `rlMw` via `publicRoutes` in `server.go`, and `RouteBindings` already supported
+     multiple targets per route. Verified with a new middleware test
+     (`TestLimiter_ThrottleBeforeDailyQuota_Signup` in `internal/ratelimit/middleware/limiter_test.go`)
+     asserting the second request is rejected by the throttle *and* that the daily-quota counter store was
+     never touched by it — proving the burst is shed in-memory before any DB write, per ADR-002.
+     - **General principle (still holds for any future target):** any *public* (unauthenticated)
+       `daily_quota` target should have a throttle in front of it; JWT-gated quotas are already covered
+       by auth. *(ADR-002)*
 
 - ⬜ **(Watch — no action yet) Per-account throttle for login.** `auth.login` is deliberately **IP-scoped**,
      and that's a strong default, not a compromise: `ScopeUser` can't apply at login (login *creates* the

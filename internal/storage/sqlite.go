@@ -45,7 +45,15 @@ func (s *sqliteStorage) DB() *sqlx.DB {
 }
 
 func (s *sqliteStorage) newMigrator() (*migrate.Migrate, error) {
-	driver, err := sqlite3Migrate.WithInstance(s.db.DB, &sqlite3Migrate.Config{})
+	// NoTxWrap: migrations that rebuild a table (SQLite has no ALTER COLUMN /
+	// DROP CONSTRAINT, so changing a UNIQUE/NOT NULL constraint means
+	// CREATE+COPY+DROP+RENAME — see 09_relax_users_name_email_uniqueness)
+	// need PRAGMA foreign_keys=OFF to actually take effect, and SQLite
+	// silently no-ops that pragma inside a transaction. Trade-off: SQLite
+	// migrations no longer auto-rollback a partially-failed file — recovery
+	// falls back to golang-migrate's dirty-flag guard (blocks re-running
+	// until manually resolved) instead of a clean automatic rollback.
+	driver, err := sqlite3Migrate.WithInstance(s.db.DB, &sqlite3Migrate.Config{NoTxWrap: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}

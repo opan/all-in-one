@@ -44,6 +44,9 @@ func (h *Handler) SetAccessResolver(resolver AccessResolver) {
 }
 
 func (h *Handler) RegisterPublicRoutes(router *mux.Router) {
+	// POST /users (sign-up) is rate-limited by the ratelimit app-feature via
+	// the auth.signup.ip target — this subrouter already carries rlMw
+	// (publicRoutes in server.go). See docs/adr/RATE_LIMITING_ADR.md.
 	router.HandleFunc("/users", h.RegisterUser).Methods("POST")
 	router.HandleFunc("/sessions", h.CreateSession).Methods("POST")
 	router.HandleFunc("/sessions/refresh", h.RefreshToken).Methods("POST")
