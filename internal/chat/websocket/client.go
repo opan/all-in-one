@@ -64,6 +64,24 @@ type Client struct {
 
 	// Logger
 	log zerolog.Logger
+
+	// Close code/reason to send when the connection is closed by the server
+	// (e.g. replaced by a newer connection from the same user). Defaults to
+	// a normal closure when unset.
+	closeCode   int
+	closeReason string
+}
+
+// ReplacedConnectionCloseCode is a private-use WebSocket close code (RFC 6455 4000-4999
+// range) sent to a client whose connection was replaced by a newer connection from the
+// same user (e.g. the user opened the chat in another browser tab).
+const ReplacedConnectionCloseCode = 4000
+
+// MarkReplaced flags this client's close frame to signal that it is being
+// disconnected because a newer connection for the same user was registered.
+func (c *Client) MarkReplaced() {
+	c.closeCode = ReplacedConnectionCloseCode
+	c.closeReason = "replaced_by_new_connection"
 }
 
 // MessageHandler is a function that processes incoming WebSocket messages
@@ -170,7 +188,11 @@ func (c *Client) WritePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				code := c.closeCode
+				if code == 0 {
+					code = websocket.CloseNormalClosure
+				}
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, c.closeReason))
 				return
 			}
 

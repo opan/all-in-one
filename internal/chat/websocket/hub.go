@@ -113,6 +113,9 @@ func (h *Hub) registerClient(client *Client) {
 			if oldClient.cancel != nil {
 				oldClient.cancel()
 			}
+			// Tell the old connection why it's being dropped so the client
+			// (e.g. a duplicate browser tab) knows not to auto-reconnect.
+			oldClient.MarkReplaced()
 			close(oldClient.send)
 		}(existingClient)
 	}

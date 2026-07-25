@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { Button } from "$lib/components/ui/button/index";
   import { Input } from "$lib/components/ui/input/index";
+  import { Switch } from "$lib/components/ui/switch/index";
   import * as Card from "$lib/components/ui/card/index";
   import { Search, Send, Users, MoreVertical, Plus, Bell } from "@lucide/svelte/icons";
   import { Separator } from "$lib/components/ui/separator/index";
@@ -35,6 +36,8 @@
   let typingUsers = $state<Set<string>>(new Set());
   let typingTimeout: number | null = null;
   let showNewChatDialog = $state(false);
+  let messagesContainer: HTMLDivElement | null = $state(null);
+  let autoScrollOnReceive = $state(true);
 
   // Invite state
   let receivedInvites = $state<ChatInvite[]>([]);
@@ -47,7 +50,14 @@
       loading = true;
       sessionsError = null;
       messagesError = null;
-      
+
+      try {
+        const stored = localStorage.getItem("chat-auto-scroll-on-receive");
+        if (stored !== null) autoScrollOnReceive = stored === "true";
+      } catch {
+        // localStorage unavailable (e.g. private browsing) — keep default
+      }
+
       // Get current user
       const userResponse = await fetch('/api/v1/users/me', { credentials: 'include' });
       if (userResponse.ok) {
@@ -171,6 +181,14 @@
       const exists = messages.some((m) => m.id === newMsg.id);
       if (!exists) {
         messages = [...messages, newMsg];
+
+        // Messages sent by the current user (echoed back via the WebSocket
+        // broadcast) always scroll into view; messages from others only
+        // scroll when the user has opted in via the toggle.
+        const isOwnMessage = payload.user_id === currentUserId;
+        if (isOwnMessage || autoScrollOnReceive) {
+          scrollToBottom();
+        }
       }
     }
 
@@ -272,9 +290,29 @@
     try {
       messages = await getMessages(sessionId);
       messagesError = null; // Clear error on successful load
+      await scrollToBottom();
     } catch (err) {
       console.error("Error loading messages:", err);
       messagesError = err instanceof Error ? err.message : "Failed to load messages";
+    }
+  }
+
+  // Scrolls the messages pane to the latest message. Always called after the
+  // current user sends a message; called after receiving one only when
+  // autoScrollOnReceive is on (toggle in the message input area).
+  async function scrollToBottom() {
+    await tick();
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }
+
+  function toggleAutoScrollOnReceive(value: boolean) {
+    autoScrollOnReceive = value;
+    try {
+      localStorage.setItem("chat-auto-scroll-on-receive", String(value));
+    } catch {
+      // localStorage unavailable (e.g. private browsing) — preference just won't persist
     }
   }
 
@@ -326,6 +364,7 @@
 
         // Add message to local state
         messages = [...messages, message];
+        await scrollToBottom();
 
         // Update last message in session
         const session = chatSessions.find((s) => s.id === activeSessionId);
@@ -416,9 +455,11 @@
   }
 </script>
 
-<div class="flex h-screen bg-background">
+<!-- Height is viewport minus the app shell's h-14 header (app-layout.svelte); using
+     h-screen here overflows the shell and pushes the message input below the fold. -->
+<div class="flex h-[calc(100dvh-3.5rem)] bg-background">
   <!-- Left Panel: Chat Sessions List -->
-  <div class="w-full md:w-80 border-r flex flex-col {activeSessionId ? 'hidden md:flex' : 'flex'}">
+  <div class="w-full md:w-80 border-r flex flex-col min-h-0 {activeSessionId ? 'hidden md:flex' : 'flex'}">
     <!-- Header -->
     <div class="p-4 border-b">
       <div class="flex items-center justify-between mb-3">
@@ -503,7 +544,7 @@
     {/if}
 
     <!-- Chat Sessions List -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 min-h-0 overflow-y-auto">
       {#if loading}
         <div class="p-4 text-center text-muted-foreground">
           <p>Loading chats...</p>
@@ -546,7 +587,7 @@
   </div>
 
   <!-- Right Panel: Chat Conversation -->
-  <div class="flex-1 flex-col {activeSessionId ? 'flex' : 'hidden md:flex'}">
+  <div class="flex-1 flex-col min-h-0 {activeSessionId ? 'flex' : 'hidden md:flex'}">
     {#if activeSession}
       <!-- Chat Header -->
       <div class="p-4 border-b flex items-center justify-between">
@@ -566,13 +607,22 @@
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" class="h-8 w-8 shrink-0">
-          <MoreVertical class="h-4 w-4" />
-        </Button>
+        <div class="flex items-center gap-3 shrink-0">
+          <label class="hidden sm:flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <span>Auto-scroll on new messages</span>
+            <Switch
+              checked={autoScrollOnReceive}
+              onCheckedChange={toggleAutoScrollOnReceive}
+            />
+          </label>
+          <Button variant="ghost" size="icon" class="h-8 w-8 shrink-0">
+            <MoreVertical class="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <!-- Messages Area -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+      <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" bind:this={messagesContainer}>
         <!-- Error Message -->
         {#if messagesError}
           <div class="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
@@ -622,7 +672,16 @@
       <!-- Message Input -->
       <div class="p-4 border-t">
         <!-- Connection Status -->
-        {#if wsState !== WebSocketState.CONNECTED}
+        {#if wsState === WebSocketState.REPLACED}
+          <div class="mb-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-xs flex items-center justify-between gap-2">
+            <span class="text-yellow-600">
+              This chat is open in another tab or window — live updates are paused here.
+            </span>
+            <Button size="sm" variant="outline" class="h-6 text-xs shrink-0" onclick={() => connectWebSocket()}>
+              Use this tab
+            </Button>
+          </div>
+        {:else if wsState !== WebSocketState.CONNECTED}
           <div class="mb-2 text-xs text-center">
             <span class="text-yellow-600">
               {#if wsState === WebSocketState.CONNECTING}

@@ -12,7 +12,7 @@ import type {
 	StateChangeHandler,
 	InviteHandler,
 } from "./websocket-types";
-import { WebSocketState } from "./websocket-types";
+import { WebSocketState, REPLACED_CONNECTION_CLOSE_CODE } from "./websocket-types";
 
 export class ChatWebSocketClient {
 	private ws: WebSocket | null = null;
@@ -202,8 +202,21 @@ export class ChatWebSocketClient {
 		this.ws.onclose = (event) => {
 			console.log(`❌ WebSocket closed: code=${event.code}, reason="${event.reason || 'No reason provided'}"`);
 			this.clearPingInterval();
+
+			// The server replaced this connection with a newer one for the same user
+			// (most commonly: this chat was opened in another browser tab). Do NOT
+			// reconnect here — reconnecting would just kick out the other tab and
+			// cause both tabs to fight over the connection indefinitely.
+			if (event.code === REPLACED_CONNECTION_CLOSE_CODE) {
+				this.intentionalClose = true;
+				this.clearReconnectTimeout();
+				this.updateState(WebSocketState.REPLACED);
+				console.warn("WebSocket replaced by a newer connection for this user (likely open in another tab)");
+				return;
+			}
+
 			this.updateState(WebSocketState.DISCONNECTED);
-			
+
 			// Only attempt reconnect if:
 			// 1. It wasn't an intentional close
 			// 2. It wasn't a clean close (1000 = normal, 1001 = going away)
