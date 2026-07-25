@@ -6,6 +6,7 @@
   import { Textarea } from "$lib/components/ui/textarea/index";
   import * as Card from "$lib/components/ui/card/index";
   import type { FormSchema } from "$lib/types/json-forms";
+  import { topicSchemaPresets, type TopicSchemaPreset } from "$lib/data/listing-schema-presets";
 
   interface Props {
     open: boolean;
@@ -102,6 +103,17 @@
     }
   }
 
+  function applyPreset(preset: TopicSchemaPreset) {
+    formData.form_schema_json = JSON.stringify(preset.formSchema, null, 2);
+    handleFormSchemaInput();
+  }
+
+  let activePresetId = $derived(
+    topicSchemaPresets.find(
+      (p) => JSON.stringify(p.formSchema, null, 2) === formData.form_schema_json.trim()
+    )?.id ?? null
+  );
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
 
@@ -159,6 +171,35 @@
           <div class="space-y-2">
             <Label for="description">Description</Label>
             <Input id="description" type="text" bind:value={formData.description} />
+          </div>
+
+          <div class="space-y-2">
+            <Label>Start from a preset</Label>
+            <p class="text-xs text-muted-foreground">
+              Pick a ready-made schema to get started. You can still edit the JSON below afterward.
+            </p>
+            <div class="grid grid-cols-2 gap-3">
+              {#each topicSchemaPresets as preset}
+                <button
+                  type="button"
+                  onclick={() => applyPreset(preset)}
+                  class="text-left rounded-lg border p-3 transition-colors hover:border-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring {activePresetId === preset.id ? 'border-primary ring-1 ring-primary bg-accent' : ''}"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">{preset.icon}</span>
+                    <span class="font-medium text-sm">{preset.name}</span>
+                  </div>
+                  <p class="text-xs text-muted-foreground mt-1">{preset.description}</p>
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    {#each Object.entries(preset.formSchema.schema.properties) as [key, prop]}
+                      <span class="bg-muted px-1.5 py-0.5 rounded text-[10px] text-muted-foreground">
+                        {key}{prop.enum ? ' (enum)' : prop.type !== 'string' ? ` (${prop.type})` : ''}
+                      </span>
+                    {/each}
+                  </div>
+                </button>
+              {/each}
+            </div>
           </div>
 
           <div class="space-y-2">
