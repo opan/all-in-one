@@ -17,6 +17,8 @@ All-in-one is a multi-functional apps. Originally built for learning purpose but
   - at the end once we finish the feature, create an ADR file (under `docs/adr`) to document the design decision, e.g.: `CHAT_IMPLEMENTATION_PLAN.md`    
   - put all the files under `.context/`
 
+- When gathering context, make sure to always check `docs/adr` directory in case the queries have ADR exists.
+
 ## Tech stacks
 
 ### Backend (Go) Guidelines
