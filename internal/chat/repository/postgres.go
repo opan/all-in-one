@@ -42,8 +42,11 @@ func (s *postgresStorage) SearchUsers(ctx context.Context, query string, exclude
 	var users []UserSearchResult
 	searchPattern := "%" + query + "%"
 
+	// email/name are nullable (self-service sign-up allows both to be omitted,
+	// see migration 09_relax_users_name_email_uniqueness) — COALESCE so a NULL
+	// column doesn't fail the string scan into UserSearchResult.
 	err := s.db.SelectContext(ctx, &users, `
-		SELECT id, username, email, name
+		SELECT id, username, COALESCE(email, '') AS email, COALESCE(name, '') AS name
 		FROM users
 		WHERE id != $1
 		  AND (username LIKE $2 OR name LIKE $3 OR email LIKE $4)

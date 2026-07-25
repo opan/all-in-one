@@ -66,7 +66,15 @@ export enum WebSocketState {
 	DISCONNECTING = "disconnecting",
 	DISCONNECTED = "disconnected",
 	ERROR = "error",
+	// Connection was closed because a newer connection for the same user was
+	// opened elsewhere (e.g. this chat is open in another browser tab).
+	REPLACED = "replaced",
 }
+
+// Private-use WebSocket close code (RFC 6455 4000-4999 range) the backend sends
+// when this connection was replaced by a newer connection from the same user.
+// Must match ReplacedConnectionCloseCode in internal/chat/websocket/client.go.
+export const REPLACED_CONNECTION_CLOSE_CODE = 4000;
 
 // Event handler types
 export type MessageHandler = (payload: MessagePayload) => void;
