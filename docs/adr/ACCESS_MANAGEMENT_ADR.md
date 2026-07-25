@@ -445,3 +445,55 @@ moderate that content (e.g. take down an abusive short link) without waiting on 
 - `cmd/all-in-one/server/server.go` (`ssvc.RegisterAdminRoutes(adminRoutes)`)
 - `web/src/lib/shortener-admin-api.ts`, `web/src/routes/admin/shortener/+page.svelte`,
   `web/src/components/app-sidebar.svelte`
+
+---
+
+## ADR-010: Rate Limiter and User Management listed in the Features tab, display-only
+
+### Status
+Accepted
+
+### Context
+`internal/rbac/features.go`'s `Registry` was never updated when the rate-limiter (`44abb71`) and
+authnz admin user-management (`9692673`, shipped alongside RBAC itself) apps landed, so neither appeared
+in the Access Management → Features tab, unlike listing/chat/shortener/access-management. This read as a
+missing-registration bug. But per ADR-008 and ADR-009 (decision 4), both capabilities are intentionally
+enforced by `RequireAdmin` only — `/api/v1/admin/users/*` and `/api/v1/ratelimit/*` are mounted on the
+shared `adminRoutes` subrouter (`cmd/all-in-one/server/server.go`) alongside RBAC's own management API and
+shortener's moderation endpoints, none of which consult `RequireFeature`. ADR-009 explicitly rejected
+giving admin-only pages their own delegable feature key ("no current use case for delegation").
+
+### Decision
+Add `FeatureRateLimit` ("ratelimit") and `FeatureUserManagement` ("user-management") to `Registry` as
+`AdminOnly: true`, purely so they render in the Features tab for visibility — mirroring how
+`FeatureAccessManagement` already appears despite the RBAC management API itself being `RequireAdmin`-only
+underneath. No route gating changes: their handlers keep using `RequireAdmin`, not `RequireFeature`. This
+does not reverse ADR-009 decision 4, which was specifically about *enforcement* (should a non-admin group
+be delegable access to these) — that answer is still no.
+
+### Rationale
+- `AdminOnly: true` features are filtered out of the Groups tab's grantable list
+  (`web/src/components/access-management/GroupsTab.svelte`, `grantableFeatures`), so listing these two
+  cannot be used, accidentally or otherwise, to delegate rate-limiter or user-management access to a
+  non-admin group — the only path to either remains full admin membership.
+- `access-management` already established the precedent that an admin-only capability can have a
+  display-only Registry entry without becoming a "real" delegable gate (ADR-007's "meaningless
+  grantable-but-unenforced feature" concern doesn't apply here, since these entries are never grantable in
+  the UI at all).
+- Bootstrap requires no change (ADR-007): `AdminOnly: true` rows are skipped by the regular-user
+  auto-grant step (`service/bootstrap.go`), same as `access-management` today.
+
+### Alternatives Considered
+| Option | Rejected because |
+|---|---|
+| Also wire `authz.RequireFeature(...)` into the rate-limiter/authnz admin routes, making them genuinely delegable | Reverses ADR-009 decision 4's explicit "no current use case for delegation" call; a materially bigger, security-relevant change the user did not ask for — they only wanted the two apps visible in the Features list. |
+| Leave the Registry unchanged | Now that the gap is identified, leaving two shipped apps permanently invisible in the one place admins go to see "what app-features exist" is confusing with no offsetting benefit, given a display-only entry is risk-free. |
+
+### Consequences
+- Any future purely-admin app-feature (no regular-user-facing surface) should default to this same
+  pattern: `AdminOnly: true` Registry entry for visibility, `RequireAdmin` for enforcement, no
+  `RequireFeature` wiring — unless a real delegation need is identified, which would warrant its own ADR.
+
+### Key files
+- `internal/rbac/features.go`
+- `web/src/components/access-management/GroupsTab.svelte` (`grantableFeatures` filter)

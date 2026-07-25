@@ -12,6 +12,8 @@ const (
 	FeatureChat             = "chat"
 	FeatureShortener        = "shortener"
 	FeatureAccessManagement = "access-management"
+	FeatureRateLimit        = "ratelimit"
+	FeatureUserManagement   = "user-management"
 )
 
 // Built-in group names. These are seeded by Bootstrap and cannot be deleted
@@ -25,9 +27,18 @@ const (
 // syncs it into the `features` table on every server start: new entries are
 // inserted (and, if non-admin-only, granted to the regular-user group);
 // existing rows are left untouched to avoid clobbering prior admin edits.
+//
+// RateLimit and UserManagement are AdminOnly, like AccessManagement: their
+// routes are enforced by RequireAdmin, not RequireFeature (ADR-008/ADR-009),
+// so listing them here is display-only in the Features tab — admin-only
+// features are filtered out of the Groups tab's grantable list, so this
+// cannot be used to delegate either capability to a non-admin group
+// (ACCESS_MANAGEMENT_ADR.md ADR-010).
 var Registry = []model.Feature{
 	{Key: FeatureListing, Name: "Listings", Description: "Item listing app with CRUD operations", AdminOnly: false},
 	{Key: FeatureChat, Name: "Chats", Description: "Chat app with WebSocket support", AdminOnly: false},
 	{Key: FeatureShortener, Name: "Shortener", Description: "URL shortener", AdminOnly: false},
 	{Key: FeatureAccessManagement, Name: "Access Management", Description: "Manage groups, users, and feature access", AdminOnly: true},
+	{Key: FeatureRateLimit, Name: "Rate Limiter", Description: "Configure and monitor API rate limit rules", AdminOnly: true},
+	{Key: FeatureUserManagement, Name: "User Management", Description: "Manage user accounts: edit email, block/unblock, group assignment", AdminOnly: true},
 }
