@@ -131,7 +131,7 @@
 					{/if}
 				</div>
 				{#if !show2FAStep}
-					<Button variant="ghost" class="text-sm" onclick={() => goto('/register')}>Sign Up</Button>
+					<Button variant="ghost" class="text-sm" onclick={() => goto('/signup')}>Sign Up</Button>
 				{/if}
 			</div>
 		</Card.Header>

@@ -14,7 +14,7 @@
 	});
 
 	// Check if current route should use simple layout (auth pages)
-	const isAuthPage = $derived($page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/register'));
+	const isAuthPage = $derived($page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/signup'));
 
 	// Build breadcrumbs from page data breadcrumb metadata
 	const breadcrumbs = $derived(() => {
