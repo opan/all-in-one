@@ -14,6 +14,7 @@ import (
 	authnzSvc "github.com/all-in-one/internal/authnz/service"
 	chatSvc "github.com/all-in-one/internal/chat/service"
 	"github.com/all-in-one/internal/config"
+	dashboardSvc "github.com/all-in-one/internal/dashboard/service"
 	httpHelper "github.com/all-in-one/internal/http"
 	listingSvc "github.com/all-in-one/internal/listing/service"
 	"github.com/all-in-one/internal/logging"
@@ -143,6 +144,10 @@ func (s *server) Start() error {
 	}
 	defer ssvc.Close()
 
+	// Dashboard is a pure aggregator over the app storages built above plus the
+	// RBAC resolver — it opens no DB handle of its own and only reads.
+	dsvc := dashboardSvc.NewService(lsvc.Storage, csvc.Storage, ssvc.Storage, rsvc.Resolver, s.log)
+
 	// Initialize HTTP helper
 	h := httpHelper.NewHTTP(s.log, s.config)
 
@@ -188,6 +193,9 @@ func (s *server) Start() error {
 	selfRoutes := api.NewRoute().Subrouter()
 	selfRoutes.Use(jwtMiddleware.JWTAuth)
 	asvc.RegisterAuthenticatedRoutes(selfRoutes)
+	// Home dashboard summary — authenticated but not feature-gated, so users
+	// with a subset of features still get their accessible sections.
+	dsvc.RegisterAuthenticatedRoutes(selfRoutes)
 
 	// mkGated builds a subrouter gated by JWT auth plus the named feature.
 	// rlMw runs right after JWTAuth so user-scoped targets can key by the
