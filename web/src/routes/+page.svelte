@@ -9,17 +9,23 @@
 		{
 			kicker: 'Topics & items',
 			title: 'Listing',
-			body: 'Spin up a topic, define its shape with a JSON schema, and the form builds itself. Manage every item from one place.'
+			body: 'Spin up a topic, define its shape with a JSON schema, and the form builds itself. Manage every item from one place.',
+			image: '/landing/listing.png',
+			alt: 'Listing topics table'
 		},
 		{
 			kicker: 'WebSockets',
 			title: 'Real-time Chat',
-			body: 'Live messaging with sessions and an invite system, all carried over a single WebSocket connection.'
+			body: 'Live messaging with sessions and an invite system, all carried over a single WebSocket connection.',
+			image: '/landing/chat.png',
+			alt: 'Real-time chat conversations'
 		},
 		{
 			kicker: 'Traffic control',
 			title: 'Rate Limiter',
-			body: 'Per-target limits and daily quotas you can tune live from the admin API — no redeploy required.'
+			body: 'Per-target limits and daily quotas you can tune live from the admin API — no redeploy required.',
+			image: '/landing/ratelimit.png',
+			alt: 'Rate limiter admin configuration'
 		}
 	];
 </script>
@@ -71,7 +77,7 @@
 			</div>
 		</div>
 		<div class="hero-panel">
-			<span class="panel-label">product screenshot — dashboard</span>
+			<img src="/landing/dashboard.png" alt="All-in-One dashboard" loading="eager" />
 		</div>
 	</section>
 
@@ -84,7 +90,7 @@
 		{#each features as feature (feature.title)}
 			<article class="feature-card">
 				<div class="feature-thumb">
-					<span class="panel-label">{feature.title.toLowerCase()} UI</span>
+					<img src={feature.image} alt={feature.alt} loading="lazy" />
 				</div>
 				<div class="kicker">{feature.kicker}</div>
 				<h3>{feature.title}</h3>
@@ -170,13 +176,6 @@
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		color: var(--kicker);
-	}
-
-	.panel-label {
-		font-family: ui-monospace, Menlo, monospace;
-		font-size: 11px;
-		letter-spacing: 0.06em;
-		color: var(--faint);
 	}
 
 	.btn {
@@ -305,6 +304,14 @@
 		align-items: center;
 		justify-content: center;
 		min-height: 340px;
+		overflow: hidden;
+	}
+	.hero-panel img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: top left;
+		display: block;
 	}
 
 	/* Features */
@@ -339,9 +346,14 @@
 		height: 120px;
 		background: var(--panel);
 		border: 2px solid var(--line);
-		display: flex;
-		align-items: center;
-		padding-left: 12px;
+		overflow: hidden;
+	}
+	.feature-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: top left;
+		display: block;
 	}
 	.feature-card h3 {
 		font-weight: 800;
