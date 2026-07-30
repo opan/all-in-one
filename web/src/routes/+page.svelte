@@ -1,162 +1,442 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import type { Component } from 'svelte';
-	import type { IconProps } from '@lucide/svelte';
-	import {
-		Table,
-		MessageSquare,
-		Link2,
-		Users,
-		ShieldCheck,
-		Gauge,
-		Mail,
-		ArrowRight
-	} from '@lucide/svelte/icons';
-	import * as Card from '$lib/components/ui/card/index';
-	import { auth, loadAuth } from '$lib/stores/auth';
-	import type { DashboardSummary } from '$lib/dashboard-api';
+	import ThemeToggle from '../components/theme-toggle.svelte';
 
-	let { data }: { data: { summary: DashboardSummary } } = $props();
+	const APP_URL = '/home';
+	const GITHUB_URL = 'https://github.com/opan/all-in-one';
+	const ISSUES_URL = 'https://github.com/opan/all-in-one/issues';
 
-	const summary = $derived(data.summary);
-
-	onMount(() => {
-		// The sidebar also populates this store; load here too so a direct hit on
-		// "/" shows the greeting without waiting on the sidebar's mount.
-		if (!$auth) loadAuth();
-	});
-
-	const greetingName = $derived($auth?.name || $auth?.username || '');
-
-	type StatTile = {
-		label: string;
-		value: number;
-		icon: Component<IconProps, {}, ''>;
-		href: string;
-	};
-
-	// Both the stat tiles and the launcher cards are driven by which sections the
-	// summary contains — the backend includes a section only for features the
-	// user can access, so this stays in lock-step with server-side RBAC.
-	const tiles = $derived.by<StatTile[]>(() => {
-		const out: StatTile[] = [];
-		if (summary.listing) {
-			out.push({ label: 'Topics', value: summary.listing.topics, icon: Table, href: '/listing/topics' });
+	const features = [
+		{
+			kicker: 'Topics & items',
+			title: 'Listing',
+			body: 'Spin up a topic, define its shape with a JSON schema, and the form builds itself. Manage every item from one place.'
+		},
+		{
+			kicker: 'WebSockets',
+			title: 'Real-time Chat',
+			body: 'Live messaging with sessions and an invite system, all carried over a single WebSocket connection.'
+		},
+		{
+			kicker: 'Traffic control',
+			title: 'Rate Limiter',
+			body: 'Per-target limits and daily quotas you can tune live from the admin API — no redeploy required.'
 		}
-		if (summary.chat) {
-			out.push({ label: 'Conversations', value: summary.chat.conversations, icon: MessageSquare, href: '/chat' });
-			out.push({ label: 'Pending invites', value: summary.chat.pending_invites, icon: Mail, href: '/chat' });
-		}
-		if (summary.shortener) {
-			out.push({ label: 'Short links', value: summary.shortener.links, icon: Link2, href: '/shortener' });
-		}
-		return out;
-	});
-
-	type AppCard = {
-		key: keyof DashboardSummary;
-		title: string;
-		description: string;
-		href: string;
-		icon: Component<IconProps, {}, ''>;
-	};
-
-	const allApps: AppCard[] = [
-		{ key: 'listing', title: 'Listings', description: 'Create and manage your item listings.', href: '/listing/topics', icon: Table },
-		{ key: 'chat', title: 'Chats', description: 'Real-time conversations and invites.', href: '/chat', icon: MessageSquare },
-		{ key: 'shortener', title: 'Shortener', description: 'Create and track short links.', href: '/shortener', icon: Link2 }
-	];
-
-	const apps = $derived(allApps.filter((a) => summary[a.key] !== undefined));
-
-	const isAdmin = $derived($auth?.is_admin === true);
-
-	const adminLinks: Array<{ title: string; href: string; icon: Component<IconProps, {}, ''> }> = [
-		{ title: 'Users', href: '/admin/users', icon: Users },
-		{ title: 'Access', href: '/admin/access', icon: ShieldCheck },
-		{ title: 'Shortener', href: '/admin/shortener', icon: Link2 },
-		{ title: 'Rate Limits', href: '/admin/ratelimit', icon: Gauge }
 	];
 </script>
 
-<div class="container mx-auto p-6">
-	<div class="mx-auto max-w-5xl space-y-8">
-		<!-- Greeting -->
-		<header>
-			<h1 class="text-3xl font-bold tracking-tight">
-				Welcome back{greetingName ? `, ${greetingName}` : ''}
-			</h1>
-			<p class="text-muted-foreground mt-1">Here's what's happening across your apps.</p>
-		</header>
+<svelte:head>
+	<title>All-in-One — a full-stack app you can try right now</title>
+	<meta
+		name="description"
+		content="All-in-One bundles listing, real-time chat and a live rate limiter into one open-source Go + Svelte project. Try it live, or clone the code and make it your own."
+	/>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link
+		rel="stylesheet"
+		href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap"
+	/>
+</svelte:head>
 
-		<!-- Stat tiles -->
-		{#if tiles.length > 0}
-			<section class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-				{#each tiles as tile}
-					<a href={tile.href} class="group">
-						<Card.Root class="transition-colors group-hover:border-primary/50">
-							<Card.Content class="flex items-center gap-3 p-4">
-								<div class="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
-									<tile.icon class="size-5" />
-								</div>
-								<div class="min-w-0">
-									<div class="text-2xl font-semibold leading-none tabular-nums">{tile.value}</div>
-									<div class="text-muted-foreground mt-1 truncate text-xs">{tile.label}</div>
-								</div>
-							</Card.Content>
-						</Card.Root>
-					</a>
-				{/each}
-			</section>
-		{/if}
+<div class="landing">
+	<!-- Nav -->
+	<header class="nav">
+		<span class="brand">ALL-IN-ONE</span>
+		<nav class="nav-links">
+			<a href="#features">Features</a>
+			<a href="#features">Listing</a>
+			<a href="#features">Chat</a>
+			<a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
+		</nav>
+		<div class="nav-actions">
+			<ThemeToggle />
+			<a class="btn btn-solid btn-sm" href={APP_URL}>Try it live</a>
+		</div>
+	</header>
 
-		<!-- App launcher -->
-		<section class="space-y-3">
-			<h2 class="text-muted-foreground text-sm font-medium">Your apps</h2>
-			{#if apps.length > 0}
-				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{#each apps as app}
-						<a href={app.href} class="group">
-							<Card.Root class="h-full transition-colors group-hover:border-primary/50">
-								<Card.Header>
-									<div class="flex items-center justify-between">
-										<div class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg">
-											<app.icon class="size-5" />
-										</div>
-										<ArrowRight class="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
-									</div>
-									<Card.Title class="mt-3">{app.title}</Card.Title>
-									<Card.Description>{app.description}</Card.Description>
-								</Card.Header>
-							</Card.Root>
-						</a>
-					{/each}
+	<!-- Hero -->
+	<section class="hero">
+		<div class="hero-copy">
+			<div class="kicker">Open Source / Go + Svelte</div>
+			<h1>A full-stack app you can try right now.</h1>
+			<p class="lead">
+				All-in-One bundles listing, real-time chat and a live rate limiter into one open-source
+				project. It's live right now — take it for a spin, or clone the code and make it your own.
+			</p>
+			<div class="btn-row">
+				<a class="btn btn-solid" href={APP_URL}>Try it live</a>
+				<a class="btn btn-outline" href={GITHUB_URL} target="_blank" rel="noreferrer">
+					View on GitHub
+				</a>
+			</div>
+		</div>
+		<div class="hero-panel">
+			<span class="panel-label">product screenshot — dashboard</span>
+		</div>
+	</section>
+
+	<!-- Features -->
+	<section id="features" class="features-intro">
+		<div class="kicker">What's inside</div>
+		<h2>Three main features now — more to come.</h2>
+	</section>
+	<section class="features-grid">
+		{#each features as feature (feature.title)}
+			<article class="feature-card">
+				<div class="feature-thumb">
+					<span class="panel-label">{feature.title.toLowerCase()} UI</span>
 				</div>
-			{:else}
-				<Card.Root>
-					<Card.Content class="text-muted-foreground p-6 text-sm">
-						You don't have access to any apps yet. Ask an administrator to grant you access.
-					</Card.Content>
-				</Card.Root>
-			{/if}
-		</section>
+				<div class="kicker">{feature.kicker}</div>
+				<h3>{feature.title}</h3>
+				<p>{feature.body}</p>
+			</article>
+		{/each}
+	</section>
 
-		<!-- Admin quick links -->
-		{#if isAdmin}
-			<section class="space-y-3">
-				<h2 class="text-muted-foreground text-sm font-medium">Admin</h2>
-				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-					{#each adminLinks as link}
-						<a
-							href={link.href}
-							class="hover:border-primary/50 hover:bg-accent flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors"
-						>
-							<link.icon class="text-muted-foreground size-4 shrink-0" />
-							<span class="truncate">{link.title}</span>
-						</a>
-					{/each}
-				</div>
-			</section>
-		{/if}
-	</div>
+	<!-- Closing banner -->
+	<section class="banner">
+		<h2>Ready to dig in? Try the live app, then make it your own.</h2>
+		<div class="btn-row">
+			<a class="btn btn-on-accent" href={APP_URL}>Try it live</a>
+			<a class="btn btn-outline-accent" href={ISSUES_URL} target="_blank" rel="noreferrer">
+				Report an issue
+			</a>
+		</div>
+	</section>
+
+	<!-- Footer -->
+	<footer class="footer">
+		<span class="footer-brand">ALL-IN-ONE</span>
+		<span class="footer-note">Built by opan / Open source</span>
+		<div class="tags">
+			<span class="tag">Go</span>
+			<span class="tag">Svelte</span>
+			<span class="tag">TypeScript</span>
+			<span class="tag">SQLite</span>
+		</div>
+	</footer>
 </div>
+
+<style>
+	.landing {
+		/* Modernist Blue — light (1c) */
+		--bg: #f4f7ff;
+		--text: #17203a;
+		--panel: #dbe6ff;
+		--muted: rgba(23, 32, 58, 0.8);
+		--faint: rgba(23, 32, 58, 0.55);
+		--kicker: #1f56d6;
+		--nav-link: #17203a;
+		--line: rgba(23, 32, 58, 0.3);
+		--outline: rgba(23, 32, 58, 0.3);
+		--outline-hover: rgba(23, 32, 58, 0.06);
+		--accent: #3b7bff;
+		--accent-hover: #2f6bff;
+
+		min-height: 100vh;
+		background: var(--bg);
+		color: var(--text);
+		font-family: 'Archivo', system-ui, sans-serif;
+		font-size: 16px;
+		line-height: 1.5;
+	}
+
+	:global(.dark) .landing {
+		/* Modernist Blue — dark (1d) */
+		--bg: #0d1526;
+		--text: #e8edf7;
+		--panel: #131d33;
+		--muted: rgba(232, 237, 247, 0.72);
+		--faint: rgba(232, 237, 247, 0.45);
+		--kicker: #7aa6ff;
+		--nav-link: #c7d2e8;
+		--line: rgba(255, 255, 255, 0.14);
+		--outline: rgba(255, 255, 255, 0.24);
+		--outline-hover: rgba(255, 255, 255, 0.08);
+		--accent: #3b7bff;
+		--accent-hover: #5a90ff;
+	}
+
+	/* Only reset decoration here; every anchor sets its own color below. A color
+	   reset would win over the button color rules on specificity and blank them out. */
+	.landing :global(a) {
+		text-decoration: none;
+	}
+
+	/* Shared building blocks */
+	.kicker {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--kicker);
+	}
+
+	.panel-label {
+		font-family: ui-monospace, Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--faint);
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 800;
+		font-size: 15px;
+		line-height: 1;
+		padding: 13px 24px;
+		border: 2px solid transparent;
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			opacity 0.15s ease;
+	}
+
+	.btn-sm {
+		font-size: 14px;
+		padding: 9px 18px;
+	}
+
+	.btn-solid {
+		background: var(--accent);
+		color: #ffffff;
+	}
+	.btn-solid:hover {
+		background: var(--accent-hover);
+	}
+
+	.btn-outline {
+		color: var(--text);
+		border-color: var(--outline);
+	}
+	.btn-outline:hover {
+		background: var(--outline-hover);
+	}
+
+	.btn-on-accent {
+		background: #ffffff;
+		color: #2f6bff;
+	}
+	.btn-on-accent:hover {
+		opacity: 0.9;
+	}
+
+	.btn-outline-accent {
+		color: #ffffff;
+		border-color: #ffffff;
+	}
+	.btn-outline-accent:hover {
+		background: rgba(255, 255, 255, 0.16);
+	}
+
+	.btn-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+	}
+
+	/* Nav */
+	.nav {
+		display: flex;
+		align-items: center;
+		gap: 28px;
+		padding: 14px 44px;
+		border-bottom: 2px solid var(--line);
+	}
+	.brand {
+		font-weight: 800;
+		font-size: 19px;
+		letter-spacing: -0.02em;
+		margin-right: auto;
+		white-space: nowrap;
+	}
+	.nav-links {
+		display: flex;
+		align-items: center;
+		gap: 28px;
+	}
+	.nav-links a {
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--nav-link);
+	}
+	.nav-links a:hover {
+		color: var(--accent);
+	}
+	.nav-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	/* Hero */
+	.hero {
+		display: grid;
+		grid-template-columns: 1.05fr 0.95fr;
+		border-bottom: 2px solid var(--line);
+	}
+	.hero-copy {
+		padding: 60px 44px;
+		border-right: 2px solid var(--line);
+	}
+	.kicker + h1,
+	.hero-copy .kicker {
+		margin-bottom: 20px;
+	}
+	.hero h1 {
+		font-weight: 800;
+		font-size: 56px;
+		line-height: 1;
+		letter-spacing: -0.03em;
+		margin: 0 0 22px;
+	}
+	.lead {
+		font-size: 17px;
+		line-height: 1.5;
+		color: var(--muted);
+		max-width: 34em;
+		margin: 0 0 30px;
+	}
+	.hero-panel {
+		background: var(--panel);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 340px;
+	}
+
+	/* Features */
+	.features-intro {
+		padding: 52px 44px 28px;
+	}
+	.features-intro .kicker {
+		margin-bottom: 8px;
+	}
+	.features-intro h2 {
+		font-weight: 800;
+		font-size: 34px;
+		letter-spacing: -0.02em;
+		margin: 0;
+	}
+	.features-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 2px;
+		background: var(--line);
+		border-top: 2px solid var(--line);
+		border-bottom: 2px solid var(--line);
+	}
+	.feature-card {
+		background: var(--bg);
+		padding: 24px;
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+	.feature-thumb {
+		height: 120px;
+		background: var(--panel);
+		border: 2px solid var(--line);
+		display: flex;
+		align-items: center;
+		padding-left: 12px;
+	}
+	.feature-card h3 {
+		font-weight: 800;
+		font-size: 22px;
+		line-height: 1.1;
+		margin: 0;
+	}
+	.feature-card p {
+		margin: 0;
+		font-size: 13.5px;
+		line-height: 1.5;
+		color: var(--muted);
+	}
+
+	/* Banner */
+	.banner {
+		background: var(--accent);
+		color: #ffffff;
+		padding: 56px 44px;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 22px;
+	}
+	.banner h2 {
+		font-weight: 800;
+		font-size: 46px;
+		line-height: 0.98;
+		letter-spacing: -0.03em;
+		margin: 0;
+		max-width: 16em;
+		color: #ffffff;
+	}
+
+	/* Footer */
+	.footer {
+		padding: 26px 44px;
+		border-top: 2px solid var(--line);
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+	.footer-brand {
+		font-weight: 800;
+		font-size: 16px;
+	}
+	.footer-note {
+		font-size: 13px;
+		color: var(--faint);
+	}
+	.tags {
+		margin-left: auto;
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+	.tag {
+		border: 1px solid var(--outline);
+		color: var(--text);
+		font-size: 11px;
+		font-weight: 600;
+		padding: 3px 10px;
+	}
+
+	/* Responsive */
+	@media (max-width: 820px) {
+		.hero {
+			grid-template-columns: 1fr;
+		}
+		.hero-copy {
+			border-right: none;
+		}
+		.hero h1 {
+			font-size: 44px;
+		}
+		.banner h2 {
+			font-size: 34px;
+		}
+		.nav-links {
+			display: none;
+		}
+	}
+
+	@media (max-width: 680px) {
+		.nav,
+		.hero-copy,
+		.features-intro,
+		.banner,
+		.footer {
+			padding-left: 24px;
+			padding-right: 24px;
+		}
+		.features-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

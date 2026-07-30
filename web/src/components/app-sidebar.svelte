@@ -160,7 +160,7 @@
       <Sidebar.MenuItem>
         <Sidebar.MenuButton size="lg" tooltipContent="All-in-one platform">
           {#snippet child({ props })}
-            <a href="/" {...props}>
+            <a href="/home" {...props}>
               <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <SquareTerminal class="size-4" />
               </div>
