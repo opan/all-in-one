@@ -36,12 +36,6 @@
 		name="description"
 		content="All-in-One bundles listing, real-time chat and a live rate limiter into one open-source Go + Svelte project. Try it live, or clone the code and make it your own."
 	/>
-	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link
-		rel="stylesheet"
-		href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap"
-	/>
 </svelte:head>
 
 <div class="landing">
