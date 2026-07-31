@@ -13,7 +13,7 @@ export const PALETTES: PaletteMeta[] = [
 	{
 		key: "default",
 		label: "Default",
-		swatches: ["#FAFAFA", "#A1A1AA", "#52525B", "#18181B"],
+		swatches: ["#3b7bff", "#1f56d6", "#7aa6ff", "#dbe6ff"],
 	},
 	{
 		key: "ocean",
