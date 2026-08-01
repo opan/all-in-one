@@ -122,6 +122,9 @@
 		<h2>Three main features now — more to come.</h2>
 	</section>
 	<section class="features-grid">
+		<svg class="flow-line" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+			<path d="M 160 150 C 430 430, 570 570, 850 890" fill="none" />
+		</svg>
 		{#each features as feature, i (feature.title)}
 			<article class="feature-card feature-{i + 1} reveal" use:reveal={{ delay: i * 130 }}>
 				<div class="feature-thumb">
@@ -175,6 +178,7 @@
 		--media-radius: 14px;
 		--shadow: 0 18px 40px -16px rgba(23, 32, 58, 0.32);
 		--shadow-hover: 0 30px 60px -20px rgba(23, 32, 58, 0.4);
+		--glow: rgba(59, 123, 255, 0.14);
 
 		min-height: 100vh;
 		background: var(--bg);
@@ -199,6 +203,7 @@
 		--accent-hover: #5a90ff;
 		--shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.55);
 		--shadow-hover: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
+		--glow: rgba(59, 123, 255, 0.22);
 	}
 
 	:global(html) {
@@ -355,9 +360,24 @@
 
 	/* Hero — full-bleed, transparent screenshot slot */
 	.hero {
+		position: relative;
 		display: grid;
 		grid-template-columns: 1.05fr 0.95fr;
 		gap: 0;
+	}
+	/* Soft accent glow behind the hero screenshot for depth. */
+	.hero::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		background: radial-gradient(46% 62% at 78% 30%, var(--glow), transparent 72%);
+	}
+	.hero-copy,
+	.hero-media {
+		position: relative;
+		z-index: 1;
 	}
 	.hero-copy {
 		padding: 60px 44px;
@@ -432,13 +452,33 @@
 		margin: 0 0 28px;
 	}
 	.features-grid {
+		position: relative;
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		grid-template-rows: auto auto auto;
 		gap: 56px 32px;
 		padding: 0 44px 64px;
 	}
+	/* Faint line tracing the diagonal cascade, behind the cards. */
+	.flow-line {
+		position: absolute;
+		inset: 0 44px 64px;
+		width: calc(100% - 88px);
+		height: calc(100% - 64px);
+		z-index: 0;
+		pointer-events: none;
+	}
+	.flow-line path {
+		stroke: var(--accent);
+		stroke-width: 1.5;
+		stroke-dasharray: 2 9;
+		stroke-linecap: round;
+		opacity: 0.35;
+		vector-effect: non-scaling-stroke;
+	}
 	.feature-card {
+		position: relative;
+		z-index: 1;
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
@@ -583,6 +623,9 @@
 
 		.features-intro {
 			padding: 32px 20px 0;
+		}
+		.flow-line {
+			display: none;
 		}
 		.features-grid {
 			grid-template-columns: 1fr;
