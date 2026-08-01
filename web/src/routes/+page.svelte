@@ -7,6 +7,37 @@
 
 	let navOpen = $state(false);
 
+	// Fade + slide elements in as they scroll into view. Honors reduced-motion
+	// and degrades to "visible" when IntersectionObserver isn't available.
+	function reveal(node: HTMLElement, params: { delay?: number } = {}) {
+		const reduce =
+			typeof window === 'undefined' ||
+			typeof IntersectionObserver === 'undefined' ||
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		if (reduce) {
+			node.classList.add('in');
+			return;
+		}
+		if (params.delay) node.style.transitionDelay = `${params.delay}ms`;
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						node.classList.add('in');
+						io.unobserve(node);
+					}
+				}
+			},
+			{ threshold: 0.15, rootMargin: '0px 0px -8% 0px' }
+		);
+		io.observe(node);
+		return {
+			destroy() {
+				io.disconnect();
+			}
+		};
+	}
+
 	const features = [
 		{
 			kicker: 'Topics & items',
@@ -66,7 +97,7 @@
 
 	<!-- Hero (full-bleed, no borders; screenshot floats on the page) -->
 	<section class="hero">
-		<div class="hero-copy">
+		<div class="hero-copy reveal" use:reveal>
 			<div class="kicker">Open Source / Go + Svelte</div>
 			<h1>A full-stack app you can try right now.</h1>
 			<p class="lead">
@@ -80,19 +111,19 @@
 				</a>
 			</div>
 		</div>
-		<div class="hero-media">
+		<div class="hero-media reveal" use:reveal={{ delay: 120 }}>
 			<img src="/landing/dashboard.png" alt="All-in-One dashboard" loading="eager" />
 		</div>
 	</section>
 
 	<!-- Features — diagonal cascade, transparent, no cards -->
-	<section id="features" class="features-intro">
+	<section id="features" class="features-intro reveal" use:reveal>
 		<div class="kicker">What's inside</div>
 		<h2>Three main features now — more to come.</h2>
 	</section>
 	<section class="features-grid">
 		{#each features as feature, i (feature.title)}
-			<article class="feature-card feature-{i + 1}">
+			<article class="feature-card feature-{i + 1} reveal" use:reveal={{ delay: i * 130 }}>
 				<div class="feature-thumb">
 					<img src={feature.image} alt={feature.alt} loading="lazy" />
 				</div>
@@ -104,7 +135,7 @@
 	</section>
 
 	<!-- Closing banner -->
-	<section class="banner">
+	<section class="banner reveal" use:reveal>
 		<h2>Ready to dig in? Try the live app, then make it your own.</h2>
 		<div class="btn-row">
 			<a class="btn btn-on-accent" href={APP_URL}>Try it live</a>
@@ -141,6 +172,9 @@
 		--outline-hover: rgba(23, 32, 58, 0.06);
 		--accent: #3b7bff;
 		--accent-hover: #2f6bff;
+		--media-radius: 14px;
+		--shadow: 0 18px 40px -16px rgba(23, 32, 58, 0.32);
+		--shadow-hover: 0 30px 60px -20px rgba(23, 32, 58, 0.4);
 
 		min-height: 100vh;
 		background: var(--bg);
@@ -163,6 +197,33 @@
 		--outline-hover: rgba(255, 255, 255, 0.08);
 		--accent: #3b7bff;
 		--accent-hover: #5a90ff;
+		--shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.55);
+		--shadow-hover: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
+	}
+
+	:global(html) {
+		scroll-behavior: smooth;
+	}
+
+	/* Scroll-reveal: elements fade + rise as they enter the viewport. */
+	.reveal {
+		opacity: 0;
+		transform: translateY(28px);
+		transition:
+			opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
+			transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+		will-change: opacity, transform;
+	}
+	.reveal.in {
+		opacity: 1;
+		transform: none;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.reveal {
+			opacity: 1;
+			transform: none;
+			transition: none;
+		}
 	}
 
 	/* Only reset decoration here; every anchor sets its own color below. A color
@@ -329,7 +390,32 @@
 		width: 100%;
 		height: auto;
 		display: block;
-		border: 1px solid var(--line);
+		border-radius: var(--media-radius);
+		box-shadow: var(--shadow);
+		transition:
+			transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+			box-shadow 0.5s ease;
+	}
+	.hero-media:hover img {
+		transform: translateY(-6px);
+		box-shadow: var(--shadow-hover);
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.hero-media img {
+			animation: float 7s ease-in-out infinite;
+		}
+		.hero-media:hover img {
+			animation-play-state: paused;
+		}
+	}
+	@keyframes float {
+		0%,
+		100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-10px);
+		}
 	}
 
 	/* Features */
@@ -370,8 +456,8 @@
 		grid-row: 3;
 	}
 	.feature-thumb {
-		height: 120px;
-		overflow: hidden;
+		height: 200px;
+		overflow: visible;
 	}
 	.feature-thumb img {
 		width: 100%;
@@ -379,7 +465,15 @@
 		object-fit: cover;
 		object-position: top left;
 		display: block;
-		border: 1px solid var(--line);
+		border-radius: var(--media-radius);
+		box-shadow: var(--shadow);
+		transition:
+			transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1),
+			box-shadow 0.45s ease;
+	}
+	.feature-card:hover .feature-thumb img {
+		transform: translateY(-8px) scale(1.02);
+		box-shadow: var(--shadow-hover);
 	}
 	.feature-card h3 {
 		font-weight: 800;
@@ -503,7 +597,7 @@
 			grid-row: auto;
 		}
 		.feature-thumb {
-			height: 170px;
+			height: 210px;
 		}
 
 		.banner {
