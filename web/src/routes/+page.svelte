@@ -54,11 +54,11 @@
 			alt: 'Real-time chat conversations'
 		},
 		{
-			kicker: 'Traffic control',
-			title: 'Rate Limiter',
-			body: 'Per-target limits and daily quotas you can tune live from the admin API — no redeploy required.',
-			image: '/landing/ratelimit.png',
-			alt: 'Rate limiter admin configuration'
+			kicker: 'Short links',
+			title: 'Shortener',
+			body: 'Turn long URLs into short, shareable links and track how often each one gets clicked.',
+			image: '/landing/shortener.png',
+			alt: 'URL shortener links'
 		}
 	];
 </script>
