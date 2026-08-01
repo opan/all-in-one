@@ -5,6 +5,8 @@
 	const GITHUB_URL = 'https://github.com/opan/all-in-one';
 	const ISSUES_URL = 'https://github.com/opan/all-in-one/issues';
 
+	let navOpen = $state(false);
+
 	const features = [
 		{
 			kicker: 'Topics & items',
@@ -39,22 +41,30 @@
 </svelte:head>
 
 <div class="landing">
-	<!-- Nav -->
+	<!-- Nav (borderless, seamless with hero) -->
 	<header class="nav">
 		<span class="brand">ALL-IN-ONE</span>
-		<nav class="nav-links">
-			<a href="#features">Features</a>
-			<a href="#features">Listing</a>
-			<a href="#features">Chat</a>
-			<a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
+		<nav class="nav-links" class:open={navOpen}>
+			<a href="#features" onclick={() => (navOpen = false)}>Features</a>
+			<a href="#features" onclick={() => (navOpen = false)}>Listing</a>
+			<a href="#features" onclick={() => (navOpen = false)}>Chat</a>
+			<a href={GITHUB_URL} target="_blank" rel="noreferrer" onclick={() => (navOpen = false)}>GitHub</a>
 		</nav>
 		<div class="nav-actions">
 			<ThemeToggle />
-			<a class="btn btn-solid btn-sm" href={APP_URL}>Try it live</a>
+			<a class="btn btn-solid btn-sm nav-cta" href={APP_URL}>Try it live</a>
+			<button
+				class="nav-toggle"
+				aria-label="Toggle menu"
+				aria-expanded={navOpen}
+				onclick={() => (navOpen = !navOpen)}
+			>
+				<span></span><span></span><span></span>
+			</button>
 		</div>
 	</header>
 
-	<!-- Hero -->
+	<!-- Hero (full-bleed, no borders; screenshot floats on the page) -->
 	<section class="hero">
 		<div class="hero-copy">
 			<div class="kicker">Open Source / Go + Svelte</div>
@@ -70,19 +80,19 @@
 				</a>
 			</div>
 		</div>
-		<div class="hero-panel">
+		<div class="hero-media">
 			<img src="/landing/dashboard.png" alt="All-in-One dashboard" loading="eager" />
 		</div>
 	</section>
 
-	<!-- Features -->
+	<!-- Features — diagonal cascade, transparent, no cards -->
 	<section id="features" class="features-intro">
 		<div class="kicker">What's inside</div>
 		<h2>Three main features now — more to come.</h2>
 	</section>
 	<section class="features-grid">
-		{#each features as feature (feature.title)}
-			<article class="feature-card">
+		{#each features as feature, i (feature.title)}
+			<article class="feature-card feature-{i + 1}">
 				<div class="feature-thumb">
 					<img src={feature.image} alt={feature.alt} loading="lazy" />
 				</div>
@@ -104,7 +114,7 @@
 		</div>
 	</section>
 
-	<!-- Footer -->
+	<!-- Footer (no top border) -->
 	<footer class="footer">
 		<span class="footer-brand">ALL-IN-ONE</span>
 		<span class="footer-note">Built by opan / Open source</span>
@@ -122,7 +132,6 @@
 		/* Modernist Blue — light (1c) */
 		--bg: #f4f7ff;
 		--text: #17203a;
-		--panel: #dbe6ff;
 		--muted: rgba(23, 32, 58, 0.8);
 		--faint: rgba(23, 32, 58, 0.55);
 		--kicker: #1f56d6;
@@ -145,7 +154,6 @@
 		/* Modernist Blue — dark (1d) */
 		--bg: #0d1526;
 		--text: #e8edf7;
-		--panel: #131d33;
 		--muted: rgba(232, 237, 247, 0.72);
 		--faint: rgba(232, 237, 247, 0.45);
 		--kicker: #7aa6ff;
@@ -230,13 +238,13 @@
 		gap: 12px;
 	}
 
-	/* Nav */
+	/* Nav — no border, seamless with the hero */
 	.nav {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 28px;
-		padding: 14px 44px;
-		border-bottom: 2px solid var(--line);
+		padding: 16px 44px;
 	}
 	.brand {
 		font-weight: 800;
@@ -264,17 +272,35 @@
 		gap: 8px;
 	}
 
-	/* Hero */
+	.nav-toggle {
+		display: none;
+		flex-direction: column;
+		gap: 5px;
+		width: 40px;
+		height: 40px;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+	}
+	.nav-toggle span {
+		display: block;
+		width: 22px;
+		height: 2px;
+		background: var(--text);
+	}
+
+	/* Hero — full-bleed, transparent screenshot slot */
 	.hero {
 		display: grid;
 		grid-template-columns: 1.05fr 0.95fr;
-		border-bottom: 2px solid var(--line);
+		gap: 0;
 	}
 	.hero-copy {
 		padding: 60px 44px;
-		border-right: 2px solid var(--line);
 	}
-	.kicker + h1,
 	.hero-copy .kicker {
 		margin-bottom: 20px;
 	}
@@ -292,25 +318,23 @@
 		max-width: 34em;
 		margin: 0 0 30px;
 	}
-	.hero-panel {
-		background: var(--panel);
+	.hero-media {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		min-height: 340px;
-		overflow: hidden;
+		padding: 32px 44px 32px 0;
 	}
-	.hero-panel img {
+	.hero-media img {
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		object-position: top left;
+		height: auto;
 		display: block;
+		border: 1px solid var(--line);
 	}
 
 	/* Features */
 	.features-intro {
-		padding: 52px 44px 28px;
+		padding: 52px 44px 0;
 	}
 	.features-intro .kicker {
 		margin-bottom: 8px;
@@ -319,27 +343,34 @@
 		font-weight: 800;
 		font-size: 34px;
 		letter-spacing: -0.02em;
-		margin: 0;
+		margin: 0 0 28px;
 	}
 	.features-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 2px;
-		background: var(--line);
-		border-top: 2px solid var(--line);
-		border-bottom: 2px solid var(--line);
+		grid-template-rows: auto auto auto;
+		gap: 56px 32px;
+		padding: 0 44px 64px;
 	}
 	.feature-card {
-		background: var(--bg);
-		padding: 24px;
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
 	}
+	.feature-1 {
+		grid-column: 1;
+		grid-row: 1;
+	}
+	.feature-2 {
+		grid-column: 2;
+		grid-row: 2;
+	}
+	.feature-3 {
+		grid-column: 3;
+		grid-row: 3;
+	}
 	.feature-thumb {
 		height: 120px;
-		background: var(--panel);
-		border: 2px solid var(--line);
 		overflow: hidden;
 	}
 	.feature-thumb img {
@@ -348,6 +379,7 @@
 		object-fit: cover;
 		object-position: top left;
 		display: block;
+		border: 1px solid var(--line);
 	}
 	.feature-card h3 {
 		font-weight: 800;
@@ -382,10 +414,9 @@
 		color: #ffffff;
 	}
 
-	/* Footer */
+	/* Footer — no top border */
 	.footer {
 		padding: 26px 44px;
-		border-top: 2px solid var(--line);
 		display: flex;
 		align-items: center;
 		gap: 16px;
@@ -413,36 +444,76 @@
 		padding: 3px 10px;
 	}
 
-	/* Responsive */
-	@media (max-width: 820px) {
+	/* Responsive — below ~900px the diagonal collapses to one column */
+	@media (max-width: 900px) {
+		.nav {
+			padding: 14px 20px;
+		}
+		.nav-links {
+			position: absolute;
+			top: 100%;
+			left: 0;
+			right: 0;
+			z-index: 20;
+			display: none;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 6px;
+			padding: 12px 20px 20px;
+			background: var(--bg);
+			border-bottom: 2px solid var(--line);
+		}
+		.nav-links.open {
+			display: flex;
+		}
+		.nav-toggle {
+			display: inline-flex;
+		}
+		.nav-cta {
+			display: none;
+		}
+
 		.hero {
 			grid-template-columns: 1fr;
 		}
 		.hero-copy {
-			border-right: none;
+			padding: 36px 20px 20px;
 		}
 		.hero h1 {
-			font-size: 44px;
+			font-size: 40px;
 		}
-		.banner h2 {
-			font-size: 34px;
+		.hero-media {
+			min-height: 0;
+			padding: 0 20px 32px;
 		}
-		.nav-links {
-			display: none;
-		}
-	}
 
-	@media (max-width: 680px) {
-		.nav,
-		.hero-copy,
-		.features-intro,
-		.banner,
-		.footer {
-			padding-left: 24px;
-			padding-right: 24px;
+		.features-intro {
+			padding: 32px 20px 0;
 		}
 		.features-grid {
 			grid-template-columns: 1fr;
+			grid-template-rows: none;
+			gap: 32px;
+			padding: 0 20px 48px;
+		}
+		.feature-1,
+		.feature-2,
+		.feature-3 {
+			grid-column: 1;
+			grid-row: auto;
+		}
+		.feature-thumb {
+			height: 170px;
+		}
+
+		.banner {
+			padding: 40px 20px;
+		}
+		.banner h2 {
+			font-size: 32px;
+		}
+		.footer {
+			padding: 24px 20px;
 		}
 	}
 </style>
