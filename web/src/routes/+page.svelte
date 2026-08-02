@@ -175,7 +175,7 @@
 		--outline-hover: rgba(23, 32, 58, 0.06);
 		--accent: #3b7bff;
 		--accent-hover: #2f6bff;
-		--media-radius: 14px;
+		--media-radius: 0px;
 		--shadow: 0 18px 40px -16px rgba(23, 32, 58, 0.32);
 		--shadow-hover: 0 30px 60px -20px rgba(23, 32, 58, 0.4);
 		--glow: rgba(59, 123, 255, 0.14);
