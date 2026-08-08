@@ -1,19 +1,9 @@
-// SvelteKit load function to fetch listing data from backend API
-import { apiLoad, throwApiError } from "$lib/api";
+import { redirect } from "@sveltejs/kit";
 
-export const load = async ({ fetch }) => {
-	// NOTE: stopgap — the backend registers no `/api/v1/items`; the listing app is
-	// topic-based (`/api/v1/topics`). Point the load at the real endpoint so the page
-	// renders instead of 500-ing on the SPA-fallback HTML. The wider items-vs-topics
-	// disconnect (page still renders hardcoded placeholders; CRUD hits `/items`) is
-	// tracked in .context/LISTING_BACKEND_DISCONNECT.md.
-	const res = await apiLoad(fetch, "/api/v1/topics");
-	if (!res.ok) {
-		await throwApiError(res, "Failed to fetch listings");
-	}
-	const data = await res.json();
-	return {
-		listings: data.data || [],
-		breadcrumb: { label: "Listing" },
-	};
+// The listing feature lives at /listing/topics (topics) and
+// /listing/topics/[id] (items). This bare /listing route used to be a stub
+// wired to a nonexistent /api/v1/items endpoint; it's now just a redirect to
+// the real entry point so any stray link/bookmark lands in the right place.
+export const load = () => {
+	throw redirect(307, "/listing/topics");
 };

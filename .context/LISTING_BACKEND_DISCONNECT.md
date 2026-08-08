@@ -1,35 +1,31 @@
-# Bug: Listing page is disconnected from the backend (items vs topics)
+# Listing route cleanup — corrected findings
 
-**Found:** 2026-08-08, during landing-page screenshot refresh (`feat/landing-page`).
-**Present on:** `main`, `feat/landing-page`, `feat/listing-schema-presets` (shared frontend/backend).
-**Severity:** the `/listing` page was 500-ing for every user (now stopgapped).
+**Updated:** 2026-08-08. **This supersedes an earlier, incorrect version of this file.**
 
-## Symptom
-Visiting `/listing` rendered the SvelteKit **500 "Internal Error"** page.
+## Correction
+An earlier investigation concluded "the listing frontend never worked / is a stub." **That was wrong** —
+it was based only on the orphaned `/listing` route and missed the real pages (a `-maxdepth 2` file search
+hid them). The listing feature **works** and always has.
 
-## Root cause
-`web/src/routes/listing/+page.ts` `load` fetched **`/api/v1/items`**, which the backend never
-registers. `internal/listing/handler/handler.go` only registers:
-- `GET/POST /api/v1/topics`, `GET/PUT/DELETE /api/v1/topics/{id}`
-- `GET/POST /api/v1/topics/{topic_id}/items`, `.../items/{id}` (GET/PUT/DELETE)
+## Actual state (verified live, 2026-08-08)
+- **`/listing/topics`** — real topics list. Loads `/api/v1/topics`, renders real data, full topic CRUD
+  (create/edit/delete) via `EditTopicModal`. Works.
+- **`/listing/topics/[id]`** — real item view under a topic. Loads `/api/v1/topics/{id}` +
+  `/api/v1/topics/{id}/items`, full item CRUD, plus edit/delete topic. Works.
+- The app's **sidebar** and **home dashboard** both link "Listings" → `/listing/topics` (the working page).
+- Backend is fully functional: topics CRUD + nested items CRUD all verified (201/200).
+- These routes exist on `main`, `feat/landing-page`, and `feat/listing-schema-presets` alike.
+  (`feat/listing-schema-presets` adds JSON-schema presets to the topic editor — one extra commit.)
 
-There is **no `/api/v1/items`** (unscoped). The request fell through to the SPA fallback file server,
-which returns `index.html` with HTTP **200**. `load` saw `res.ok === true`, called `res.json()` on
-HTML → threw → SvelteKit rendered the 500 page.
+## The only real problem (now fixed)
+The bare **`/listing`** route was a leftover **orphan stub**: it fetched the nonexistent `/api/v1/items`
+(→ SPA-fallback HTML → `res.json()` threw → 500) and rendered hardcoded `First Item…` placeholders with
+CRUD pointed at `/api/v1/items[/id]`. **Nothing in the app linked to it.**
 
-## Stopgap applied (2026-08-08)
-`listing/+page.ts` load repointed to `/api/v1/topics` so the page renders (unblocks the landing
-screenshot and stops the 500). See the NOTE comment in that file.
+**Fix applied:** `/listing/+page.ts` now `throw redirect(307, "/listing/topics")`; the stub
+`+page.svelte` is reduced to a redirect fallback. (This replaces the earlier stopgap that repointed the
+stub's load to `/api/v1/topics` but still rendered the hardcoded table.)
 
-## Still broken — needs a real fix (NOT done)
-1. `listing/+page.svelte` renders a **hardcoded** `Item[]` placeholder (`First Item`…`Fourth Item`) and
-   **ignores** the load's `data.listings`. Real data never shows.
-2. Create/edit/delete in that page call `/api/v1/items` and `/api/v1/items/{id}` (`apiPost`/`apiPut`/
-   `apiDelete`) — also nonexistent → those actions fail.
-3. The page's domain model (`Item{title,description}`) doesn't match the backend (`topics`, and
-   items are always nested under a topic: `/topics/{topic_id}/items`).
-
-## Suggested proper fix (separate task)
-Decide the page's intent (topics list, or items-under-a-topic), then wire `load` + render + CRUD to the
-matching real endpoints, replace the hardcoded array with `data`, and align the `Item`/`Topic` types.
-Consider the `feat/listing-schema-presets` branch — it may already be reworking this area.
+## Landing follow-up (done)
+The landing carousel's `listing.png` had been shot from the broken `/listing` stub ("First Item…"). It's
+been re-captured from the real `/listing/topics` page (Bookshelf / Home Inventory / Recipes).

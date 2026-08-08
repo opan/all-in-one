@@ -26,21 +26,18 @@ Polish the public landing page (`web/src/routes/+page.svelte`) with three change
 
 ## Screenshots to regenerate (from the sharp-edge themed app, seeded scratch DB)
 - [x] `dashboard.png` — hero, `/home` full app (with sidebar), admin ✅ new sharp-edge shot
-- [x] `listing.png` — ✅ unblocked: repointed load to `/api/v1/topics` (stopgap), captured sharp-edge
-      (shows hardcoded placeholder items — deeper fix tracked in LISTING_BACKEND_DISCONNECT.md)
+- [x] `listing.png` — ✅ re-shot from the REAL `/listing/topics` page (Bookshelf / Home Inventory /
+      Recipes). The first attempt mistakenly used the orphan `/listing` stub; corrected.
 - [x] `chat.png` — `/chat` main content area ✅
 - [x] `shortener.png` — `/shortener` main content area ✅ (populated 6 sample links w/ click counts)
 - [x] `twofa.png` — NEW, the QR "Set Up Two-Factor Authentication" setup card ✅
 
-## ⚠️ Blocker found: `/listing` is broken (pre-existing, on `main` too — not caused by this work)
-- `web/src/routes/listing/+page.ts` `load` fetches **`/api/v1/items`**, which the backend does NOT
-  register (`internal/listing/handler/handler.go` only has `/topics` and `/topics/{topic_id}/items`).
-  → request falls through to the SPA fallback → returns `index.html` (HTTP 200) → `res.json()` throws →
-  SvelteKit renders the **500 error page**. So `/listing` cannot be screenshotted.
-- Deeper: `listing/+page.svelte` renders a hardcoded placeholder `Item[]` ("First Item"…), ignores the
-  load `data`, and its create/edit/delete call `/api/v1/items/...` (also nonexistent). The whole listing
-  page is disconnected from the backend `topics` API. Fixing properly = a real listing-feature task,
-  out of scope for the landing work. **Awaiting decision on how to handle the listing slide.**
+## Listing: CORRECTED (see .context/LISTING_BACKEND_DISCONNECT.md)
+An earlier note here claimed the listing feature was broken. **That was wrong** — the real pages
+`/listing/topics` and `/listing/topics/[id]` work (the `-maxdepth 2` search had hidden them). The app's
+nav links to `/listing/topics`, which the feature actually uses. The **only** broken thing was the
+orphaned bare `/listing` stub (nothing linked to it), now fixed with a `307` redirect to
+`/listing/topics`. The landing `listing.png` was re-shot from the real page.
 
 ## Checklist
 - [x] Rework features section in `+page.svelte`: carousel markup + state + CSS; remove diagonal CSS.
