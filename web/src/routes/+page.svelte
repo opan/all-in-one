@@ -61,6 +61,21 @@
 			alt: 'URL shortener links'
 		}
 	];
+
+	// Features carousel — one slide at a time, manual (no autoplay), loops around.
+	let current = $state(0);
+	const total = features.length;
+	const goTo = (i: number) => (current = ((i % total) + total) % total);
+	const next = () => goTo(current + 1);
+	const prev = () => goTo(current - 1);
+
+	// Touch swipe on the carousel viewport (mobile).
+	let touchStartX = 0;
+	const onTouchStart = (e: TouchEvent) => (touchStartX = e.changedTouches[0].clientX);
+	const onTouchEnd = (e: TouchEvent) => {
+		const dx = e.changedTouches[0].clientX - touchStartX;
+		if (Math.abs(dx) > 40) (dx < 0 ? next : prev)();
+	};
 </script>
 
 <svelte:head>
@@ -116,25 +131,89 @@
 		</div>
 	</section>
 
-	<!-- Features — diagonal cascade, transparent, no cards -->
+	<!-- Features — carousel, one slide at a time -->
 	<section id="features" class="features-intro reveal" use:reveal>
 		<div class="kicker">What's inside</div>
 		<h2>Three main features now — more to come.</h2>
 	</section>
-	<section class="features-grid">
-		<svg class="flow-line" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
-			<path d="M 160 150 C 430 430, 570 570, 850 890" fill="none" />
-		</svg>
-		{#each features as feature, i (feature.title)}
-			<article class="feature-card feature-{i + 1} reveal" use:reveal={{ delay: i * 130 }}>
-				<div class="feature-thumb">
-					<img src={feature.image} alt={feature.alt} loading="lazy" />
-				</div>
-				<div class="kicker">{feature.kicker}</div>
-				<h3>{feature.title}</h3>
-				<p>{feature.body}</p>
-			</article>
-		{/each}
+	<section
+		class="carousel reveal"
+		use:reveal
+		aria-roledescription="carousel"
+		aria-label="Product features"
+	>
+		<button class="car-arrow prev" onclick={prev} aria-label="Previous feature" type="button">
+			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+		</button>
+
+		<div
+			class="viewport"
+			role="group"
+			aria-label="Feature slides"
+			ontouchstart={onTouchStart}
+			ontouchend={onTouchEnd}
+		>
+			<div class="track" style="transform: translateX(-{current * 100}%)">
+				{#each features as feature, i (feature.title)}
+					<div
+						class="slide"
+						role="group"
+						aria-roledescription="slide"
+						aria-label={`${i + 1} of ${total}: ${feature.title}`}
+						aria-hidden={i !== current}
+					>
+						<div class="slide-media">
+							<img src={feature.image} alt={feature.alt} loading={i === 0 ? 'eager' : 'lazy'} />
+						</div>
+						<div class="slide-copy">
+							<div class="kicker">{feature.kicker}</div>
+							<h3>{feature.title}</h3>
+							<p>{feature.body}</p>
+							<a class="btn btn-outline btn-sm" href={APP_URL}>Open {feature.title}</a>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+
+		<button class="car-arrow next" onclick={next} aria-label="Next feature" type="button">
+			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+		</button>
+
+		<div class="dots" aria-label="Choose feature">
+			{#each features as feature, i (feature.title)}
+				<button
+					class="dot"
+					class:active={i === current}
+					onclick={() => goTo(i)}
+					aria-current={i === current}
+					aria-label={`Show ${feature.title}`}
+					type="button"
+				></button>
+			{/each}
+		</div>
+	</section>
+
+	<!-- Security — separate band highlighting the built-in 2FA -->
+	<section id="security" class="security reveal" use:reveal>
+		<div class="security-copy">
+			<div class="kicker">Account security</div>
+			<h2>Security that's built in, not bolted on.</h2>
+			<p>
+				Turn on two-factor authentication straight from your settings. Scan the QR code with any
+				authenticator app, and every sign-in asks for a time-based code — with one-time recovery
+				codes as your backup if you lose the device.
+			</p>
+			<ul class="security-points">
+				<li>TOTP two-factor auth, opt-in per account</li>
+				<li>Downloadable recovery codes you can regenerate anytime</li>
+				<li>Disable it just as easily whenever you want</li>
+			</ul>
+			<a class="btn btn-solid" href={APP_URL}>Try it live</a>
+		</div>
+		<div class="security-media">
+			<img src="/landing/twofa.png" alt="Two-factor authentication settings" loading="lazy" />
+		</div>
 	</section>
 
 	<!-- Closing banner -->
@@ -219,7 +298,7 @@
 			transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
 		will-change: opacity, transform;
 	}
-	.reveal.in {
+	.reveal:global(.in) {
 		opacity: 1;
 		transform: none;
 	}
@@ -451,81 +530,187 @@
 		letter-spacing: -0.02em;
 		margin: 0 0 28px;
 	}
-	.features-grid {
+	/* Features carousel */
+	.carousel {
 		position: relative;
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		grid-template-rows: auto auto auto;
-		gap: 56px 32px;
-		padding: 0 44px 64px;
+		padding: 0 44px 56px;
 	}
-	/* Faint line tracing the diagonal cascade, behind the cards. */
-	.flow-line {
-		position: absolute;
-		inset: 0 44px 64px;
-		width: calc(100% - 88px);
-		height: calc(100% - 64px);
-		z-index: 0;
-		pointer-events: none;
+	.viewport {
+		overflow: hidden;
 	}
-	.flow-line path {
-		stroke: var(--accent);
-		stroke-width: 1.5;
-		stroke-dasharray: 2 9;
-		stroke-linecap: round;
-		opacity: 0.35;
-		vector-effect: non-scaling-stroke;
-	}
-	.feature-card {
-		position: relative;
-		z-index: 1;
+	.track {
 		display: flex;
-		flex-direction: column;
-		gap: 14px;
+		transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+		will-change: transform;
 	}
-	.feature-1 {
-		grid-column: 1;
-		grid-row: 1;
+	.slide {
+		flex: 0 0 100%;
+		min-width: 0;
+		display: grid;
+		grid-template-columns: 1.35fr 1fr;
+		gap: 44px;
+		align-items: center;
+		padding: 6px 2px 20px;
 	}
-	.feature-2 {
-		grid-column: 2;
-		grid-row: 2;
+	.slide[aria-hidden='true'] {
+		visibility: hidden;
 	}
-	.feature-3 {
-		grid-column: 3;
-		grid-row: 3;
-	}
-	.feature-thumb {
-		height: 200px;
-		overflow: visible;
-	}
-	.feature-thumb img {
+	.slide-media img {
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		object-position: top left;
+		height: auto;
 		display: block;
 		border-radius: var(--media-radius);
 		box-shadow: var(--shadow);
-		transition:
-			transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1),
-			box-shadow 0.45s ease;
 	}
-	.feature-card:hover .feature-thumb img {
-		transform: translateY(-8px) scale(1.02);
-		box-shadow: var(--shadow-hover);
+	.slide-copy {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 14px;
 	}
-	.feature-card h3 {
+	.slide-copy .kicker {
+		margin: 0;
+	}
+	.slide-copy h3 {
 		font-weight: 800;
-		font-size: 22px;
-		line-height: 1.1;
+		font-size: 28px;
+		line-height: 1.05;
+		letter-spacing: -0.02em;
 		margin: 0;
 	}
-	.feature-card p {
+	.slide-copy p {
 		margin: 0;
-		font-size: 13.5px;
-		line-height: 1.5;
+		font-size: 15px;
+		line-height: 1.55;
 		color: var(--muted);
+		max-width: 34em;
+	}
+	.slide-copy .btn {
+		margin-top: 4px;
+	}
+
+	.car-arrow {
+		position: absolute;
+		top: 38%;
+		z-index: 2;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		background: var(--bg);
+		border: 2px solid var(--outline);
+		color: var(--text);
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+	.car-arrow:hover {
+		background: var(--outline-hover);
+		border-color: var(--accent);
+	}
+	.car-arrow.prev {
+		left: 4px;
+	}
+	.car-arrow.next {
+		right: 4px;
+	}
+	.car-arrow svg {
+		width: 22px;
+		height: 22px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2.5;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+	.dots {
+		display: flex;
+		justify-content: center;
+		gap: 10px;
+	}
+	.dot {
+		width: 28px;
+		height: 4px;
+		background: var(--line);
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+	.dot.active {
+		background: var(--accent);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.track {
+			transition: none;
+		}
+	}
+
+	/* Security band */
+	.security {
+		display: grid;
+		grid-template-columns: 1fr 1.1fr;
+		gap: 48px;
+		align-items: center;
+		padding: 64px 44px;
+		background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+	}
+	.security-copy {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 16px;
+	}
+	.security-copy h2 {
+		font-weight: 800;
+		font-size: 34px;
+		line-height: 1.05;
+		letter-spacing: -0.02em;
+		margin: 0;
+	}
+	.security-copy > p {
+		margin: 0;
+		font-size: 15px;
+		line-height: 1.6;
+		color: var(--muted);
+		max-width: 36em;
+	}
+	.security-points {
+		list-style: none;
+		padding: 0;
+		margin: 2px 0;
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
+	}
+	.security-points li {
+		position: relative;
+		padding-left: 26px;
+		font-size: 14.5px;
+		color: var(--text);
+	}
+	.security-points li::before {
+		content: '';
+		position: absolute;
+		left: 2px;
+		top: 5px;
+		width: 11px;
+		height: 6px;
+		border-left: 2px solid var(--accent);
+		border-bottom: 2px solid var(--accent);
+		transform: rotate(-45deg);
+	}
+	.security-copy .btn {
+		margin-top: 6px;
+	}
+	.security-media img {
+		width: 100%;
+		height: auto;
+		display: block;
+		border-radius: var(--media-radius);
+		box-shadow: var(--shadow);
 	}
 
 	/* Banner */
@@ -624,23 +809,36 @@
 		.features-intro {
 			padding: 32px 20px 0;
 		}
-		.flow-line {
-			display: none;
+		.carousel {
+			padding: 0 20px 44px;
 		}
-		.features-grid {
+		.slide {
 			grid-template-columns: 1fr;
-			grid-template-rows: none;
-			gap: 32px;
-			padding: 0 20px 48px;
+			gap: 20px;
+			padding: 6px 0 16px;
 		}
-		.feature-1,
-		.feature-2,
-		.feature-3 {
-			grid-column: 1;
-			grid-row: auto;
+		.slide-copy h3 {
+			font-size: 24px;
 		}
-		.feature-thumb {
-			height: 210px;
+		.car-arrow {
+			top: 32%;
+			width: 40px;
+			height: 40px;
+		}
+		.car-arrow.prev {
+			left: 0;
+		}
+		.car-arrow.next {
+			right: 0;
+		}
+
+		.security {
+			grid-template-columns: 1fr;
+			gap: 28px;
+			padding: 44px 20px;
+		}
+		.security-copy h2 {
+			font-size: 28px;
 		}
 
 		.banner {
