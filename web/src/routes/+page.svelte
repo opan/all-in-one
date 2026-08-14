@@ -42,21 +42,21 @@
 		{
 			kicker: 'Topics & items',
 			title: 'Listing',
-			body: 'Spin up a topic, define its shape with a JSON schema, and the form builds itself. Manage every item from one place.',
+			body: "I use it to track the books I've bought and read. Spin up a topic, shape it with a JSON schema, and manage the items in one place — see if it covers your use case too.",
 			image: '/landing/listing.png',
 			alt: 'Listing topics table'
 		},
 		{
 			kicker: 'WebSockets',
 			title: 'Real-time Chat',
-			body: 'Live messaging with sessions and an invite system, all carried over a single WebSocket connection.',
+			body: "My own alternative for reaching people — real-time messaging with sessions and invites. The conversations live on my personal server, so they stay private.",
 			image: '/landing/chat.png',
 			alt: 'Real-time chat conversations'
 		},
 		{
 			kicker: 'Short links',
 			title: 'Shortener',
-			body: 'Turn long URLs into short, shareable links and track how often each one gets clicked.',
+			body: "When a link is too long to share, I shorten it here instead of hunting down yet another online tool. Long URLs become short, trackable links.",
 			image: '/landing/shortener.png',
 			alt: 'URL shortener links'
 		}
@@ -98,7 +98,7 @@
 		</nav>
 		<div class="nav-actions">
 			<ThemeToggle />
-			<a class="btn btn-solid btn-sm nav-cta" href={APP_URL}>Try it live</a>
+			<a class="btn btn-solid btn-sm nav-cta" href={APP_URL}>Try it here</a>
 			<button
 				class="nav-toggle"
 				aria-label="Toggle menu"
@@ -114,13 +114,14 @@
 	<section class="hero">
 		<div class="hero-copy reveal" use:reveal>
 			<div class="kicker">Open Source / Go + Svelte</div>
-			<h1>A full-stack app you can try right now.</h1>
+			<h1>I built this to solve my problems. See if it solves yours.</h1>
 			<p class="lead">
-				All-in-One bundles listing, real-time chat and a live rate limiter into one open-source
-				project. It's live right now — take it for a spin, or clone the code and make it your own.
+				All-in-One is the super-app I'm building to fix my own everyday problems — listing,
+				real-time chat, short links and more, all in one place. It's live right now, so try it and
+				see if it solves yours too.
 			</p>
 			<div class="btn-row">
-				<a class="btn btn-solid" href={APP_URL}>Try it live</a>
+				<a class="btn btn-solid" href={APP_URL}>Try it here</a>
 				<a class="btn btn-outline" href={GITHUB_URL} target="_blank" rel="noreferrer">
 					View on GitHub
 				</a>
@@ -209,7 +210,7 @@
 				<li>Downloadable recovery codes you can regenerate anytime</li>
 				<li>Disable it just as easily whenever you want</li>
 			</ul>
-			<a class="btn btn-solid" href={APP_URL}>Try it live</a>
+			<a class="btn btn-solid" href={APP_URL}>Try it here</a>
 		</div>
 		<div class="security-media">
 			<img src="/landing/twofa.png" alt="Two-factor authentication settings" loading="lazy" />
@@ -218,9 +219,9 @@
 
 	<!-- Closing banner -->
 	<section class="banner reveal" use:reveal>
-		<h2>Ready to dig in? Try the live app, then make it your own.</h2>
+		<h2>Like this app? Try it here — and if it's for you, install your own copy.</h2>
 		<div class="btn-row">
-			<a class="btn btn-on-accent" href={APP_URL}>Try it live</a>
+			<a class="btn btn-on-accent" href={APP_URL}>Try it here</a>
 			<a class="btn btn-outline-accent" href={ISSUES_URL} target="_blank" rel="noreferrer">
 				Report an issue
 			</a>
