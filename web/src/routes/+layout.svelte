@@ -13,14 +13,19 @@
 		initPalette();
 	});
 
-	// Check if current route should use simple layout (auth pages)
-	const isAuthPage = $derived($page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/signup'));
+	// Check if current route should use the bare layout (no app sidebar/shell).
+	// This covers the auth pages and the public landing page at "/".
+	const isBarePage = $derived(
+		$page.url.pathname === '/' ||
+			$page.url.pathname.startsWith('/login') ||
+			$page.url.pathname.startsWith('/signup')
+	);
 
 	// Build breadcrumbs from page data breadcrumb metadata
 	const breadcrumbs = $derived(() => {
 		const pageData = $page.data;
 		const crumbs: Array<{ label: string; href?: string }> = [
-			{ label: 'All-in-one', href: '/' }
+			{ label: 'All-in-one', href: '/home' }
 		];
 
 		// Collect breadcrumbs from the page data hierarchy
@@ -50,8 +55,8 @@
 
 <ModeWatcher />
 
-{#if isAuthPage}
-	<!-- Simple layout for auth pages without sidebar -->
+{#if isBarePage}
+	<!-- Bare layout for auth pages and the public landing page (no sidebar) -->
 	{@render children?.()}
 {:else}
 	<!-- Full layout with sidebar for app pages -->

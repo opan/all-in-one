@@ -60,7 +60,7 @@
 			const loginData = await loginResponse.json();
 
 			if (loginResponse.ok && loginData.success && !loginData.data?.requires_2fa) {
-				await goto('/');
+				await goto('/home');
 			} else {
 				// Account exists even if auto-login didn't pan out — let them log in manually.
 				await goto('/login');

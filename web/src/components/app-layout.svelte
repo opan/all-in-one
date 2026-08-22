@@ -11,7 +11,7 @@
 		currentPath: string;
 	}
 
-	let { children, breadcrumbs = [{ label: 'Home', href: '/' }], currentPath }: Props = $props();
+	let { children, breadcrumbs = [{ label: 'Home', href: '/home' }], currentPath }: Props = $props();
 </script>
 
 <Sidebar.Provider>

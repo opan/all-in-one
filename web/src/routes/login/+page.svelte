@@ -42,7 +42,7 @@
 					challengeToken = data.data.challenge_token;
 					show2FAStep = true;
 				} else {
-					await goto('/');
+					await goto('/home');
 				}
 			} else {
 				error = data.error || 'Login failed. Please check your credentials.';
@@ -80,7 +80,7 @@
 			const data = await response.json();
 
 			if (response.ok && data.success) {
-				await goto('/');
+				await goto('/home');
 			} else if (response.status === 429) {
 				error = 'Too many attempts. Please login again.';
 				reset2FA();
