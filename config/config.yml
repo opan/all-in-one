@@ -50,6 +50,11 @@ shortener:
     allowed_schemes: ["http", "https"]
     blocked_hosts: []
 
+demo_mode:
+  enabled: true          # advertise the shared demo account on landing + login; set false to hide it AND block the demo user (abuse guard rail)
+  username: "demo"       # the account visitors log in with — create it out of band
+  password: "demo123"    # shown publicly via GET /api/v1/config; keep it low-value
+
 telemetry:
   enabled: false           # Toggle OTel SDK on/off without rebuilding
   service_name: "all-in-one"

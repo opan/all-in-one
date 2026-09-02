@@ -125,6 +125,39 @@ func (h *HTTP) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// demoModePublic is the client-facing view of the demo_mode flag. Credentials
+// are included only when the flag is enabled so a disabled demo never leaks a
+// username/password to callers.
+type demoModePublic struct {
+	Enabled  bool   `json:"enabled"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+// PublicConfig godoc
+// @Summary      Public runtime config
+// @Description  Client-facing configuration the SPA needs before authentication (currently the demo-account flag). No secrets beyond the intentionally public demo credentials.
+// @Tags         config
+// @Produce      json
+// @Success      200  {object}  Response  "Public config"
+// @Router       /config [get]
+func (h *HTTP) PublicConfig(w http.ResponseWriter, r *http.Request) {
+	demo := demoModePublic{Enabled: h.config.DemoMode.Enabled}
+	if demo.Enabled {
+		demo.Username = h.config.DemoMode.Username
+		demo.Password = h.config.DemoMode.Password
+	}
+
+	response := Response{
+		Success: true,
+		Data: map[string]any{
+			"demo_mode": demo,
+		},
+	}
+
+	SendJSON(w, response, http.StatusOK)
+}
+
 // SendJSON sends a JSON response
 func SendJSON(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")

@@ -159,6 +159,118 @@ func TestCreateSession_InvalidPassword(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
+func TestCreateSession_DemoModeGuardRail(t *testing.T) {
+	tests := []struct {
+		name         string
+		demo         config.DemoModeConfig
+		loginAs      string
+		wantStatus   int
+		wantBlocked  bool // true = rejected before any DB lookup / password check
+	}{
+		{
+			name:        "disabled blocks demo user",
+			demo:        config.DemoModeConfig{Enabled: false, Username: "demo"},
+			loginAs:     "demo",
+			wantStatus:  http.StatusForbidden,
+			wantBlocked: true,
+		},
+		{
+			name:        "disabled blocks demo user case-insensitively",
+			demo:        config.DemoModeConfig{Enabled: false, Username: "demo"},
+			loginAs:     "DEMO",
+			wantStatus:  http.StatusForbidden,
+			wantBlocked: true,
+		},
+		{
+			name:        "disabled does not block other users",
+			demo:        config.DemoModeConfig{Enabled: false, Username: "demo"},
+			loginAs:     "realuser",
+			wantStatus:  http.StatusCreated,
+			wantBlocked: false,
+		},
+		{
+			name:        "enabled allows demo user",
+			demo:        config.DemoModeConfig{Enabled: true, Username: "demo"},
+			loginAs:     "demo",
+			wantStatus:  http.StatusCreated,
+			wantBlocked: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const password = "secret"
+			pwd, _ := auth.HashPassword(password)
+
+			mockUserRepo := mocks.NewMockUserRepository(t)
+			mockSessionRepo := mocks.NewMockSessionRepository(t)
+
+			// A blocked login returns before touching the DB, so no repo calls
+			// are expected. The non-blocked cases run the full success path.
+			if !tt.wantBlocked {
+				mockUserRepo.On("FindByUsername", mock.Anything, tt.loginAs).
+					Return(model.User{ID: uuid.New(), Username: tt.loginAs, PasswordHash: pwd}, nil)
+				mockSessionRepo.On("CreateTrx", mock.Anything).Return(&MockTransaction{}, nil)
+				mockSessionRepo.On("Create", mock.Anything, mock.AnythingOfType("model.Session"), mock.Anything).Return(nil)
+			}
+
+			storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mockSessionRepo}
+			handler := NewHandler(storage, config.Config{
+				Auth:     config.Auth{JWTSecret: "test-secret-key"},
+				DemoMode: tt.demo,
+			})
+
+			body, _ := json.Marshal(map[string]string{"username": tt.loginAs, "password": password})
+			req := httptest.NewRequest(http.MethodPost, "/sessions", bytes.NewReader(body))
+			req = req.WithContext(tester.ContextWithLogger())
+
+			rr := httptest.NewRecorder()
+			handler.CreateSession(rr, req)
+
+			assert.Equal(t, tt.wantStatus, rr.Code)
+			if tt.wantBlocked {
+				mockUserRepo.AssertNotCalled(t, "FindByUsername", mock.Anything, mock.Anything)
+			}
+		})
+	}
+}
+
+func TestRefreshToken_DemoModeDisabled_BlocksDemoUser(t *testing.T) {
+	sessionID := uuid.New()
+	userID := uuid.New()
+	now := time.Now().UTC()
+
+	session := model.Session{
+		ID:                 sessionID,
+		UserID:             userID,
+		CreatedAt:          now,
+		AccessTokenExpiry:  int(now.Add(-5 * time.Minute).Unix()),
+		RefreshTokenExpiry: int(now.Add(7 * 24 * time.Hour).Unix()),
+	}
+
+	mockUserRepo := mocks.NewMockUserRepository(t)
+	mockUserRepo.On("Find", mock.Anything, userID).Return(model.User{ID: userID, Username: "demo"}, nil)
+
+	mockSessionRepo := mocks.NewMockSessionRepository(t)
+	mockSessionRepo.On("Get", mock.Anything, sessionID).Return(&session, nil)
+
+	storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mockSessionRepo}
+	handler := NewHandler(storage, config.Config{
+		Auth:     config.Auth{JWTSecret: "test-secret-key"},
+		DemoMode: config.DemoModeConfig{Enabled: false, Username: "demo"},
+	})
+
+	refreshToken, _ := handler.createRefreshToken(sessionID)
+	req := httptest.NewRequest(http.MethodPost, "/sessions/refresh", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: refreshToken})
+	req = req.WithContext(tester.ContextWithLogger())
+
+	rr := httptest.NewRecorder()
+	handler.RefreshToken(rr, req)
+
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+}
+
 func TestDeleteSession_Success(t *testing.T) {
 	sessionID := uuid.New()
 	userID := uuid.New()

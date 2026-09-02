@@ -1,7 +1,16 @@
 <script lang="ts">
 	import ThemeToggle from '../components/theme-toggle.svelte';
 
+	import type { DemoMode } from '$lib/config';
+
+	let { data }: { data: { demoMode: DemoMode } } = $props();
+
+	// Shared demo account flag, resolved from the backend (GET /api/v1/config).
+	// When disabled, the credentials callouts are hidden entirely.
+	const demo = $derived(data.demoMode);
+
 	const APP_URL = '/home';
+	const LOGIN_URL = '/login';
 	const GITHUB_URL = 'https://github.com/opan/all-in-one';
 	const ISSUES_URL = 'https://github.com/opan/all-in-one/issues';
 
@@ -98,7 +107,7 @@
 		</nav>
 		<div class="nav-actions">
 			<ThemeToggle />
-			<a class="btn btn-solid btn-sm nav-cta" href={APP_URL}>Try it here</a>
+			<a class="btn btn-solid btn-sm nav-cta" href={LOGIN_URL}>Try it here</a>
 			<button
 				class="nav-toggle"
 				aria-label="Toggle menu"
@@ -121,11 +130,29 @@
 				see if it solves yours too.
 			</p>
 			<div class="btn-row">
-				<a class="btn btn-solid" href={APP_URL}>Try it here</a>
+				<a class="btn btn-solid" href={LOGIN_URL}>Try it here</a>
 				<a class="btn btn-outline" href={GITHUB_URL} target="_blank" rel="noreferrer">
 					View on GitHub
 				</a>
 			</div>
+			{#if demo?.enabled}
+				<div class="demo">
+					<span class="demo-badge">No sign-up needed</span>
+					<p class="demo-text">
+						Log in with the shared demo account to look around before creating your own:
+					</p>
+					<dl class="demo-creds">
+						<div>
+							<dt>Username</dt>
+							<dd><code>{demo.username}</code></dd>
+						</div>
+						<div>
+							<dt>Password</dt>
+							<dd><code>{demo.password}</code></dd>
+						</div>
+					</dl>
+				</div>
+			{/if}
 		</div>
 		<div class="hero-media reveal" use:reveal={{ delay: 120 }}>
 			<img src="/landing/dashboard.png" alt="All-in-One dashboard" loading="eager" />
@@ -220,8 +247,14 @@
 	<!-- Closing banner -->
 	<section class="banner reveal" use:reveal>
 		<h2>Like this app? Try it here — and if it's for you, install your own copy.</h2>
+			{#if demo?.enabled}
+				<p class="banner-note">
+					No account needed to start — sign in with the demo account
+					(<code>{demo.username}</code> / <code>{demo.password}</code>) and take a look around.
+				</p>
+			{/if}
 		<div class="btn-row">
-			<a class="btn btn-on-accent" href={APP_URL}>Try it here</a>
+			<a class="btn btn-on-accent" href={LOGIN_URL}>{demo?.enabled ? 'Try the demo' : 'Try it here'}</a>
 			<a class="btn btn-outline-accent" href={ISSUES_URL} target="_blank" rel="noreferrer">
 				Report an issue
 			</a>
@@ -382,6 +415,60 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 12px;
+	}
+
+	/* Demo account callout in the hero */
+	.demo {
+		margin-top: 26px;
+		max-width: 34em;
+		padding: 16px 18px;
+		border: 1px solid var(--outline);
+		background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+	}
+	.demo-badge {
+		display: inline-block;
+		font-size: 10.5px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #ffffff;
+		background: var(--accent);
+		padding: 3px 9px;
+	}
+	.demo-text {
+		margin: 10px 0 12px;
+		font-size: 14px;
+		line-height: 1.5;
+		color: var(--muted);
+	}
+	.demo-creds {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px 28px;
+		margin: 0;
+	}
+	.demo-creds div {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+	}
+	.demo-creds dt {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--faint);
+	}
+	.demo-creds dd {
+		margin: 0;
+	}
+	.demo-creds code {
+		font-family: 'SFMono-Regular', ui-monospace, 'Menlo', monospace;
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--text);
+		background: color-mix(in srgb, var(--text) 8%, transparent);
+		padding: 2px 8px;
 	}
 
 	/* Nav — no border, seamless with the hero */
@@ -732,6 +819,21 @@
 		margin: 0;
 		max-width: 16em;
 		color: #ffffff;
+	}
+	.banner-note {
+		margin: 0;
+		max-width: 40em;
+		font-size: 15px;
+		line-height: 1.55;
+		color: rgba(255, 255, 255, 0.9);
+	}
+	.banner-note code {
+		font-family: 'SFMono-Regular', ui-monospace, 'Menlo', monospace;
+		font-size: 13.5px;
+		font-weight: 700;
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.18);
+		padding: 1px 7px;
 	}
 
 	/* Footer — no top border */

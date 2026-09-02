@@ -246,6 +246,10 @@ func (s *server) Start() error {
 	// Health check (public)
 	api.HandleFunc("/health", h.HealthCheck).Methods("GET")
 
+	// Public runtime config the SPA reads before authentication (demo-account
+	// flag). Public and unauthenticated by design.
+	api.HandleFunc("/config", h.PublicConfig).Methods("GET")
+
 	if s.config.Server.SwaggerEnabled {
 		s.log.Info().Msg("Register swagger...")
 		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
