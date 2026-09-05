@@ -376,14 +376,21 @@ func shouldTrace(r *http.Request) bool {
 
 // spaFileServer serves static files from dir. If the requested path does not
 // exist on disk it falls back to index.html, allowing SvelteKit's client-side
-// router to handle the route in the browser.
+// router to handle the route in the browser. The existence probe resolves the
+// request path through the same http.Dir the file server uses, which confines
+// it to dir, so a request can never reach outside the web root.
 func spaFileServer(dir string) http.Handler {
-	fs := http.FileServer(http.Dir(dir))
+	root := http.Dir(dir)
+	fs := http.FileServer(root)
+	index := filepath.Join(dir, "index.html")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join(dir, filepath.Clean("/"+r.URL.Path))
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+		f, err := root.Open(r.URL.Path)
+		if os.IsNotExist(err) {
+			http.ServeFile(w, r, index)
 			return
+		}
+		if err == nil {
+			f.Close()
 		}
 		fs.ServeHTTP(w, r)
 	})
