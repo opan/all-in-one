@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/all-in-one/internal/auth"
@@ -19,6 +20,15 @@ import (
 type contextKey string
 
 const SecureCookieKey contextKey = "secure_cookie"
+
+// demoLoginBlocked reports whether username is the configured demo account while
+// demo mode is turned off. It is the abuse guard rail: with demo_mode disabled,
+// the demo user can neither log in nor renew a session. Matching is
+// case-insensitive to mirror how the demo credentials are advertised.
+func (h *Handler) demoLoginBlocked(username string) bool {
+	dm := h.config.DemoMode
+	return !dm.Enabled && dm.Username != "" && strings.EqualFold(username, dm.Username)
+}
 
 // CreateSession godoc
 // @Summary      Create a new session (login)
@@ -44,6 +54,16 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
+
+	// Guard rail: when demo mode is off, the demo account is barred outright —
+	// rejected before any DB lookup or password check so a disabled demo can't
+	// be probed at all.
+	if h.demoLoginBlocked(rl.Username) {
+		log.Warn().Str("username", rl.Username).Msg("demo login attempted while demo mode disabled")
+		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "demo_disabled")))
+		httpHelper.SendError(w, "Demo access is currently disabled", http.StatusForbidden)
+		return
+	}
 
 	u, err := h.storage.UserRepo().FindByUsername(ctx, rl.Username)
 	if err != nil {
@@ -363,6 +383,14 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Str("user_id", session.UserID.String()).Msg("User not found")
 		httpHelper.SendError(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Guard rail: a live demo session can't renew once demo mode is turned off,
+	// so any in-flight demo session dies within the access-token window.
+	if h.demoLoginBlocked(user.Username) {
+		log.Warn().Str("username", user.Username).Msg("demo session refresh attempted while demo mode disabled")
+		httpHelper.SendError(w, "Demo access is currently disabled", http.StatusForbidden)
 		return
 	}
 

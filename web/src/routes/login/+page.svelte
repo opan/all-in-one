@@ -5,6 +5,11 @@
 	import * as Card from '$lib/components/ui/card';
 	import { goto } from '$app/navigation';
 	import { apiPost } from '$lib/api';
+	import { page } from '$app/stores';
+	import type { DemoMode } from '$lib/config';
+
+	// Demo-account flag from the root layout load (GET /api/v1/config).
+	const demo = $derived(($page.data.demoMode ?? { enabled: false }) as DemoMode);
 
 	let username = $state('');
 	let password = $state('');
@@ -230,6 +235,32 @@
 				<Button variant="outline" class="w-full" onclick={() => handleGoogleLogin()} disabled={loading}>
 					Login with Google
 				</Button>
+
+				{#if demo.enabled}
+					<div class="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-medium">Just want to look around?</span>
+							<button
+								type="button"
+								class="text-primary hover:underline disabled:opacity-50"
+								disabled={loading}
+								onclick={() => {
+									username = demo.username ?? '';
+									password = demo.password ?? '';
+									error = '';
+								}}
+							>
+								Use demo account
+							</button>
+						</div>
+						<p class="mt-1 text-muted-foreground">
+							No sign-up needed — log in with
+							<code class="font-mono font-semibold text-foreground">{demo.username}</code>
+							/
+							<code class="font-mono font-semibold text-foreground">{demo.password}</code>.
+						</p>
+					</div>
+				{/if}
 			{/if}
 		</Card.Content>
 	</Card.Root>

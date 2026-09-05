@@ -20,6 +20,19 @@ type Config struct {
 	RBAC      RBACConfig      `mapstructure:"rbac"`
 	RateLimit RateLimitConfig `mapstructure:"ratelimit"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
+	DemoMode  DemoModeConfig  `mapstructure:"demo_mode"`
+}
+
+// DemoModeConfig gates the shared demo account. When Enabled, the landing and
+// login pages advertise the credentials (served via GET /api/v1/config) so
+// visitors can try the app without signing up. It also doubles as an abuse
+// guard rail: setting Enabled=false hides the credentials and blocks the demo
+// user from logging in or renewing sessions. The flag never provisions the
+// account — that is created out of band.
+type DemoModeConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
 type TelemetryConfig struct {
@@ -170,6 +183,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("telemetry.otlp_insecure", true)
 	viper.SetDefault("telemetry.sample_ratio", 1.0)
 	viper.SetDefault("telemetry.metric_interval", 15*time.Second)
+	viper.SetDefault("demo_mode.enabled", false)
+	viper.SetDefault("demo_mode.username", "demo")
 
 	// Enable environment variable support
 	// Viper maps nested keys to env vars by replacing dots with underscores and
@@ -208,6 +223,9 @@ func Load() (*Config, error) {
 	viper.BindEnv("telemetry.otlp_insecure", "ALLINONE_TELEMETRY_OTLP_INSECURE")
 	viper.BindEnv("telemetry.sample_ratio", "ALLINONE_TELEMETRY_SAMPLE_RATIO")
 	viper.BindEnv("telemetry.metric_interval", "ALLINONE_TELEMETRY_METRIC_INTERVAL")
+	viper.BindEnv("demo_mode.enabled", "ALLINONE_DEMO_MODE_ENABLED")
+	viper.BindEnv("demo_mode.username", "ALLINONE_DEMO_MODE_USERNAME")
+	viper.BindEnv("demo_mode.password", "ALLINONE_DEMO_MODE_PASSWORD")
 
 	// Try to read config file (it's okay if it doesn't exist)
 	if err := viper.ReadInConfig(); err != nil {
