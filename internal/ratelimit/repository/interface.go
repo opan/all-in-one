@@ -20,6 +20,14 @@ type RuleRepository interface {
 	// ResetToDefault overwrites a rule's tunable fields (enabled/limit/window)
 	// back to the given (registry-default) values, unconditionally.
 	ResetToDefault(ctx context.Context, rule model.Rule, opts ...query.QueryOptions) error
+	// CreateExternal inserts a self-contained external rule (its own app,
+	// name, scope, kind — no Registry entry to merge from). Returns
+	// ratelimit.ErrExternalTargetExists if the target key is already taken.
+	CreateExternal(ctx context.Context, rule model.Rule, opts ...query.QueryOptions) error
+	// Delete removes an external rule by key. It is guarded at the SQL level
+	// (WHERE is_external) so no code path can delete an internal (Registry)
+	// row through it.
+	Delete(ctx context.Context, targetKey string, opts ...query.QueryOptions) error
 }
 
 type CounterRepository interface {

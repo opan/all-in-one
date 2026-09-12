@@ -23,6 +23,130 @@ func (_m *MockRuleRepository) EXPECT() *MockRuleRepository_Expecter {
 	return &MockRuleRepository_Expecter{mock: &_m.Mock}
 }
 
+// CreateExternal provides a mock function with given fields: ctx, rule, opts
+func (_m *MockRuleRepository) CreateExternal(ctx context.Context, rule model.Rule, opts ...query.QueryOptions) error {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, rule)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateExternal")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, model.Rule, ...query.QueryOptions) error); ok {
+		r0 = rf(ctx, rule, opts...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockRuleRepository_CreateExternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateExternal'
+type MockRuleRepository_CreateExternal_Call struct {
+	*mock.Call
+}
+
+// CreateExternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - rule model.Rule
+//   - opts ...query.QueryOptions
+func (_e *MockRuleRepository_Expecter) CreateExternal(ctx interface{}, rule interface{}, opts ...interface{}) *MockRuleRepository_CreateExternal_Call {
+	return &MockRuleRepository_CreateExternal_Call{Call: _e.mock.On("CreateExternal",
+		append([]interface{}{ctx, rule}, opts...)...)}
+}
+
+func (_c *MockRuleRepository_CreateExternal_Call) Run(run func(ctx context.Context, rule model.Rule, opts ...query.QueryOptions)) *MockRuleRepository_CreateExternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]query.QueryOptions, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(query.QueryOptions)
+			}
+		}
+		run(args[0].(context.Context), args[1].(model.Rule), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *MockRuleRepository_CreateExternal_Call) Return(_a0 error) *MockRuleRepository_CreateExternal_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRuleRepository_CreateExternal_Call) RunAndReturn(run func(context.Context, model.Rule, ...query.QueryOptions) error) *MockRuleRepository_CreateExternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Delete provides a mock function with given fields: ctx, targetKey, opts
+func (_m *MockRuleRepository) Delete(ctx context.Context, targetKey string, opts ...query.QueryOptions) error {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, targetKey)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, ...query.QueryOptions) error); ok {
+		r0 = rf(ctx, targetKey, opts...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockRuleRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
+type MockRuleRepository_Delete_Call struct {
+	*mock.Call
+}
+
+// Delete is a helper method to define mock.On call
+//   - ctx context.Context
+//   - targetKey string
+//   - opts ...query.QueryOptions
+func (_e *MockRuleRepository_Expecter) Delete(ctx interface{}, targetKey interface{}, opts ...interface{}) *MockRuleRepository_Delete_Call {
+	return &MockRuleRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]interface{}{ctx, targetKey}, opts...)...)}
+}
+
+func (_c *MockRuleRepository_Delete_Call) Run(run func(ctx context.Context, targetKey string, opts ...query.QueryOptions)) *MockRuleRepository_Delete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]query.QueryOptions, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(query.QueryOptions)
+			}
+		}
+		run(args[0].(context.Context), args[1].(string), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *MockRuleRepository_Delete_Call) Return(_a0 error) *MockRuleRepository_Delete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRuleRepository_Delete_Call) RunAndReturn(run func(context.Context, string, ...query.QueryOptions) error) *MockRuleRepository_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function with given fields: ctx, targetKey
 func (_m *MockRuleRepository) Get(ctx context.Context, targetKey string) (model.Rule, error) {
 	ret := _m.Called(ctx, targetKey)

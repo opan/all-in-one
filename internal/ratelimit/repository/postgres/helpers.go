@@ -4,10 +4,25 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/all-in-one/internal/query"
 	"github.com/jmoiron/sqlx"
 )
+
+// isUniqueViolation reports whether err is a unique/primary-key constraint
+// violation, matched by message so no driver-specific import is needed
+// (postgres/lib/pq: "duplicate key value violates unique constraint" /
+// SQLSTATE 23505).
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "23505")
+}
 
 type queryOptions struct {
 	trx *sqlx.Tx

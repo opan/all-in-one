@@ -8,6 +8,7 @@ import (
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/query"
+	"github.com/all-in-one/internal/ratelimit"
 	"github.com/all-in-one/internal/ratelimit/model"
 	"github.com/jmoiron/sqlx"
 )
@@ -74,5 +75,35 @@ func (r *ruleRepository) updateRow(ctx context.Context, rule model.Rule, opts ..
 		`UPDATE rate_limit_rules SET enabled = :enabled, limit_count = :limit_count, window_value = :window_value,
 		window_unit = :window_unit, updated_at = :updated_at, updated_by = :updated_by WHERE target_key = :target_key`,
 		rule)
+	return err
+}
+
+func (r *ruleRepository) CreateExternal(ctx context.Context, rule model.Rule, opts ...query.QueryOptions) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("entity", "RuleRepo").Str("action", "CreateExternal").Str("target_key", rule.TargetKey).Msg("create external rate limit rule")
+
+	exec := getExecCtx(r.db, opts...)
+	rule.UpdatedAt = time.Now().UTC()
+	rule.IsExternal = true
+
+	_, err := exec.NamedExecContext(ctx,
+		`INSERT INTO rate_limit_rules (target_key, enabled, limit_count, window_value, window_unit, updated_at, updated_by, app, is_external, name, description, scope, kind)
+		VALUES (:target_key, :enabled, :limit_count, :window_value, :window_unit, :updated_at, :updated_by, :app, :is_external, :name, :description, :scope, :kind)`,
+		rule)
+	if isUniqueViolation(err) {
+		return ratelimit.ErrExternalTargetExists
+	}
+	return err
+}
+
+func (r *ruleRepository) Delete(ctx context.Context, targetKey string, opts ...query.QueryOptions) error {
+	log := logging.GetLoggerFromContext(ctx)
+	log.Info().Str("entity", "RuleRepo").Str("action", "Delete").Str("target_key", targetKey).Msg("delete external rate limit rule")
+
+	exec := getExecCtx(r.db, opts...)
+	// is_external guard is defence in depth: no code path can delete an
+	// internal (Registry-backed) row through this method.
+	_, err := exec.ExecContext(ctx,
+		"DELETE FROM rate_limit_rules WHERE target_key = ? AND is_external = 1", targetKey)
 	return err
 }
