@@ -25,10 +25,11 @@ type Service struct {
 	Store   repository.Storage
 	Handler *handler.Handler
 
-	cache   *ruleCache
-	limiter *middleware.Limiter
-	config  config.Config
-	log     zerolog.Logger
+	cache      *ruleCache
+	tokenCache *tokenCache
+	limiter    *middleware.Limiter
+	config     config.Config
+	log        zerolog.Logger
 
 	stopOnce sync.Once
 	stop     chan struct{}
@@ -44,12 +45,13 @@ func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zero
 
 	cache := newRuleCache(store)
 	s := &Service{
-		Store:   store,
-		cache:   cache,
-		limiter: middleware.NewLimiter(cache, store.CounterRepo(), config),
-		config:  config,
-		log:     log,
-		stop:    make(chan struct{}),
+		Store:      store,
+		cache:      cache,
+		tokenCache: newTokenCache(config.RateLimit.External.TokenCacheTTL),
+		limiter:    middleware.NewLimiter(cache, store.CounterRepo(), config),
+		config:     config,
+		log:        log,
+		stop:       make(chan struct{}),
 	}
 	s.Handler = handler.NewHandler(s, config)
 
