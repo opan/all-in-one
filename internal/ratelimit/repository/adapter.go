@@ -18,11 +18,13 @@ type trxCreator interface {
 type storeAdapter struct {
 	ruleRepo    RuleRepository
 	counterRepo CounterRepository
+	tokenRepo   TokenRepository
 	trx         trxCreator
 }
 
 func (a *storeAdapter) RuleRepo() RuleRepository       { return a.ruleRepo }
 func (a *storeAdapter) CounterRepo() CounterRepository { return a.counterRepo }
+func (a *storeAdapter) TokenRepo() TokenRepository     { return a.tokenRepo }
 
 func (a *storeAdapter) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	return a.trx.CreateTrx(ctx)

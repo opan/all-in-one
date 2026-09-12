@@ -12,6 +12,7 @@ type storage struct {
 	db          *sqlx.DB
 	ruleRepo    *ruleRepository
 	counterRepo *counterRepository
+	tokenRepo   *tokenRepository
 }
 
 func NewStorage(db *sqlx.DB, config config.Config) *storage {
@@ -19,11 +20,13 @@ func NewStorage(db *sqlx.DB, config config.Config) *storage {
 		db:          db,
 		ruleRepo:    newRuleRepository(db),
 		counterRepo: newCounterRepository(db),
+		tokenRepo:   newTokenRepository(db),
 	}
 }
 
 func (s *storage) RuleRepo() *ruleRepository       { return s.ruleRepo }
 func (s *storage) CounterRepo() *counterRepository { return s.counterRepo }
+func (s *storage) TokenRepo() *tokenRepository     { return s.tokenRepo }
 
 func (s *storage) CreateTrx(ctx context.Context) (query.QueryOptions, error) {
 	return createTrx(ctx, s.db)

@@ -220,6 +220,53 @@ func (_c *MockStorage_RuleRepo_Call) RunAndReturn(run func() repository.RuleRepo
 	return _c
 }
 
+// TokenRepo provides a mock function with no fields
+func (_m *MockStorage) TokenRepo() repository.TokenRepository {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for TokenRepo")
+	}
+
+	var r0 repository.TokenRepository
+	if rf, ok := ret.Get(0).(func() repository.TokenRepository); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(repository.TokenRepository)
+		}
+	}
+
+	return r0
+}
+
+// MockStorage_TokenRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TokenRepo'
+type MockStorage_TokenRepo_Call struct {
+	*mock.Call
+}
+
+// TokenRepo is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) TokenRepo() *MockStorage_TokenRepo_Call {
+	return &MockStorage_TokenRepo_Call{Call: _e.mock.On("TokenRepo")}
+}
+
+func (_c *MockStorage_TokenRepo_Call) Run(run func()) *MockStorage_TokenRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockStorage_TokenRepo_Call) Return(_a0 repository.TokenRepository) *MockStorage_TokenRepo_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_TokenRepo_Call) RunAndReturn(run func() repository.TokenRepository) *MockStorage_TokenRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockStorage creates a new instance of MockStorage. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockStorage(t interface {
