@@ -22,6 +22,120 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
+// CheckExternal provides a mock function with given fields: ctx, targetKey, bucketKey
+func (_m *MockService) CheckExternal(ctx context.Context, targetKey string, bucketKey string) (model.CheckResponse, error) {
+	ret := _m.Called(ctx, targetKey, bucketKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckExternal")
+	}
+
+	var r0 model.CheckResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (model.CheckResponse, error)); ok {
+		return rf(ctx, targetKey, bucketKey)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) model.CheckResponse); ok {
+		r0 = rf(ctx, targetKey, bucketKey)
+	} else {
+		r0 = ret.Get(0).(model.CheckResponse)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, targetKey, bucketKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_CheckExternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckExternal'
+type MockService_CheckExternal_Call struct {
+	*mock.Call
+}
+
+// CheckExternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - targetKey string
+//   - bucketKey string
+func (_e *MockService_Expecter) CheckExternal(ctx interface{}, targetKey interface{}, bucketKey interface{}) *MockService_CheckExternal_Call {
+	return &MockService_CheckExternal_Call{Call: _e.mock.On("CheckExternal", ctx, targetKey, bucketKey)}
+}
+
+func (_c *MockService_CheckExternal_Call) Run(run func(ctx context.Context, targetKey string, bucketKey string)) *MockService_CheckExternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_CheckExternal_Call) Return(_a0 model.CheckResponse, _a1 error) *MockService_CheckExternal_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_CheckExternal_Call) RunAndReturn(run func(context.Context, string, string) (model.CheckResponse, error)) *MockService_CheckExternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EffectiveRule provides a mock function with given fields: key
+func (_m *MockService) EffectiveRule(key string) (model.EffectiveRule, bool) {
+	ret := _m.Called(key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EffectiveRule")
+	}
+
+	var r0 model.EffectiveRule
+	var r1 bool
+	if rf, ok := ret.Get(0).(func(string) (model.EffectiveRule, bool)); ok {
+		return rf(key)
+	}
+	if rf, ok := ret.Get(0).(func(string) model.EffectiveRule); ok {
+		r0 = rf(key)
+	} else {
+		r0 = ret.Get(0).(model.EffectiveRule)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) bool); ok {
+		r1 = rf(key)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	return r0, r1
+}
+
+// MockService_EffectiveRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EffectiveRule'
+type MockService_EffectiveRule_Call struct {
+	*mock.Call
+}
+
+// EffectiveRule is a helper method to define mock.On call
+//   - key string
+func (_e *MockService_Expecter) EffectiveRule(key interface{}) *MockService_EffectiveRule_Call {
+	return &MockService_EffectiveRule_Call{Call: _e.mock.On("EffectiveRule", key)}
+}
+
+func (_c *MockService_EffectiveRule_Call) Run(run func(key string)) *MockService_EffectiveRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_EffectiveRule_Call) Return(_a0 model.EffectiveRule, _a1 bool) *MockService_EffectiveRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_EffectiveRule_Call) RunAndReturn(run func(string) (model.EffectiveRule, bool)) *MockService_EffectiveRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListTargets provides a mock function with given fields: ctx
 func (_m *MockService) ListTargets(ctx context.Context) ([]model.Target, error) {
 	ret := _m.Called(ctx)
