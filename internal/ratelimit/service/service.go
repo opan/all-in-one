@@ -28,11 +28,12 @@ type Service struct {
 	Store   repository.Storage
 	Handler *handler.Handler
 
-	cache      *ruleCache
-	tokenCache *tokenCache
-	limiter    *middleware.Limiter
-	config     config.Config
-	log        zerolog.Logger
+	cache        *ruleCache
+	tokenCache   *tokenCache
+	limiter      *middleware.Limiter
+	appTokenAuth *middleware.AppTokenAuth
+	config       config.Config
+	log          zerolog.Logger
 
 	stopOnce sync.Once
 	stop     chan struct{}
@@ -57,6 +58,7 @@ func NewService(ctx context.Context, db *sqlx.DB, config config.Config, log zero
 		stop:       make(chan struct{}),
 	}
 	s.Handler = handler.NewHandler(s, config)
+	s.appTokenAuth = middleware.NewAppTokenAuth(s)
 
 	if err := s.seed(ctx); err != nil {
 		return nil, fmt.Errorf("seed rate limit rules: %w", err)
@@ -82,6 +84,19 @@ func (s *Service) RegisterAdminRoutes(router *mux.Router) {
 // ADR-004).
 func (s *Service) LimiterMiddleware() mux.MiddlewareFunc {
 	return s.limiter.Middleware()
+}
+
+// AppTokenMiddleware returns the mux.MiddlewareFunc that authenticates external
+// callers of the check API by their X-API-Key header (P13). Attach it to the
+// /ratelimit/check subrouter instead of JWTAuth.
+func (s *Service) AppTokenMiddleware() mux.MiddlewareFunc {
+	return s.appTokenAuth.Middleware()
+}
+
+// RegisterCheckRoutes registers the external rate-limit check API. The caller
+// must apply AppTokenMiddleware to router beforehand (P13).
+func (s *Service) RegisterCheckRoutes(router *mux.Router) {
+	s.Handler.RegisterCheckRoutes(router)
 }
 
 // seed inserts one rate_limit_rules row per Registry target (insert-if-

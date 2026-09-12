@@ -20,6 +20,12 @@ const (
 	TargetChatMessageSend      = "chat.message.send"
 	TargetShortenerLinkCreate  = "shortener.link.create"
 	TargetShortenerLinkResolve = "shortener.link.resolve"
+	// TargetCheckIP self-protects the external check API itself: an ip-scoped
+	// throttle on POST /api/v1/ratelimit/check so a caller cannot use it as a
+	// flood vector. This is INTERNAL (bound to aio's own route); the external
+	// targets it evaluates are separate DB rows with different keys, so there
+	// is no recursion (EXTERNAL_RATE_LIMIT plan P13).
+	TargetCheckIP = "ratelimit.check.ip"
 )
 
 // TargetDef is the code-defined source of truth for one rate-limited
@@ -116,6 +122,12 @@ var Registry = []TargetDef{
 		Scope: model.ScopeIP, Kind: model.KindThrottle,
 		Method: "GET", Path: "/r/{code}",
 		DefaultLimit: 300, DefaultWindowValue: 1, DefaultWindowUnit: model.WindowMinute,
+	},
+	{
+		Key: TargetCheckIP, Name: "External check API", Description: "External rate-limit check calls per IP",
+		Scope: model.ScopeIP, Kind: model.KindThrottle,
+		Method: "POST", Path: "/api/v1/ratelimit/check",
+		DefaultLimit: 6000, DefaultWindowValue: 1, DefaultWindowUnit: model.WindowMinute,
 	},
 }
 
