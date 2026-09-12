@@ -47,6 +47,13 @@ type TargetDef struct {
 // Registry is the single source of truth for rate-limited targets. On boot,
 // one rate_limit_rules row is seeded per entry (insert-if-absent, never
 // clobbering a prior admin edit — ADR-003).
+//
+// Only aio's OWN routes belong here. External targets (other apps calling the
+// /check API) are DB rows with no Registry entry, by design — they have no aio
+// route to bind to. Never add an external target here: validateRateLimitBindings
+// (cmd/all-in-one/server/server.go) walks Registered() and log.Fatals on any
+// entry whose route it cannot find, so an external entry would refuse the boot
+// (EXTERNAL_RATE_LIMIT plan ATTENTION #3).
 var Registry = []TargetDef{
 	{
 		Key: TargetAuthLogin, Name: "Login attempts", Description: "Login attempts per IP",
