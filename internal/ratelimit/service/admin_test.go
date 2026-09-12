@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/ratelimit"
 	"github.com/all-in-one/internal/ratelimit/model"
 	"github.com/all-in-one/internal/ratelimit/service/mocks"
@@ -48,7 +49,10 @@ func TestService_ListTargets_MergesRuleAndFallsBackToDefaults(t *testing.T) {
 }
 
 func TestService_UpdateTarget_UnknownKey(t *testing.T) {
+	ruleRepo := mocks.NewMockRuleRepository(t)
+	ruleRepo.EXPECT().Get(mock.Anything, "does.not.exist").Return(model.Rule{}, httpHelper.ErrNotFound)
 	store := mocks.NewMockStorage(t)
+	store.EXPECT().RuleRepo().Return(ruleRepo)
 	svc := newTestService(t, store)
 
 	_, err := svc.UpdateTarget(context.Background(), "does.not.exist", model.TargetPatch{}, "admin")
@@ -104,7 +108,10 @@ func TestService_UpdateTarget_InvalidWindowUnit(t *testing.T) {
 }
 
 func TestService_ResetCounters_UnknownKey(t *testing.T) {
+	ruleRepo := mocks.NewMockRuleRepository(t)
+	ruleRepo.EXPECT().Get(mock.Anything, "does.not.exist").Return(model.Rule{}, httpHelper.ErrNotFound)
 	store := mocks.NewMockStorage(t)
+	store.EXPECT().RuleRepo().Return(ruleRepo)
 	svc := newTestService(t, store)
 
 	err := svc.ResetCounters(context.Background(), "does.not.exist")
@@ -127,7 +134,10 @@ func TestService_ResetCounters_DeletesTodayForTarget(t *testing.T) {
 }
 
 func TestService_ResetDefaults_UnknownKey(t *testing.T) {
+	ruleRepo := mocks.NewMockRuleRepository(t)
+	ruleRepo.EXPECT().Get(mock.Anything, "does.not.exist").Return(model.Rule{}, httpHelper.ErrNotFound)
 	store := mocks.NewMockStorage(t)
+	store.EXPECT().RuleRepo().Return(ruleRepo)
 	svc := newTestService(t, store)
 
 	_, err := svc.ResetDefaults(context.Background(), "does.not.exist")

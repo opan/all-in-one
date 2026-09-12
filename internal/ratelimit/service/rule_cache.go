@@ -107,6 +107,7 @@ func (c *ruleCache) Reload(ctx context.Context) error {
 				Enabled:    dbRule.Enabled,
 				LimitCount: dbRule.LimitCount,
 				Window:     window,
+				IsExternal: true,
 			}
 			continue
 		}

@@ -115,6 +115,11 @@ type EffectiveRule struct {
 	Enabled    bool
 	LimitCount int
 	Window     time.Duration
+	// IsExternal is true for targets that come from a DB row with no Registry
+	// entry (the external rate-limit API). It lets the check handler validate
+	// a target entirely from the cache — an internal target is not callable
+	// through /check — without a hot-path DB read.
+	IsExternal bool
 }
 
 // Target is the admin API's read view of one registry target merged with

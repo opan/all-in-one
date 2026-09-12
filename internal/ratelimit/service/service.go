@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/all-in-one/internal/config"
+	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/ratelimit"
 	"github.com/all-in-one/internal/ratelimit/handler"
 	"github.com/all-in-one/internal/ratelimit/middleware"
@@ -202,6 +205,13 @@ func (s *Service) ListTargets(ctx context.Context) ([]model.Target, error) {
 			out = append(out, defaultTarget(t))
 		}
 	}
+	// Append external targets — DB rows with no Registry entry. Internal rows
+	// are already covered by the Registry loop above.
+	for _, rule := range rules {
+		if rule.IsExternal {
+			out = append(out, externalTarget(rule))
+		}
+	}
 	return out, nil
 }
 
@@ -212,14 +222,19 @@ func (s *Service) ListTargets(ctx context.Context) ([]model.Target, error) {
 // ratelimit.ErrInvalidWindowUnit if patch.WindowUnit is set to an
 // unrecognized unit.
 func (s *Service) UpdateTarget(ctx context.Context, key string, patch model.TargetPatch, updatedBy string) (model.Target, error) {
-	def, ok := ratelimit.ByKey(key)
-	if !ok {
-		return model.Target{}, ratelimit.ErrUnknownTarget
-	}
+	def, isInternal := ratelimit.ByKey(key)
 
 	current, err := s.Store.RuleRepo().Get(ctx, key)
 	if err != nil {
+		if errors.Is(err, httpHelper.ErrNotFound) {
+			return model.Target{}, ratelimit.ErrUnknownTarget
+		}
 		return model.Target{}, fmt.Errorf("get rule %q: %w", key, err)
+	}
+	// An unknown key that isn't in the Registry and has no external row either
+	// (defence in depth — Get above would already 404 it).
+	if !isInternal && !current.IsExternal {
+		return model.Target{}, ratelimit.ErrUnknownTarget
 	}
 
 	if patch.Enabled != nil {
@@ -250,7 +265,10 @@ func (s *Service) UpdateTarget(ctx context.Context, key string, patch model.Targ
 	if err != nil {
 		return model.Target{}, fmt.Errorf("get rule %q: %w", key, err)
 	}
-	return mergeTarget(def, updated), nil
+	if isInternal {
+		return mergeTarget(def, updated), nil
+	}
+	return externalTarget(updated), nil
 }
 
 // ResetCounters clears today's daily-quota counters for a target (admin
@@ -260,7 +278,17 @@ func (s *Service) UpdateTarget(ctx context.Context, key string, patch model.Targ
 // Registry.
 func (s *Service) ResetCounters(ctx context.Context, key string) error {
 	if _, ok := ratelimit.ByKey(key); !ok {
-		return ratelimit.ErrUnknownTarget
+		// Not an internal target — allow only if a matching external row exists.
+		rule, err := s.Store.RuleRepo().Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, httpHelper.ErrNotFound) {
+				return ratelimit.ErrUnknownTarget
+			}
+			return fmt.Errorf("get rule %q: %w", key, err)
+		}
+		if !rule.IsExternal {
+			return ratelimit.ErrUnknownTarget
+		}
 	}
 	return s.Store.CounterRepo().DeleteForTargetDay(ctx, key, s.today())
 }
@@ -271,6 +299,19 @@ func (s *Service) ResetCounters(ctx context.Context, key string) error {
 func (s *Service) ResetDefaults(ctx context.Context, key string) (model.Target, error) {
 	def, ok := ratelimit.ByKey(key)
 	if !ok {
+		// An external target has no code-defined default to reset to. Only
+		// distinguish "unknown" from "external" so the caller gets a precise
+		// error (404 vs 400).
+		rule, err := s.Store.RuleRepo().Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, httpHelper.ErrNotFound) {
+				return model.Target{}, ratelimit.ErrUnknownTarget
+			}
+			return model.Target{}, fmt.Errorf("get rule %q: %w", key, err)
+		}
+		if rule.IsExternal {
+			return model.Target{}, ratelimit.ErrNotSupportedForExternal
+		}
 		return model.Target{}, ratelimit.ErrUnknownTarget
 	}
 
@@ -292,6 +333,148 @@ func (s *Service) ResetDefaults(ctx context.Context, key string) (model.Target, 
 	return mergeTarget(def, updated), nil
 }
 
+// CreateExternalTarget creates a self-contained external target (a DB rule
+// with no Registry entry) and reloads the cache so it enforces immediately.
+// The key must not collide with a Registry key. Returns
+// ratelimit.ErrExternalTargetExists on a duplicate key.
+func (s *Service) CreateExternalTarget(ctx context.Context, t model.Target, createdBy string) (model.Target, error) {
+	key := strings.TrimSpace(t.Key)
+	if key == "" {
+		return model.Target{}, fmt.Errorf("target key is required")
+	}
+	if _, ok := ratelimit.ByKey(key); ok {
+		return model.Target{}, ratelimit.ErrExternalTargetExists
+	}
+	if !validScope(t.Scope) {
+		return model.Target{}, fmt.Errorf("invalid scope %q", t.Scope)
+	}
+	if !validKind(t.Kind) {
+		return model.Target{}, fmt.Errorf("invalid kind %q", t.Kind)
+	}
+	if t.LimitCount <= 0 {
+		return model.Target{}, fmt.Errorf("limit_count must be positive")
+	}
+	if _, err := windowDuration(t.WindowValue, t.WindowUnit); err != nil {
+		return model.Target{}, err
+	}
+
+	app := strings.TrimSpace(t.App)
+	if app == "" {
+		app = keyApp(key)
+	}
+	rule := model.Rule{
+		TargetKey: key, Enabled: t.Enabled,
+		LimitCount: t.LimitCount, WindowValue: t.WindowValue, WindowUnit: t.WindowUnit,
+		App: app, IsExternal: true,
+	}
+	if name := strings.TrimSpace(t.Name); name != "" {
+		rule.Name = &name
+	}
+	if desc := strings.TrimSpace(t.Description); desc != "" {
+		rule.Description = &desc
+	}
+	scope := t.Scope
+	rule.Scope = &scope
+	kind := t.Kind
+	rule.Kind = &kind
+	if createdBy != "" {
+		rule.UpdatedBy = &createdBy
+	}
+
+	if err := s.Store.RuleRepo().CreateExternal(ctx, rule); err != nil {
+		return model.Target{}, err
+	}
+	if err := s.cache.Reload(ctx); err != nil {
+		return model.Target{}, fmt.Errorf("reload rule cache: %w", err)
+	}
+
+	created, err := s.Store.RuleRepo().Get(ctx, key)
+	if err != nil {
+		return model.Target{}, fmt.Errorf("get rule %q: %w", key, err)
+	}
+	return externalTarget(created), nil
+}
+
+// DeleteExternalTarget deletes an external target and reloads the cache.
+// Returns ratelimit.ErrNotSupportedForExternal for an internal (Registry)
+// key, or ratelimit.ErrUnknownTarget if no such row exists.
+func (s *Service) DeleteExternalTarget(ctx context.Context, key string) error {
+	if _, ok := ratelimit.ByKey(key); ok {
+		return ratelimit.ErrNotSupportedForExternal
+	}
+	rule, err := s.Store.RuleRepo().Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, httpHelper.ErrNotFound) {
+			return ratelimit.ErrUnknownTarget
+		}
+		return fmt.Errorf("get rule %q: %w", key, err)
+	}
+	if !rule.IsExternal {
+		return ratelimit.ErrNotSupportedForExternal
+	}
+	if err := s.Store.RuleRepo().Delete(ctx, key); err != nil {
+		return fmt.Errorf("delete rule %q: %w", key, err)
+	}
+	if err := s.cache.Reload(ctx); err != nil {
+		return fmt.Errorf("reload rule cache: %w", err)
+	}
+	return nil
+}
+
+// EffectiveRule exposes the cached effective rule for a key (used by the check
+// handler to validate a target before counting). ok is false on a cache miss.
+func (s *Service) EffectiveRule(key string) (model.EffectiveRule, bool) {
+	return s.cache.Effective(key)
+}
+
+// CheckExternal evaluates one external target against a caller-supplied bucket
+// key and returns the decision. A cache miss (target unknown or not loaded)
+// fails open with a warning (ADR-007); a counter-store error also fails open
+// but is surfaced (non-nil error) so the caller can meter it.
+func (s *Service) CheckExternal(ctx context.Context, targetKey, bucketKey string) (model.CheckResponse, error) {
+	rule, ok := s.cache.Effective(targetKey)
+	if !ok {
+		s.log.Warn().Str("target", targetKey).
+			Msg("ratelimit: external check for unknown/unloaded target, failing open")
+		return model.CheckResponse{Allowed: true}, nil
+	}
+	allowed, retryAfter, remaining, err := s.limiter.Check(ctx, rule, bucketKey)
+	if err != nil {
+		return model.CheckResponse{Allowed: true, Limit: rule.LimitCount}, err
+	}
+	return model.CheckResponse{
+		Allowed:           allowed,
+		Limit:             rule.LimitCount,
+		Remaining:         remaining,
+		RetryAfterSeconds: int(retryAfter.Seconds()),
+	}, nil
+}
+
+func validScope(s model.Scope) bool {
+	switch s {
+	case model.ScopeIP, model.ScopeUser, model.ScopeGlobal:
+		return true
+	}
+	return false
+}
+
+func validKind(k model.Kind) bool {
+	switch k {
+	case model.KindThrottle, model.KindDailyQuota:
+		return true
+	}
+	return false
+}
+
+// keyApp derives a default app label from a target key: the segment before the
+// first dot (e.g. "cashflow" from "cashflow.entry.create").
+func keyApp(key string) string {
+	if i := strings.IndexByte(key, '.'); i > 0 {
+		return key[:i]
+	}
+	return key
+}
+
 func mergeTarget(def ratelimit.TargetDef, rule model.Rule) model.Target {
 	updatedAt := rule.UpdatedAt
 	return model.Target{
@@ -300,6 +483,7 @@ func mergeTarget(def ratelimit.TargetDef, rule model.Rule) model.Target {
 		Enabled: rule.Enabled, LimitCount: rule.LimitCount,
 		WindowValue: rule.WindowValue, WindowUnit: rule.WindowUnit,
 		UpdatedAt: &updatedAt, UpdatedBy: rule.UpdatedBy,
+		App: "all-in-one", IsExternal: false,
 	}
 }
 
@@ -309,5 +493,32 @@ func defaultTarget(def ratelimit.TargetDef) model.Target {
 		Scope: def.Scope, Kind: def.Kind, Method: def.Method, Path: def.Path,
 		Enabled: true, LimitCount: def.DefaultLimit,
 		WindowValue: def.DefaultWindowValue, WindowUnit: def.DefaultWindowUnit,
+		App: "all-in-one", IsExternal: false,
 	}
+}
+
+// externalTarget builds the admin read view from an external DB row. Unlike an
+// internal target, its identity (name, description, scope, kind) lives in the
+// row itself, not the Registry, and it has no bound aio route.
+func externalTarget(rule model.Rule) model.Target {
+	updatedAt := rule.UpdatedAt
+	t := model.Target{
+		Key: rule.TargetKey, App: rule.App, IsExternal: true,
+		Enabled: rule.Enabled, LimitCount: rule.LimitCount,
+		WindowValue: rule.WindowValue, WindowUnit: rule.WindowUnit,
+		UpdatedAt: &updatedAt, UpdatedBy: rule.UpdatedBy,
+	}
+	if rule.Name != nil {
+		t.Name = *rule.Name
+	}
+	if rule.Description != nil {
+		t.Description = *rule.Description
+	}
+	if rule.Scope != nil {
+		t.Scope = *rule.Scope
+	}
+	if rule.Kind != nil {
+		t.Kind = *rule.Kind
+	}
+	return t
 }
