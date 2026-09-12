@@ -33,6 +33,12 @@ const (
 
 // Rule is the DB-backed, admin-editable config for one target (ADR-001).
 // Column names deliberately avoid the SQL reserved words limit/window.
+//
+// The App/IsExternal/Name/Description/Scope/Kind columns arrived with
+// migration 10 (external rate limiting). For internal rows the last four are
+// NULL — the Registry remains the source of truth for their Scope/Kind — so
+// they are pointers. For external rows they carry the row's own identity,
+// since an external target has no Registry entry to merge from.
 type Rule struct {
 	TargetKey   string     `json:"target_key" db:"target_key"`
 	Enabled     bool       `json:"enabled" db:"enabled"`
@@ -41,6 +47,49 @@ type Rule struct {
 	WindowUnit  WindowUnit `json:"window_unit" db:"window_unit"`
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 	UpdatedBy   *string    `json:"updated_by,omitempty" db:"updated_by"`
+	App         string     `json:"app" db:"app"`
+	IsExternal  bool       `json:"is_external" db:"is_external"`
+	Name        *string    `json:"name,omitempty" db:"name"`
+	Description *string    `json:"description,omitempty" db:"description"`
+	Scope       *Scope     `json:"scope,omitempty" db:"scope"`
+	Kind        *Kind      `json:"kind,omitempty" db:"kind"`
+}
+
+// AppToken is a service credential that lets another app (e.g. cashflow) call
+// aio's external rate-limit check API. Admin-issued, prefix-scoped. The token
+// hash is SHA-256, never bcrypt (see EXTERNAL_RATE_LIMIT plan, ATTENTION #1):
+// verification runs on the caller's request hot path, and the token is
+// high-entropy so a slow hash buys nothing. TokenHash is never serialized.
+type AppToken struct {
+	ID          string     `json:"id" db:"id"`
+	App         string     `json:"app" db:"app"`
+	Name        string     `json:"name" db:"name"`
+	TokenHash   string     `json:"-" db:"token_hash"`
+	TokenPrefix string     `json:"token_prefix" db:"token_prefix"`
+	ScopePrefix string     `json:"scope_prefix" db:"scope_prefix"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	CreatedBy   *string    `json:"created_by,omitempty" db:"created_by"`
+	LastUsedAt  *time.Time `json:"last_used_at,omitempty" db:"last_used_at"`
+	RevokedAt   *time.Time `json:"revoked_at,omitempty" db:"revoked_at"`
+}
+
+// CheckRequest is the body of POST /api/v1/ratelimit/check. The caller supplies
+// the bucket key itself (unlike internal targets, where aio derives it from the
+// request's JWT/IP), because aio has no visibility into the caller's session.
+type CheckRequest struct {
+	TargetKey string `json:"target_key"`
+	BucketKey string `json:"bucket_key"`
+}
+
+// CheckResponse is the decision returned to an external caller. Limit/Remaining
+// cost nothing to include and make consumer-side debugging far easier. For
+// throttle-kind targets Remaining is best-effort — the in-memory store tracks a
+// count, not a reservation, so it is a snapshot rather than a guarantee.
+type CheckResponse struct {
+	Allowed           bool `json:"allowed"`
+	Limit             int  `json:"limit"`
+	Remaining         int  `json:"remaining"`
+	RetryAfterSeconds int  `json:"retry_after_seconds"`
 }
 
 // Counter is one bucket's current count for a daily_quota target (ADR-006).
@@ -84,6 +133,8 @@ type Target struct {
 	WindowUnit  WindowUnit `json:"window_unit"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 	UpdatedBy   *string    `json:"updated_by,omitempty"`
+	App         string     `json:"app"`
+	IsExternal  bool       `json:"is_external"`
 }
 
 // TargetPatch is a partial edit to a target's rule. Pointer fields let the
