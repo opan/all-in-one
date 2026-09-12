@@ -80,6 +80,178 @@ func (_c *MockService_CheckExternal_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// CreateExternalTarget provides a mock function with given fields: ctx, t, createdBy
+func (_m *MockService) CreateExternalTarget(ctx context.Context, t model.Target, createdBy string) (model.Target, error) {
+	ret := _m.Called(ctx, t, createdBy)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateExternalTarget")
+	}
+
+	var r0 model.Target
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, model.Target, string) (model.Target, error)); ok {
+		return rf(ctx, t, createdBy)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, model.Target, string) model.Target); ok {
+		r0 = rf(ctx, t, createdBy)
+	} else {
+		r0 = ret.Get(0).(model.Target)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, model.Target, string) error); ok {
+		r1 = rf(ctx, t, createdBy)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_CreateExternalTarget_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateExternalTarget'
+type MockService_CreateExternalTarget_Call struct {
+	*mock.Call
+}
+
+// CreateExternalTarget is a helper method to define mock.On call
+//   - ctx context.Context
+//   - t model.Target
+//   - createdBy string
+func (_e *MockService_Expecter) CreateExternalTarget(ctx interface{}, t interface{}, createdBy interface{}) *MockService_CreateExternalTarget_Call {
+	return &MockService_CreateExternalTarget_Call{Call: _e.mock.On("CreateExternalTarget", ctx, t, createdBy)}
+}
+
+func (_c *MockService_CreateExternalTarget_Call) Run(run func(ctx context.Context, t model.Target, createdBy string)) *MockService_CreateExternalTarget_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(model.Target), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_CreateExternalTarget_Call) Return(_a0 model.Target, _a1 error) *MockService_CreateExternalTarget_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_CreateExternalTarget_Call) RunAndReturn(run func(context.Context, model.Target, string) (model.Target, error)) *MockService_CreateExternalTarget_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateToken provides a mock function with given fields: ctx, app, name, scopePrefix, createdBy
+func (_m *MockService) CreateToken(ctx context.Context, app string, name string, scopePrefix string, createdBy string) (model.AppToken, string, error) {
+	ret := _m.Called(ctx, app, name, scopePrefix, createdBy)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateToken")
+	}
+
+	var r0 model.AppToken
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) (model.AppToken, string, error)); ok {
+		return rf(ctx, app, name, scopePrefix, createdBy)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) model.AppToken); ok {
+		r0 = rf(ctx, app, name, scopePrefix, createdBy)
+	} else {
+		r0 = ret.Get(0).(model.AppToken)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string) string); ok {
+		r1 = rf(ctx, app, name, scopePrefix, createdBy)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, string, string) error); ok {
+		r2 = rf(ctx, app, name, scopePrefix, createdBy)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockService_CreateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateToken'
+type MockService_CreateToken_Call struct {
+	*mock.Call
+}
+
+// CreateToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - app string
+//   - name string
+//   - scopePrefix string
+//   - createdBy string
+func (_e *MockService_Expecter) CreateToken(ctx interface{}, app interface{}, name interface{}, scopePrefix interface{}, createdBy interface{}) *MockService_CreateToken_Call {
+	return &MockService_CreateToken_Call{Call: _e.mock.On("CreateToken", ctx, app, name, scopePrefix, createdBy)}
+}
+
+func (_c *MockService_CreateToken_Call) Run(run func(ctx context.Context, app string, name string, scopePrefix string, createdBy string)) *MockService_CreateToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_CreateToken_Call) Return(_a0 model.AppToken, _a1 string, _a2 error) *MockService_CreateToken_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockService_CreateToken_Call) RunAndReturn(run func(context.Context, string, string, string, string) (model.AppToken, string, error)) *MockService_CreateToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteExternalTarget provides a mock function with given fields: ctx, key
+func (_m *MockService) DeleteExternalTarget(ctx context.Context, key string) error {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteExternalTarget")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, key)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockService_DeleteExternalTarget_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteExternalTarget'
+type MockService_DeleteExternalTarget_Call struct {
+	*mock.Call
+}
+
+// DeleteExternalTarget is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockService_Expecter) DeleteExternalTarget(ctx interface{}, key interface{}) *MockService_DeleteExternalTarget_Call {
+	return &MockService_DeleteExternalTarget_Call{Call: _e.mock.On("DeleteExternalTarget", ctx, key)}
+}
+
+func (_c *MockService_DeleteExternalTarget_Call) Run(run func(ctx context.Context, key string)) *MockService_DeleteExternalTarget_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteExternalTarget_Call) Return(_a0 error) *MockService_DeleteExternalTarget_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockService_DeleteExternalTarget_Call) RunAndReturn(run func(context.Context, string) error) *MockService_DeleteExternalTarget_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EffectiveRule provides a mock function with given fields: key
 func (_m *MockService) EffectiveRule(key string) (model.EffectiveRule, bool) {
 	ret := _m.Called(key)
@@ -194,6 +366,64 @@ func (_c *MockService_ListTargets_Call) RunAndReturn(run func(context.Context) (
 	return _c
 }
 
+// ListTokens provides a mock function with given fields: ctx
+func (_m *MockService) ListTokens(ctx context.Context) ([]model.AppToken, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTokens")
+	}
+
+	var r0 []model.AppToken
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]model.AppToken, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []model.AppToken); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.AppToken)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_ListTokens_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTokens'
+type MockService_ListTokens_Call struct {
+	*mock.Call
+}
+
+// ListTokens is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) ListTokens(ctx interface{}) *MockService_ListTokens_Call {
+	return &MockService_ListTokens_Call{Call: _e.mock.On("ListTokens", ctx)}
+}
+
+func (_c *MockService_ListTokens_Call) Run(run func(ctx context.Context)) *MockService_ListTokens_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockService_ListTokens_Call) Return(_a0 []model.AppToken, _a1 error) *MockService_ListTokens_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_ListTokens_Call) RunAndReturn(run func(context.Context) ([]model.AppToken, error)) *MockService_ListTokens_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResetCounters provides a mock function with given fields: ctx, key
 func (_m *MockService) ResetCounters(ctx context.Context, key string) error {
 	ret := _m.Called(ctx, key)
@@ -294,6 +524,53 @@ func (_c *MockService_ResetDefaults_Call) Return(_a0 model.Target, _a1 error) *M
 }
 
 func (_c *MockService_ResetDefaults_Call) RunAndReturn(run func(context.Context, string) (model.Target, error)) *MockService_ResetDefaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeToken provides a mock function with given fields: ctx, id
+func (_m *MockService) RevokeToken(ctx context.Context, id string) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeToken")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockService_RevokeToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeToken'
+type MockService_RevokeToken_Call struct {
+	*mock.Call
+}
+
+// RevokeToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+func (_e *MockService_Expecter) RevokeToken(ctx interface{}, id interface{}) *MockService_RevokeToken_Call {
+	return &MockService_RevokeToken_Call{Call: _e.mock.On("RevokeToken", ctx, id)}
+}
+
+func (_c *MockService_RevokeToken_Call) Run(run func(ctx context.Context, id string)) *MockService_RevokeToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_RevokeToken_Call) Return(_a0 error) *MockService_RevokeToken_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockService_RevokeToken_Call) RunAndReturn(run func(context.Context, string) error) *MockService_RevokeToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
