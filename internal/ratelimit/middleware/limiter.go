@@ -104,10 +104,51 @@ func (l *Limiter) Middleware() mux.MiddlewareFunc {
 	}
 }
 
+// Check evaluates one rule against one bucket key and reports the decision,
+// without touching HTTP. It is the shared decision core: the internal
+// middleware (enforce) derives the bucket key from the request and calls it,
+// and the external check API (handler) calls it with a caller-supplied bucket
+// key. A counter-store error returns allowed=true (fail-open, ADR-007)
+// alongside the error, leaving logging/metering to the caller. remaining is
+// the budget left after this call (best-effort for throttle — see
+// memStore.allowWithRemaining); it is 0 on rejection.
+func (l *Limiter) Check(ctx context.Context, rule model.EffectiveRule, bucketKey string) (allowed bool, retryAfter time.Duration, remaining int, err error) {
+	if !rule.Enabled {
+		return true, 0, rule.LimitCount, nil
+	}
+	switch rule.Kind {
+	case model.KindThrottle:
+		ok, retryAfter, remaining := l.mem.allowWithRemaining(bucketKey, rule.LimitCount, rule.Window, time.Now())
+		if !ok {
+			return false, retryAfter, 0, nil
+		}
+		return true, 0, remaining, nil
+	case model.KindDailyQuota:
+		count, err := l.counters.IncrAndGet(ctx, rule.Key, bucketKey, l.today())
+		if err != nil {
+			return true, 0, 0, err
+		}
+		if count > rule.LimitCount {
+			return false, l.retryAfterUntilMidnight(), 0, nil
+		}
+		remaining := rule.LimitCount - count
+		if remaining < 0 {
+			remaining = 0
+		}
+		return true, 0, remaining, nil
+	default:
+		// Unknown kind: fail open rather than block on a misconfigured rule.
+		return true, 0, 0, nil
+	}
+}
+
 // enforce evaluates a single target against the request. It returns false
 // only when it has written a 429 rejection; every other outcome (allowed,
 // disabled target, cache miss, or a counter-store error) returns true so
 // the caller proceeds — a defect here fails open, never closed (ADR-007).
+// It is a thin HTTP wrapper over Check: rule lookup, bucket-key derivation,
+// the fail-open metric, and the 429 write all live here; the counting
+// decision lives in Check.
 func (l *Limiter) enforce(w http.ResponseWriter, r *http.Request, def ratelimit.TargetDef) bool {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
@@ -119,26 +160,16 @@ func (l *Limiter) enforce(w http.ResponseWriter, r *http.Request, def ratelimit.
 
 	bucketKey := l.bucketKey(r, rule.Scope)
 
-	switch rule.Kind {
-	case model.KindThrottle:
-		allowed, retryAfter := l.mem.allow(bucketKey, rule.LimitCount, rule.Window, time.Now())
-		if !allowed {
-			l.reject(ctx, w, def, rule, retryAfter)
-			return false
-		}
-	case model.KindDailyQuota:
-		count, err := l.counters.IncrAndGet(ctx, def.Key, bucketKey, l.today())
-		if err != nil {
-			log.Error().Err(err).Str("target", def.Key).Msg("ratelimit: counter store error, failing open")
-			l.metrics.errors.Add(ctx, 1, otelAttr("target", def.Key))
-			return true
-		}
-		if count > rule.LimitCount {
-			l.reject(ctx, w, def, rule, l.retryAfterUntilMidnight())
-			return false
-		}
+	allowed, retryAfter, _, err := l.Check(ctx, rule, bucketKey)
+	if err != nil {
+		log.Error().Err(err).Str("target", def.Key).Msg("ratelimit: counter store error, failing open")
+		l.metrics.errors.Add(ctx, 1, otelAttr("target", def.Key))
+		return true
 	}
-
+	if !allowed {
+		l.reject(ctx, w, def, rule, retryAfter)
+		return false
+	}
 	return true
 }
 
