@@ -43,6 +43,7 @@
 
   let { currentPath = "/" }: Props = $props();
   let playgroundOpen = $state(true);
+  let rateLimitsOpen = $state(true);
 
   const sidebar = useSidebar();
 
@@ -134,9 +135,12 @@
     },
     {
       title: "Rate Limits",
-      url: "/admin/ratelimit",
       icon: Gauge,
-      isExpandable: false,
+      isExpandable: true,
+      subitems: [
+        { title: "Targets", url: "/admin/ratelimit", icon: Gauge },
+        { title: "Tokens", url: "/admin/ratelimit/tokens", icon: Gauge },
+      ],
     },
   ];
 
@@ -236,17 +240,47 @@
           <Sidebar.Menu>
             {#each adminItems as item}
               <Sidebar.MenuItem>
-                <Sidebar.MenuButton
-                  isActive={item.url === currentPath}
-                  tooltipContent={item.title}
-                >
-                  {#snippet child({ props })}
-                    <a href={item.url} {...props}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
-                  {/snippet}
-                </Sidebar.MenuButton>
+                {#if item.isExpandable}
+                  <Sidebar.MenuButton
+                    tooltipContent={item.title}
+                    onclick={() => rateLimitsOpen = !rateLimitsOpen}
+                  >
+                    {#snippet child({ props })}
+                      <button {...props}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                        <ChevronDown class="ml-auto transition-transform duration-200 {rateLimitsOpen ? 'rotate-180' : ''}" />
+                      </button>
+                    {/snippet}
+                  </Sidebar.MenuButton>
+                  {#if rateLimitsOpen && item.subitems}
+                    <Sidebar.MenuSub>
+                      {#each item.subitems as subitem}
+                        <Sidebar.MenuSubItem>
+                          <Sidebar.MenuSubButton isActive={subitem.url === currentPath}>
+                            {#snippet child({ props })}
+                              <a href={subitem.url} {...props}>
+                                <span>{subitem.title}</span>
+                              </a>
+                            {/snippet}
+                          </Sidebar.MenuSubButton>
+                        </Sidebar.MenuSubItem>
+                      {/each}
+                    </Sidebar.MenuSub>
+                  {/if}
+                {:else}
+                  <Sidebar.MenuButton
+                    isActive={item.url === currentPath}
+                    tooltipContent={item.title}
+                  >
+                    {#snippet child({ props })}
+                      <a href={item.url} {...props}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </a>
+                    {/snippet}
+                  </Sidebar.MenuButton>
+                {/if}
               </Sidebar.MenuItem>
             {/each}
           </Sidebar.Menu>
