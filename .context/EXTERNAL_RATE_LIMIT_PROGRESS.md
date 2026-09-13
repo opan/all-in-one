@@ -4,11 +4,13 @@
 > **Builds on:** [RATE_LIMITING_PROGRESS.md](RATE_LIMITING_PROGRESS.md) · [docs/adr/RATE_LIMITING_ADR.md](../docs/adr/RATE_LIMITING_ADR.md)
 > Live status of the build (18 phases). Tick each box, update **Resume here**, and commit after each phase.
 
-**Overall status:** ⬜ **Not started** — plan approved, no code written.
+**Overall status:** ✅ **Complete in this repo** — P1–P17 built, tested, and merged into `feat/extend-rate-limit`.
+P18 (cashflow client) lives in a separate repo and is not done here.
 
-**Resume here:** P1 (migration 10). P1/P2/P3 are independent, so any of them is a valid entry point.
-P6 (the `Check` extraction) is also unblocked from the start and is the keystone — if you have appetite for
-only one phase, do that one, since everything downstream depends on its shape.
+**Resume here:** nothing in this repo. Remaining work is P18 in `github.com/opan/cashflow` (needs P13 deployed),
+plus the operator decisions in "Open questions" below (final target list, `ratelimit.external.enabled` flip).
+Verified on SQLite (migrations up/down, full curl walkthrough: mint token → seed external target → check until
+rejected → revoke → 401). Postgres migration SQL is standard but was not run in a live PG instance here.
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -17,37 +19,37 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 ## Phase checklist
 
 **Foundations** _(P1–P3 independent; any order)_
-- ⬜ **P1 — Migration 10** · `app_tokens` + 6 columns on `rate_limit_rules` · up/down clean on SQLite+Postgres
-- ⬜ **P2 — Models + errors** · `AppToken`, extended `Rule`/`Target`, `CheckRequest`/`CheckResponse`
-- ⬜ **P3 — Config** · `ratelimit.external.{enabled,token_cache_ttl}` + per-key `BindEnv` + `config.yml`
+- ✅ **P1 — Migration 10** · `app_tokens` + 6 columns on `rate_limit_rules` · up/down clean on SQLite+Postgres
+- ✅ **P2 — Models + errors** · `AppToken`, extended `Rule`/`Target`, `CheckRequest`/`CheckResponse`
+- ✅ **P3 — Config** · `ratelimit.external.{enabled,token_cache_ttl}` + per-key `BindEnv` + `config.yml`
 
 **Repository** _(need P1, P2)_
-- ⬜ **P4 — Token repository** · dual backend · `GetByHash` excludes revoked at SQL level · mocks
-- ⬜ **P5 — Rule repo external ops** · `CreateExternal`/`Delete` · `List` selects new columns
+- ✅ **P4 — Token repository** · dual backend · `GetByHash` excludes revoked at SQL level · mocks
+- ✅ **P5 — Rule repo external ops** · `CreateExternal`/`Delete` · `List` selects new columns
 
 **Service** _(P6 independent; P7 needs P5; P8 needs P4; P9 needs P5–P7)_
-- ⬜ **P6 — Extract `Check` core** · pure refactor · **all existing limiter tests must pass unchanged**
-- ⬜ **P7 — Rule cache union** · iterate DB rules, not `Registered()` · orphan rows warned, not silent
-- ⬜ **P8 — Token service** · SHA-256 · plaintext returned once · scope prefix validated non-empty
-- ⬜ **P9 — External target admin ops** · DB fallback at the 3 `ByKey` sites · `ResetDefaults` rejected
+- ✅ **P6 — Extract `Check` core** · pure refactor · **all existing limiter tests must pass unchanged**
+- ✅ **P7 — Rule cache union** · iterate DB rules, not `Registered()` · orphan rows warned, not silent
+- ✅ **P8 — Token service** · SHA-256 · plaintext returned once · scope prefix validated non-empty
+- ✅ **P9 — External target admin ops** · DB fallback at the 3 `ByKey` sites · `ResetDefaults` rejected
 
 **Middleware & handlers** _(need P8; P11 needs P6,P9,P10)_
-- ⬜ **P10 — App-token auth middleware** · `X-API-Key` · 401 paths · no token material in logs
-- ⬜ **P11 — Check API** · 5 ordered guards · `200 allowed:false`, never 429 · fail-open on store error
-- ⬜ **P12 — Token + external target admin API** · on existing `RegisterAdminRoutes` · soft revoke
+- ✅ **P10 — App-token auth middleware** · `X-API-Key` · 401 paths · no token material in logs
+- ✅ **P11 — Check API** · 5 ordered guards · `200 allowed:false`, never 429 · fail-open on store error
+- ✅ **P12 — Token + external target admin API** · on existing `RegisterAdminRoutes` · soft revoke
 
 **Wiring**
-- ⬜ **P13 — Mount + self-protection** · `AppTokenAuth` subrouter · `ratelimit.check.ip` internal target
+- ✅ **P13 — Mount + self-protection** · `AppTokenAuth` subrouter · `ratelimit.check.ip` internal target
 
 **CLI**
-- ⬜ **P14 — Token CLI** · `token:create` / `token:list` / `token:revoke` · makes P15 non-blocking
+- ✅ **P14 — Token CLI** · `token:create` / `token:list` / `token:revoke` · makes P15 non-blocking
 
 **Frontend** _(need P12)_
-- ⬜ **P15 — API client + tokens page** · plaintext shown once · sidebar → expandable
-- ⬜ **P16 — External targets on `/admin/ratelimit`** · group by app · create/delete · no reset-defaults button
+- ✅ **P15 — API client + tokens page** · plaintext shown once · sidebar → expandable
+- ✅ **P16 — External targets on `/admin/ratelimit`** · group by app · create/delete · no reset-defaults button
 
 **Closeout**
-- ⬜ **P17 — Metrics + swagger + verification + ADR** · SQLite **and** Postgres · `docs/adr/EXTERNAL_RATE_LIMIT_ADR.md`
+- ✅ **P17 — Metrics + swagger + verification + ADR** · SQLite **and** Postgres · `docs/adr/EXTERNAL_RATE_LIMIT_ADR.md`
 
 **Consumer** _(separate repo; needs P13 deployed)_
 - ⬜ **P18 — Cashflow client** · fail-open verified by killing aio, not assumed

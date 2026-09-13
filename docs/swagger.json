@@ -1789,6 +1789,159 @@
                 "responses": {}
             }
         },
+        "/config": {
+            "get": {
+                "description": "Client-facing configuration the SPA needs before authentication (currently the demo-account flag). No secrets beyond the intentionally public demo credentials.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "config"
+                ],
+                "summary": "Public runtime config",
+                "responses": {
+                    "200": {
+                        "description": "Public config",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Per-user counts for each app the user can access (listing topics, chat conversations and pending invites, shortener links). Sections are omitted for features the user lacks.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get home dashboard summary",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard summary",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Summary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ratelimit/check": {
+            "post": {
+                "description": "Evaluate one external target against a caller-supplied bucket key. Authenticated by X-API-Key (an app token), not a user session. A rejection is reported as 200 with allowed=false (not 429) so the caller can tell \"your user is limited\" from \"aio limited you\". Fails open on an internal counter error.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Check a rate limit (external apps)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App token",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Target and bucket key",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CheckRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Decision",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.CheckResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or bucket key does not match scope",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid app token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Target key outside token scope",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown external target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "External rate limiting disabled",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/ratelimit/targets": {
             "get": {
                 "security": [
@@ -1842,7 +1995,140 @@
                 }
             }
         },
+        "/ratelimit/targets/external": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Create a DB-backed external target (no Registry entry) that other apps can call via /ratelimit/check (admin-only). Scope/kind are fixed at creation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Create an external rate limit target",
+                "parameters": [
+                    {
+                        "description": "External target",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.createExternalTargetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created target",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Target"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Target key already exists",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/ratelimit/targets/{key}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Delete a DB-backed external target by key (admin-only). Internal (Registry) targets cannot be deleted.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Delete an external rate limit target",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deleted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Not an external target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -2036,6 +2322,174 @@
                     },
                     "404": {
                         "description": "Unknown target",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ratelimit/tokens": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "List every app token (including revoked ones — the audit trail). The plaintext token and its hash are never returned (admin-only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "List app tokens",
+                "responses": {
+                    "200": {
+                        "description": "Tokens",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.AppToken"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Mint a new app token for another app to call the rate-limit check API. The plaintext token is returned ONCE in this response and can never be retrieved again (admin-only).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Create an app token",
+                "parameters": [
+                    {
+                        "description": "App, name, optional scope prefix",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.createTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created token (plaintext shown once)",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.createTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/ratelimit/tokens/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Soft-revoke an app token by id (the audit row is kept). Takes effect immediately (admin-only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rate-limiting"
+                ],
+                "summary": "Revoke an app token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Revoked",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -2768,6 +3222,58 @@
                 }
             }
         },
+        "/users": {
+            "post": {
+                "description": "Create a new user account with username, password, email, and name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "User registration details",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RegisterUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing required fields",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "User already exists",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/users/me": {
             "get": {
                 "security": [
@@ -2863,58 +3369,6 @@
                     },
                     "401": {
                         "description": "Unauthorized or invalid current password",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/users/register": {
-            "post": {
-                "description": "Create a new user account with username, password, email, and name",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Register a new user",
-                "parameters": [
-                    {
-                        "description": "User registration details",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.RegisterUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "User created successfully",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body or missing required fields",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "User already exists",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -3156,6 +3610,164 @@
                 }
             }
         },
+        "handler.createExternalTargetRequest": {
+            "type": "object",
+            "properties": {
+                "app": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/definitions/model.Kind"
+                },
+                "limit_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "$ref": "#/definitions/model.Scope"
+                },
+                "window_unit": {
+                    "$ref": "#/definitions/model.WindowUnit"
+                },
+                "window_value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.createTokenRequest": {
+            "type": "object",
+            "properties": {
+                "app": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope_prefix": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.createTokenResponse": {
+            "type": "object",
+            "properties": {
+                "app": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notice": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "scope_prefix": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "token_prefix": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AppToken": {
+            "type": "object",
+            "properties": {
+                "app": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "scope_prefix": {
+                    "type": "string"
+                },
+                "token_prefix": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ChatStats": {
+            "type": "object",
+            "properties": {
+                "conversations": {
+                    "type": "integer"
+                },
+                "pending_invites": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CheckRequest": {
+            "type": "object",
+            "properties": {
+                "bucket_key": {
+                    "type": "string"
+                },
+                "target_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CheckResponse": {
+            "type": "object",
+            "properties": {
+                "allowed": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "remaining": {
+                    "type": "integer"
+                },
+                "retry_after_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateInviteRequest": {
             "type": "object",
             "properties": {
@@ -3363,6 +3975,14 @@
                 "KindDailyQuota"
             ]
         },
+        "model.ListingStats": {
+            "type": "object",
+            "properties": {
+                "topics": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.LoginRequest": {
             "type": "object",
             "properties": {
@@ -3396,13 +4016,41 @@
                 "ScopeGlobal"
             ]
         },
+        "model.ShortenerStats": {
+            "type": "object",
+            "properties": {
+                "links": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.Summary": {
+            "type": "object",
+            "properties": {
+                "chat": {
+                    "$ref": "#/definitions/model.ChatStats"
+                },
+                "listing": {
+                    "$ref": "#/definitions/model.ListingStats"
+                },
+                "shortener": {
+                    "$ref": "#/definitions/model.ShortenerStats"
+                }
+            }
+        },
         "model.Target": {
             "type": "object",
             "properties": {
+                "app": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
                 "enabled": {
+                    "type": "boolean"
+                },
+                "is_external": {
                     "type": "boolean"
                 },
                 "key": {
