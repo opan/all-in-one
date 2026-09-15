@@ -206,18 +206,28 @@ rate(aio_chat_websocket_messages_received_total[1m])
 | `aio_ratelimit_rejected_total` | Counter | `target`, `scope`, `kind` | Requests rejected with 429 (`internal/ratelimit/middleware`) |
 | `aio_ratelimit_errors_total` | Counter | `target` | Counter-store errors — request still allowed through (fail-open, see ADR-007) |
 | `aio_ratelimit_config_changed_total` | Counter | `target`, `action` | Admin rate limit config changes (`internal/ratelimit/handler`) |
+| `aio_ratelimit_check_total` | Counter | `app`, `target`, `allowed` | External check API calls (`internal/ratelimit/handler`, EXTERNAL_RATE_LIMIT_ADR) |
+| `aio_ratelimit_token_auth_failures_total` | Counter | `reason` | App-token auth failures on the external check API (`internal/ratelimit/middleware`) |
 
 **Label values**
 
 | Label | Metric | Values |
 |---|---|---|
-| `target` | all three | one of the code-registered target keys: `auth.login`, `auth.signup.ip`, `listing.item.create`, `listing.topic.create`, `chat.session.create`, `chat.message.send`, `shortener.link.create`, `shortener.link.resolve` (see `internal/ratelimit/registry.go`) |
+| `target` | `rejected_total`, `errors_total`, `config_changed_total`, `check_total` | a code-registered target key: `auth.login`, `auth.signup.ip`, `auth.signup.throttle.ip`, `listing.item.create`, `listing.topic.create`, `chat.session.create`, `chat.message.send`, `shortener.link.create`, `shortener.link.resolve`, `ratelimit.check.ip` (see `internal/ratelimit/registry.go`) **or**, on `check_total`, an operator-created external target key (e.g. `cashflow.entry.create`) |
 | `scope` | `rejected_total` | `ip`, `user`, `global` |
 | `kind` | `rejected_total` | `throttle`, `daily_quota` |
-| `action` | `config_changed_total` | `update`, `reset`, `reset-defaults` |
+| `action` | `config_changed_total` | `update`, `reset`, `reset-defaults`, `token.create`, `token.revoke`, `external.create`, `external.delete` |
+| `app` | `check_total` | the calling app (from its token), e.g. `cashflow` |
+| `allowed` | `check_total` | `true`, `false` |
+| `reason` | `token_auth_failures_total` | `missing`, `unknown` (a revoked token is excluded at the SQL level and so surfaces as `unknown`) |
 
 > **Note:** `scope` and `kind` are fixed per `target` (each registry entry declares exactly one of each), so
 > `rejected_total`'s real cardinality is bounded by target count, not the `target`×`scope`×`kind` product.
+
+> **Cardinality caveat (external targets):** on `check_total`, `target` is **no longer bounded by the
+> Registry** — external targets are operator-created at runtime (EXTERNAL_RATE_LIMIT_ADR), so the `target`
+> (and `app`) label space is operator-controlled. Keep the number of external targets/apps bounded, or these
+> series grow with them. This is a real monitoring caveat, not a footnote.
 
 **Example queries**
 
@@ -231,6 +241,13 @@ rate(aio_ratelimit_errors_total[5m])
 
 # Admin config changes by action
 sum by (action) (rate(aio_ratelimit_config_changed_total[1h]))
+
+# External check volume and allow/deny split, per consuming app
+sum by (app, allowed) (rate(aio_ratelimit_check_total[5m]))
+
+# App-token auth failures by reason — a spike in `unknown` may mean a
+# leaked/rotated token still in use, or a misconfigured consumer
+sum by (reason) (rate(aio_ratelimit_token_auth_failures_total[5m]))
 ```
 
 ---

@@ -23,6 +23,10 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		httpHelper.SendError(w, "unknown rate limit target", http.StatusNotFound)
 	case errors.Is(err, ratelimit.ErrInvalidWindowUnit):
 		httpHelper.SendError(w, err.Error(), http.StatusBadRequest)
+	case errors.Is(err, ratelimit.ErrExternalTargetExists):
+		httpHelper.SendError(w, "external target already exists", http.StatusConflict)
+	case errors.Is(err, ratelimit.ErrNotSupportedForExternal):
+		httpHelper.SendError(w, err.Error(), http.StatusBadRequest)
 	default:
 		httpHelper.SendError(w, "internal server error", http.StatusInternalServerError)
 	}

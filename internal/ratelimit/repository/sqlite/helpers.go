@@ -4,10 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/all-in-one/internal/query"
 	"github.com/jmoiron/sqlx"
 )
+
+// isUniqueViolation reports whether err is a unique/primary-key constraint
+// violation, matched by message so no driver-specific import is needed
+// (sqlite: "UNIQUE constraint failed").
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") || strings.Contains(msg, "duplicate key")
+}
 
 type queryOptions struct {
 	trx *sqlx.Tx

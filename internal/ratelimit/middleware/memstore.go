@@ -41,6 +41,16 @@ func newMemStore(cleanupInterval time.Duration) *memStore {
 // the second return value is how long the caller should wait before
 // retrying.
 func (s *memStore) allow(key string, limit int, window time.Duration, now time.Time) (bool, time.Duration) {
+	allowed, retryAfter, _ := s.allowWithRemaining(key, limit, window, now)
+	return allowed, retryAfter
+}
+
+// allowWithRemaining is allow plus the remaining budget in the current
+// window after this call. When allowed, remaining is limit minus the
+// post-increment count; when rejected it is 0. The value is a snapshot of a
+// fixed-window counter, not a reservation, so it may be stale under
+// concurrency — callers must treat it as best-effort.
+func (s *memStore) allowWithRemaining(key string, limit int, window time.Duration, now time.Time) (bool, time.Duration, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -50,10 +60,14 @@ func (s *memStore) allow(key string, limit int, window time.Duration, now time.T
 		s.buckets[key] = b
 	}
 	if b.count >= limit {
-		return false, b.resetAt.Sub(now)
+		return false, b.resetAt.Sub(now), 0
 	}
 	b.count++
-	return true, 0
+	remaining := limit - b.count
+	if remaining < 0 {
+		remaining = 0
+	}
+	return true, 0, remaining
 }
 
 // Stop halts the cleanup goroutine. Safe to call more than once.

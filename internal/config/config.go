@@ -144,6 +144,22 @@ type RateLimitConfig struct {
 	// false since trusting these headers without a sanitizing edge proxy is
 	// spoofable (ADR-009).
 	TrustProxyHeaders bool `mapstructure:"trust_proxy_headers"`
+	// External gates the external rate-limit service (the /check endpoint and
+	// app-token auth). Distinct from Enabled: Enabled is the platform-wide kill
+	// switch, External toggles only the cross-app API.
+	External ExternalConfig `mapstructure:"external"`
+}
+
+// ExternalConfig holds the master switch and token-cache setting for the
+// external rate-limit service (aio answering /check for other apps).
+type ExternalConfig struct {
+	// Enabled gates the /check endpoint and app-token auth. Defaults to false
+	// so the external API is an explicit opt-in, separate from ratelimit.enabled.
+	Enabled bool `mapstructure:"enabled"`
+	// TokenCacheTTL bounds how long a verified token is cached in memory before
+	// re-reading the DB. Since revocation is enforced at the SQL level, this
+	// bounds how long a revoked token keeps working; 0 disables the cache.
+	TokenCacheTTL time.Duration `mapstructure:"token_cache_ttl"`
 }
 
 func Load() (*Config, error) {
@@ -175,6 +191,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("ratelimit.counter_retention_days", 3)
 	viper.SetDefault("ratelimit.timezone", "UTC")
 	viper.SetDefault("ratelimit.trust_proxy_headers", false)
+	viper.SetDefault("ratelimit.external.enabled", false)
+	viper.SetDefault("ratelimit.external.token_cache_ttl", 60*time.Second)
 	viper.SetDefault("telemetry.enabled", false)
 	viper.SetDefault("telemetry.service_name", "all-in-one")
 	viper.SetDefault("telemetry.service_version", "1.0.0")
@@ -215,6 +233,8 @@ func Load() (*Config, error) {
 	viper.BindEnv("ratelimit.counter_retention_days", "ALLINONE_RATELIMIT_COUNTER_RETENTION_DAYS")
 	viper.BindEnv("ratelimit.timezone", "ALLINONE_RATELIMIT_TIMEZONE")
 	viper.BindEnv("ratelimit.trust_proxy_headers", "ALLINONE_RATELIMIT_TRUST_PROXY_HEADERS")
+	viper.BindEnv("ratelimit.external.enabled", "ALLINONE_RATELIMIT_EXTERNAL_ENABLED")
+	viper.BindEnv("ratelimit.external.token_cache_ttl", "ALLINONE_RATELIMIT_EXTERNAL_TOKEN_CACHE_TTL")
 	viper.BindEnv("telemetry.enabled", "ALLINONE_TELEMETRY_ENABLED")
 	viper.BindEnv("telemetry.service_name", "ALLINONE_TELEMETRY_SERVICE_NAME")
 	viper.BindEnv("telemetry.service_version", "ALLINONE_TELEMETRY_SERVICE_VERSION")

@@ -5,6 +5,7 @@ import (
 
 	seed "github.com/all-in-one/cmd/all-in-one/db"
 	server "github.com/all-in-one/cmd/all-in-one/server"
+	tokencli "github.com/all-in-one/cmd/all-in-one/token"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/logging"
 	"github.com/spf13/cobra"
@@ -178,6 +179,70 @@ Examples:
 	root.AddCommand(seedCmd)
 	root.AddCommand(migrateCmd)
 	root.AddCommand(transferCmd)
+	root.AddCommand(tokenCommands()...)
 
 	return root
+}
+
+// tokenCommands builds the app-token management CLI (external rate limiting):
+// token:create / token:list / token:revoke.
+func tokenCommands() []*cobra.Command {
+	loadCtx := func() (config.Config, tokencli.Opts, error) {
+		cfg, err := config.Load()
+		if err != nil {
+			return config.Config{}, tokencli.Opts{}, fmt.Errorf("failed to load config: %w", err)
+		}
+		log, err := logging.New(cfg.Logging)
+		if err != nil {
+			return config.Config{}, tokencli.Opts{}, fmt.Errorf("failed to initialize logger: %w", err)
+		}
+		return *cfg, tokencli.Opts{Config: *cfg, Logger: log}, nil
+	}
+
+	var app, name, scope string
+	createCmd := &cobra.Command{
+		Use:   "token:create",
+		Short: "mint an app token for the external rate-limit API",
+		Long:  "Mint an app token another service uses to call POST /api/v1/ratelimit/check. The plaintext is printed once to stdout.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if app == "" || name == "" {
+				return fmt.Errorf("--app and --name are required")
+			}
+			_, opts, err := loadCtx()
+			if err != nil {
+				return err
+			}
+			return tokencli.RunCreate(cmd.Context(), opts, app, name, scope)
+		},
+	}
+	createCmd.Flags().StringVar(&app, "app", "", "consumer app name, e.g. cashflow (required)")
+	createCmd.Flags().StringVar(&name, "name", "", "human label, e.g. 'cashflow prod' (required)")
+	createCmd.Flags().StringVar(&scope, "scope", "", "target-key scope prefix (default '<app>.')")
+
+	listCmd := &cobra.Command{
+		Use:   "token:list",
+		Short: "list app tokens",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, opts, err := loadCtx()
+			if err != nil {
+				return err
+			}
+			return tokencli.RunList(cmd.Context(), opts)
+		},
+	}
+
+	revokeCmd := &cobra.Command{
+		Use:   "token:revoke <id>",
+		Short: "revoke an app token by id",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, opts, err := loadCtx()
+			if err != nil {
+				return err
+			}
+			return tokencli.RunRevoke(cmd.Context(), opts, args[0])
+		},
+	}
+
+	return []*cobra.Command{createCmd, listCmd, revokeCmd}
 }

@@ -106,6 +106,109 @@ definitions:
       is_active:
         type: boolean
     type: object
+  handler.createExternalTargetRequest:
+    properties:
+      app:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      key:
+        type: string
+      kind:
+        $ref: '#/definitions/model.Kind'
+      limit_count:
+        type: integer
+      name:
+        type: string
+      scope:
+        $ref: '#/definitions/model.Scope'
+      window_unit:
+        $ref: '#/definitions/model.WindowUnit'
+      window_value:
+        type: integer
+    type: object
+  handler.createTokenRequest:
+    properties:
+      app:
+        type: string
+      name:
+        type: string
+      scope_prefix:
+        type: string
+    type: object
+  handler.createTokenResponse:
+    properties:
+      app:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+      notice:
+        type: string
+      revoked_at:
+        type: string
+      scope_prefix:
+        type: string
+      token:
+        type: string
+      token_prefix:
+        type: string
+    type: object
+  model.AppToken:
+    properties:
+      app:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+      revoked_at:
+        type: string
+      scope_prefix:
+        type: string
+      token_prefix:
+        type: string
+    type: object
+  model.ChatStats:
+    properties:
+      conversations:
+        type: integer
+      pending_invites:
+        type: integer
+    type: object
+  model.CheckRequest:
+    properties:
+      bucket_key:
+        type: string
+      target_key:
+        type: string
+    type: object
+  model.CheckResponse:
+    properties:
+      allowed:
+        type: boolean
+      limit:
+        type: integer
+      remaining:
+        type: integer
+      retry_after_seconds:
+        type: integer
+    type: object
   model.CreateInviteRequest:
     properties:
       participants:
@@ -245,6 +348,11 @@ definitions:
     x-enum-varnames:
     - KindThrottle
     - KindDailyQuota
+  model.ListingStats:
+    properties:
+      topics:
+        type: integer
+    type: object
   model.LoginRequest:
     properties:
       password:
@@ -268,11 +376,29 @@ definitions:
     - ScopeIP
     - ScopeUser
     - ScopeGlobal
+  model.ShortenerStats:
+    properties:
+      links:
+        type: integer
+    type: object
+  model.Summary:
+    properties:
+      chat:
+        $ref: '#/definitions/model.ChatStats'
+      listing:
+        $ref: '#/definitions/model.ListingStats'
+      shortener:
+        $ref: '#/definitions/model.ShortenerStats'
+    type: object
   model.Target:
     properties:
+      app:
+        type: string
       description:
         type: string
       enabled:
+        type: boolean
+      is_external:
         type: boolean
       key:
         type: string
@@ -1562,6 +1688,108 @@ paths:
       summary: Get sent invites
       tags:
       - chat-invites
+  /config:
+    get:
+      description: Client-facing configuration the SPA needs before authentication
+        (currently the demo-account flag). No secrets beyond the intentionally public
+        demo credentials.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Public config
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Public runtime config
+      tags:
+      - config
+  /dashboard/summary:
+    get:
+      description: Per-user counts for each app the user can access (listing topics,
+        chat conversations and pending invites, shortener links). Sections are omitted
+        for features the user lacks.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dashboard summary
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Summary'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Get home dashboard summary
+      tags:
+      - dashboard
+  /ratelimit/check:
+    post:
+      consumes:
+      - application/json
+      description: Evaluate one external target against a caller-supplied bucket key.
+        Authenticated by X-API-Key (an app token), not a user session. A rejection
+        is reported as 200 with allowed=false (not 429) so the caller can tell "your
+        user is limited" from "aio limited you". Fails open on an internal counter
+        error.
+      parameters:
+      - description: App token
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Target and bucket key
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CheckRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Decision
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.CheckResponse'
+              type: object
+        "400":
+          description: Invalid request or bucket key does not match scope
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Missing or invalid app token
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Target key outside token scope
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Unknown external target
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "503":
+          description: External rate limiting disabled
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Check a rate limit (external apps)
+      tags:
+      - rate-limiting
   /ratelimit/targets:
     get:
       description: List every rate-limited target, merging its code-defined identity
@@ -1595,6 +1823,44 @@ paths:
       tags:
       - rate-limiting
   /ratelimit/targets/{key}:
+    delete:
+      description: Delete a DB-backed external target by key (admin-only). Internal
+        (Registry) targets cannot be deleted.
+      parameters:
+      - description: Target key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Not an external target
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Unknown target
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Delete an external rate limit target
+      tags:
+      - rate-limiting
     patch:
       consumes:
       - application/json
@@ -1719,6 +1985,159 @@ paths:
       - BearerAuth: []
         DirectAuth: []
       summary: Reset a target's rule to its code-defined defaults
+      tags:
+      - rate-limiting
+  /ratelimit/targets/external:
+    post:
+      consumes:
+      - application/json
+      description: Create a DB-backed external target (no Registry entry) that other
+        apps can call via /ratelimit/check (admin-only). Scope/kind are fixed at creation.
+      parameters:
+      - description: External target
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createExternalTargetRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created target
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Target'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: Target key already exists
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Create an external rate limit target
+      tags:
+      - rate-limiting
+  /ratelimit/tokens:
+    get:
+      description: List every app token (including revoked ones — the audit trail).
+        The plaintext token and its hash are never returned (admin-only).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.AppToken'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: List app tokens
+      tags:
+      - rate-limiting
+    post:
+      consumes:
+      - application/json
+      description: Mint a new app token for another app to call the rate-limit check
+        API. The plaintext token is returned ONCE in this response and can never be
+        retrieved again (admin-only).
+      parameters:
+      - description: App, name, optional scope prefix
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created token (plaintext shown once)
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.createTokenResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Create an app token
+      tags:
+      - rate-limiting
+  /ratelimit/tokens/{id}:
+    delete:
+      description: Soft-revoke an app token by id (the audit row is kept). Takes effect
+        immediately (admin-only).
+      parameters:
+      - description: Token id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Revoked
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Revoke an app token
       tags:
       - rate-limiting
   /sessions:
@@ -2174,6 +2593,40 @@ paths:
       summary: Update an existing item
       tags:
       - items
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with username, password, email, and name
+      parameters:
+      - description: User registration details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "400":
+          description: Invalid request body or missing required fields
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      summary: Register a new user
+      tags:
+      - users
   /users/me:
     get:
       description: Retrieve the profile of the currently authenticated user, plus
@@ -2239,40 +2692,6 @@ paths:
       - BearerAuth: []
         DirectAuth: []
       summary: Reset user password
-      tags:
-      - users
-  /users/register:
-    post:
-      consumes:
-      - application/json
-      description: Create a new user account with username, password, email, and name
-      parameters:
-      - description: User registration details
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/handler.RegisterUserRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: User created successfully
-          schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
-        "400":
-          description: Invalid request body or missing required fields
-          schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
-        "409":
-          description: User already exists
-          schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
-      summary: Register a new user
       tags:
       - users
   /users/search:

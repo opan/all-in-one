@@ -223,6 +223,19 @@ func (s *server) Start() error {
 	ssvc.RegisterAdminRoutes(adminRoutes)
 	rlsvc.RegisterAdminRoutes(adminRoutes)
 
+	// External rate-limit check API: authenticated by an app token (X-API-Key),
+	// NOT a user JWT and NOT admin-gated. It carries rlMw so the internal
+	// ratelimit.check.ip target throttles floods against the endpoint itself
+	// (self-protection) — the middleware enforces that internal target while
+	// the handler enforces the caller's external target, different keys on
+	// different paths, so there is no recursion. rlMw runs before app-token
+	// auth so an IP flood is shed before any token lookup. Registered before
+	// validateRateLimitBindings so ratelimit.check.ip's binding is seen.
+	checkRoutes := api.NewRoute().Subrouter()
+	checkRoutes.Use(rlMw)
+	checkRoutes.Use(rlsvc.AppTokenMiddleware())
+	rlsvc.RegisterCheckRoutes(checkRoutes)
+
 	// Shortener public redirect: /r/{code} — lives outside /api/v1, on its
 	// own subrouter carrying rlMw so the ratelimit app-feature enforces the
 	// ip-scoped shortener.link.resolve target on it (ADR-011). Registered
