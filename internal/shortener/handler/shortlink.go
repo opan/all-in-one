@@ -60,7 +60,7 @@ func (h *Handler) CreateShortLink(w http.ResponseWriter, r *http.Request) {
 
 	urlCfg := h.config.Shortener.URL
 	if urlCfg.MaxLength == 0 {
-		urlCfg.MaxLength = 2048
+		urlCfg.MaxLength = 8192
 	}
 	if len(urlCfg.AllowedSchemes) == 0 {
 		urlCfg.AllowedSchemes = []string{"http", "https"}

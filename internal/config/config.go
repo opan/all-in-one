@@ -180,7 +180,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("http.timeout", 30)
 	viper.SetDefault("shortener.code_length", 7)
 	viper.SetDefault("shortener.max_create_retries", 5)
-	viper.SetDefault("shortener.url.max_length", 2048)
+	viper.SetDefault("shortener.url.max_length", 8192)
 	viper.SetDefault("shortener.url.allowed_schemes", []string{"http", "https"})
 	viper.SetDefault("shortener.url.blocked_hosts", []string{})
 	viper.SetDefault("rbac.admin_username", "admin")

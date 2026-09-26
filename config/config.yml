@@ -49,7 +49,7 @@ shortener:
   # Rate limits for link creation/resolution are managed by the ratelimit
   # app-feature (admin API / DB), not here — see ADR-011.
   url:
-    max_length: 2048
+    max_length: 8192
     allowed_schemes: ["http", "https"]
     blocked_hosts: []
 
