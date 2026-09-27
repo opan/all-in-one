@@ -13,7 +13,7 @@ func validateURL(rawURL string, cfg config.ShortenerURLConfig) error {
 		return fmt.Errorf("target_url is required")
 	}
 	if len(rawURL) > cfg.MaxLength {
-		return fmt.Errorf("target_url exceeds maximum length of %d", cfg.MaxLength)
+		return fmt.Errorf("target_url is %d characters, exceeds maximum length of %d", len(rawURL), cfg.MaxLength)
 	}
 
 	parsed, err := url.ParseRequestURI(rawURL)

@@ -128,7 +128,7 @@ shortener:
   # Rate limits for link creation/resolution are managed by the ratelimit
   # app-feature (admin API / DB), not here — see ratelimit: below.
   url:
-    max_length: 2048              # Max target URL length
+    max_length: 8192              # Max target URL length
     allowed_schemes: ["http", "https"]
     blocked_hosts: []             # Hostnames to reject (e.g. internal services)
 

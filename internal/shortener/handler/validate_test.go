@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/all-in-one/internal/config"
@@ -48,6 +49,18 @@ func TestValidateURL(t *testing.T) {
 			cfg:     defaultURLCfg(),
 			wantErr: true,
 			errMsg:  "exceeds maximum length",
+		},
+		{
+			name:    "long dashboard URL within raised limit",
+			url:     "https://grafana.example.com/explore?schemaVersion=1&panes=" + strings.Repeat("a", 5000),
+			cfg:     config.ShortenerURLConfig{MaxLength: 8192, AllowedSchemes: []string{"https"}},
+			wantErr: false,
+		},
+		{
+			name:    "URL exactly at max length",
+			url:     "https://example.com/" + strings.Repeat("a", 2048-len("https://example.com/")),
+			cfg:     defaultURLCfg(),
+			wantErr: false,
 		},
 		{
 			name:    "javascript scheme rejected",

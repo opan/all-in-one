@@ -50,7 +50,7 @@ shortener:
   code_length: 7                  # Length of generated short codes (base62)
   max_create_retries: 5           # Retries on UNIQUE collision before returning 500
   url:
-    max_length: 2048              # Max target URL length in characters
+    max_length: 8192              # Max target URL length in characters
     allowed_schemes: ["http", "https"]
     blocked_hosts: []             # Hostnames to reject (e.g. internal services)
 ```
