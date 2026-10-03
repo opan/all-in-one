@@ -33,7 +33,8 @@ This mirrors, for **identity**, exactly what RFC/ADR "External Rate Limiting" di
 ## 3. Current state (grounded in code)
 
 ### aio (`internal/authnz`)
-- `users(id TEXT PK, username UNIQUE, email NOT NULL UNIQUE, name, password_hash, …)` — **id is a stable string** and is what the JWT carries as `user_id`. **Email is mandatory and unique.**
+- `users(id TEXT PK, username UNIQUE, email UNIQUE NULL, name, password_hash, …)` — **id is a stable string** and is what the JWT carries as `user_id`. **Email is optional**: migration 09 dropped `NOT NULL` so self-service sign-up needs only a username and password (`POST /users` validates just those two; the `/signup` page labels email "optional"). Email stays `UNIQUE` when present.
+- No "forgot password" flow and no admin password-reset endpoint today. `POST /users/reset_password` is a *change* password: it requires a logged-in aio session plus the current password.
 - Sessions persisted (`SessionRepository`), validated per request by the JWT middleware (session id = JWT `sub`).
 - JWT is **HS256, signed with a shared symmetric secret** (`auth.jwt_secret`); cookies `access_token` + `refresh_token`, `SameSite=Lax`, `Secure` configurable.
 - Endpoints already present: `POST /users` (register), `POST /sessions` (login), `POST /sessions/refresh`, `GET /sessions/verify`, `POST /sessions/2fa/verify`, `…/2fa/recovery`, `GET /users/me`, `DELETE /sessions` (logout).
@@ -46,7 +47,7 @@ This mirrors, for **identity**, exactly what RFC/ADR "External Rate Limiting" di
 
 ### The two gaps that make this non-trivial
 1. **Cross-origin sessions.** aio and cashflow are different origins. A single shared cookie only works if both sit under one parent domain (`Domain=.example.com`); otherwise identity must be handed over by redirect.
-2. **Existing identities.** cashflow rows already reference cashflow `users.id`. Central auth means each cashflow user must be *linked* to an aio account (and aio requires an email cashflow never collected).
+2. **Existing identities.** cashflow rows already reference cashflow `users.id`. Central auth means each cashflow user must be *linked* to an aio account. Usernames also move from a per-app namespace to one global namespace, so the same username can belong to two different people across the apps.
 
 ## 4. Goals / Non-goals
 
@@ -86,6 +87,55 @@ If every app is served under one parent domain, aio sets the auth cookie with `D
 
 Consumers keep a **thin local `users` shadow table** (so existing FKs and `owner_id` stay valid) linked to aio by `aio_user_id`. New users are provisioned just-in-time on first aio login.
 
+### 6.1 Local user records (applies to every option)
+
+Options A, B and C all keep a `users` table in the consumer's own database, because the consumer's domain rows (`cashplans.owner_id`, dues) need a local owner to point at. What changes is that the table is **no longer the source of truth**:
+
+| Kept in cashflow | Moves to aio |
+|---|---|
+| A row per person, linked by aio's user id (the OIDC `sub` under Option A) | Password hash |
+| The existing PK, so FKs are untouched | 2FA, password changes, blocking |
+| Optional cached profile (username, email), refreshed on each login | Registration |
+
+The options differ only in *how* the consumer learns who the user is: a signed ID token verified with JWKS (A), a code exchanged with the app token (B), or reading aio's cookie on a shared domain (C).
+
+### 6.2 Registration flow
+
+A user who registers "through cashflow" starts there, but the account is created on aio. cashflow's "Daftar" button becomes the same redirect as login, with a hint to show the signup form (`prompt=create`, an OpenID Connect extension, so this carries over to Option A unchanged). The password never passes through cashflow.
+
+```
+User            cashflow                          aio
+ │  click "Daftar" │                               │
+ │────────────────>│                               │
+ │                 │ 302 → /auth/authorize         │
+ │                 │   ?client_id=cashflow&redirect_uri=…/auth/callback
+ │                 │   &state=…&code_challenge=…&prompt=create
+ │<────────────────│                               │
+ │─────────────────────────────────────────────────>│ signup page (username, password, email optional)
+ │  submit form    │                               │ create aio account (existing POST /users logic)
+ │                 │                               │ start aio session
+ │<─────────────────────────────────────────────────│ 302 → cashflow/auth/callback?code=…&state=…
+ │────────────────>│                               │
+ │                 │ check state; exchange code    │
+ │                 │ (app token + PKCE verifier) ─>│
+ │                 │<── {user_id, username, email} │
+ │                 │ no local row for this aio_user_id → create it (JIT)
+ │                 │ create cashflow_session       │
+ │<────────────────│ 302 → dashboard               │
+```
+
+Registration and login become the same flow; cashflow no longer has a register handler of its own, only `/auth/login` and `/auth/callback`. Because aio's signup asks only for a username and password, moving signup to aio adds no fields.
+
+| Case | Behavior |
+|---|---|
+| Username already taken | aio shows the error on its signup page; usernames are now one namespace across all apps |
+| User already has an aio account | aio's signup page offers "log in instead"; the flow continues and cashflow creates its local row on return |
+| Signup abandoned halfway | Nothing returns to cashflow, so no local row is created |
+| aio account created but cashflow callback fails | The next login completes it, since the local row is created on whichever login happens first |
+| Flag off (`AUTH_PROVIDER=local`) | cashflow's current `/register` works unchanged |
+
+An alternative is for cashflow to keep its own signup form and call an aio registration API server-to-server. It is not recommended: the password passes through cashflow, validation rules are duplicated, and cashflow still has to log the user in afterwards. If the concern is keeping cashflow's look and feel, theming aio's pages per `client_id` is the lighter fix.
+
 ## 7. Changes required
 
 ### 7.1 aio (provider)
@@ -107,7 +157,7 @@ Consumers keep a **thin local `users` shadow table** (so existing FKs and `owner
 
 ### 7.3 Data migration (the hard, risky part)
 1. Add `aio_user_id` (nullable) to cashflow `users`.
-2. For each existing cashflow user, ensure a matching aio account exists — matched by `username`. **aio requires an email**, which cashflow never collected, so the operator must either supply emails or generate deterministic placeholders (e.g. `<username>@cashflow.local`) to be corrected later.
+2. For each existing cashflow user, create (or link) the aio account. Email can stay empty, since aio accepts accounts without one. The real risk is **username collisions**: if the same username already exists in aio and belongs to a different person, matching by username would merge two people. Each collision needs a rename or a manual decision, and the username rules on both sides must be compared first (cashflow allows `^[a-z0-9_]{3,30}$`).
 3. Write `aio_user_id` back onto the cashflow row (the link).
 4. Invalidate existing cashflow sessions; users re-authenticate once via aio.
 5. After a rollback window, drop `password_hash` from cashflow.
@@ -135,7 +185,8 @@ This step — not the protocol — is where correctness and reversibility must b
 
 ## 10. Open questions
 
-- **Email for existing users:** collect real emails pre-migration, or placeholder-then-correct? (Blocks the migration; aio requires email.)
+- **Username collisions in migration:** how to resolve a cashflow username that already exists in aio for a different person (rename on one side, or a manual link decision)?
+- **Account recovery without email:** there is no self-service "forgot password" in either app today. With central auth a forgotten password locks someone out of every connected app at once, so what is the recovery path (admin-issued reset, optional email for recovery)?
 - **Domain layout:** are all apps under one parent domain? If yes, Option C is a legitimate Phase-0 shortcut worth its own mini-RFC.
 - **Session ownership after login:** consumer mints its own session (recommended, minimal churn) vs. consumer validates aio's JWT on every request (tighter revocation, more coupling).
 - **Logout propagation:** short TTL (simple) vs. front-channel logout (immediate, more work) for v1.
