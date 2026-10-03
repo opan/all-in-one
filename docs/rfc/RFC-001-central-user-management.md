@@ -11,6 +11,7 @@
 | Approach | Score | One-liner |
 |---|---:|---|
 | **B — Redirect + app-token introspection (recommended)** | **7** | OIDC-lite, domain-independent, reuses app-token infra; the crux of the cost is migrating existing users, not the protocol |
+| D — Embedded first-party flow (consumer keeps its own pages) | 6 | No redirect; consumer calls aio APIs server-to-server. Passwords pass through the consumer and the app token gets more power |
 | C — Shared cookie + local JWT/JWKS validation | 4–5 | Cheapest, but only works if every app is under one parent domain and shares the trust boundary; weak logout story |
 | A — Full OIDC/OAuth2 provider | 9 | Standards-complete (discovery, JWKS, consent, dynamic clients, third-party); overkill for a first-party homelab |
 
@@ -53,7 +54,7 @@ This mirrors, for **identity**, exactly what RFC/ADR "External Rate Limiting" di
 
 **Goals**
 - aio is the authority for credentials, 2FA, and account lifecycle.
-- A consumer authenticates a user via aio without ever seeing the password.
+- A consumer authenticates a user via aio without ever *storing* the password. Under Options A–C it never sees it either; Option D trades that away to keep the pages inside the consumer.
 - Existing cashflow users keep their data (plans, dues) after migration.
 - Feature-flagged: flag off ⇒ cashflow uses its current local auth unchanged.
 - Reuse the existing **app-token** service-auth (no new secret-distribution scheme).
@@ -81,11 +82,28 @@ An OIDC-lite subset that reuses what exists:
 ### Option C — Shared cookie + local JWT validation (score 4–5)
 If every app is served under one parent domain, aio sets the auth cookie with `Domain=.opan.dev`; each app validates the JWT locally (shared secret, or aio publishes JWKS) and maps `user_id` to a local shadow user. **Pro:** cheapest, near-zero protocol. **Con:** requires one cookie domain, spreads the signing trust to every app, `SameSite`/CSRF care, and logout/revocation is awkward (cookie deletion doesn't invalidate other apps). Acceptable as a **Phase 0 shortcut** for a same-domain homelab, but it doesn't generalize.
 
+### Option D — Embedded first-party flow (score 6)
+cashflow keeps its own login, signup, change-password and reset pages. Its backend calls aio server-to-server, authenticated with its app token:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/auth/login` | `{username, password}` → identity, or a 2FA challenge |
+| `POST /api/v1/auth/login/2fa` | `{challenge, code}` → identity |
+| `POST /api/v1/auth/register` | `{username, password, email?}` → identity |
+| `POST /api/v1/auth/users/{user_id}/password` | `{current_password, new_password}` |
+| `POST /api/v1/auth/password/reset` | `{username, reset_code, new_password}` (see §6.3) |
+
+As in B, cashflow then creates its local row on first login and mints its own session.
+
+**Pro:** no redirect; pages, copy and design stay in cashflow; less protocol than B (no authorize endpoint, codes, PKCE or redirect allowlist). **Con:** passwords pass through cashflow's backend (in transit only, never stored); no single sign-on between apps, since each app asks for the password itself; cashflow has to render the 2FA prompt; and the app token can now act on user accounts, so it needs explicit capabilities, rate limits and audit logging. It scores 6 rather than lower because the API surface is larger and the token more privileged.
+
 ## 6. Recommended approach
 
 **Adopt Option B as the target.** It reuses the app-token service-auth already shipped for rate limiting, works regardless of domain, and keeps credentials/2FA solely in aio. Keep a **feature flag** on the consumer (`AUTH_PROVIDER=aio|local`) exactly like `AIO_RATELIMIT_ENABLED`, so cashflow falls back to local auth if aio is unavailable or the rollout is paused.
 
 Consumers keep a **thin local `users` shadow table** (so existing FKs and `owner_id` stay valid) linked to aio by `aio_user_id`. New users are provisioned just-in-time on first aio login.
+
+**When to pick Option D instead:** if sending cashflow users to aio's pages is judged a real adoption risk (non-technical users, mobile, Indonesian copy that must match cashflow). Before choosing D, consider making B's hop barely visible: style aio's pages per `client_id` so they look like the app that sent the user, and serve aio under the same parent domain (e.g. `auth.opan.dev`). If that is still not enough, D is a legitimate choice for apps you own, as long as the safeguards in §6.3 and §8 are in place. The migration (§7.3) and the local user table (§6.1) are the same either way, so switching between B and D later does not touch data.
 
 ### 6.1 Local user records (applies to every option)
 
@@ -134,7 +152,23 @@ Registration and login become the same flow; cashflow no longer has a register h
 | aio account created but cashflow callback fails | The next login completes it, since the local row is created on whichever login happens first |
 | Flag off (`AUTH_PROVIDER=local`) | cashflow's current `/register` works unchanged |
 
-An alternative is for cashflow to keep its own signup form and call an aio registration API server-to-server. It is not recommended: the password passes through cashflow, validation rules are duplicated, and cashflow still has to log the user in afterwards. If the concern is keeping cashflow's look and feel, theming aio's pages per `client_id` is the lighter fix.
+An alternative is for cashflow to keep its own signup form and call an aio registration API server-to-server. It is not recommended: the password passes through cashflow, validation rules are duplicated, and cashflow still has to log the user in afterwards. If the concern is keeping cashflow's look and feel, theming aio's pages per `client_id` is the lighter fix. If even that is not enough, Option D covers signup as part of a fully embedded flow.
+
+### 6.3 Password change and reset
+
+**Change password (user knows the current one)**
+- **B:** happens on aio's page using the existing endpoint; cashflow just links to it.
+- **D:** cashflow's form calls `POST /api/v1/auth/users/{user_id}/password` with the current and new password. The current password is mandatory, so a leaked app token alone cannot take over an account. After a change, aio revokes the user's other sessions.
+
+**Forgot password (user doesn't know it)**
+Someone has to prove the user's identity, and without an email there is no channel to do it. An endpoint that accepts just a username and a new password is never acceptable: anyone could reset anyone's account in every app. v1 uses an **admin-issued reset code**, which is needed under every option because aio has no forgot-password flow today:
+
+1. The user asks the operator out of band (e.g. WhatsApp).
+2. The operator generates a code in aio's admin panel (`POST /api/v1/admin/users/{id}/reset-code`): random, single use, short TTL (e.g. 30 minutes), stored hashed.
+3. The user enters username + code + new password on the reset page: aio's page under B, or cashflow's "Lupa password" page under D (which calls `POST /api/v1/auth/password/reset` with the app token).
+4. aio checks the code (constant-time compare, limited attempts), sets the password, revokes all of the user's sessions and burns the code.
+
+Later, if users add an optional email, aio can send a reset link instead. The link can point at the consumer's page and use the same reset endpoint, with an emailed token in place of the admin code.
 
 ## 7. Changes required
 
@@ -144,6 +178,7 @@ An alternative is for cashflow to keep its own signup form and call an aio regis
 - **Token/exchange endpoint** (`POST /api/v1/auth/token`): app-token-authenticated (`X-API-Key`) + PKCE verifier; returns `{ user_id, username, email, expires_at }`. Single-use, replay-protected.
 - **(Optional) userinfo/introspection** (`GET /api/v1/auth/userinfo`) for a consumer to re-verify identity without a full re-login.
 - **Logout propagation:** front-channel logout callback or rely on short consumer-session TTL + periodic re-check (v1 can start with short TTL).
+- **Admin-issued password reset code** (§6.3): admin endpoint, reset endpoint, `password_reset_codes` table. Needed under every option, since aio has no forgot-password flow today.
 - **Config:** authorization-code TTL, per-client redirect-URI allowlist.
 - **Cross-cutting:** otel spans/metrics on the new endpoints, swagger annotations, an ADR at closeout, tests (redirect-URI validation, code single-use/replay, PKCE, scope of returned claims).
 - Estimated ~800–1200 LoC incl. tests; reuses existing login/session/2FA/app-token code.
@@ -164,6 +199,20 @@ An alternative is for cashflow to keep its own signup form and call an aio regis
 
 This step — not the protocol — is where correctness and reversibility must be proven (dry-run on a DB copy, reversible link, no orphaned `owner_id`).
 
+### 7.4 Differences if Option D is chosen
+
+**aio**
+- **App-token capabilities.** Add a `capabilities` column to `app_tokens` (e.g. `ratelimit:check`, `auth:login`, `auth:register`, `auth:password`). Existing tokens get `ratelimit:check` only; each endpoint checks for its capability. A rate-limit token must never be able to log users in.
+- **The five endpoints** listed under Option D, all app-token authenticated and rate-limited per username and per end-user IP.
+- **No** authorize endpoint, authorization codes, PKCE or redirect allowlist (drop those bullets from §7.1).
+- Estimated ~700–1000 LoC incl. tests.
+
+**cashflow**
+- Keep the existing login and signup pages; switch their backends to the aio API calls.
+- Add a 2FA prompt page, a change-password page and a "Lupa password" page.
+- Request logging must never record the bodies of these calls.
+- Estimated ~300–500 LoC. The data migration (§7.3) is unchanged.
+
 ## 8. Security considerations
 
 - **Redirect-URI allowlist** is mandatory (exact-match) — the classic open-redirect / code-interception risk.
@@ -173,6 +222,12 @@ This step — not the protocol — is where correctness and reversibility must b
 - **Session fixation / CSRF:** `state` parameter on the redirect; `SameSite` on the consumer session.
 - **Blast radius:** aio becomes a single point of failure for login. Mitigations: consumer fail-*closed* for new logins (unlike rate limiting, auth must not fail open) but existing valid consumer sessions keep working until they expire, so an aio outage doesn't log everyone out instantly.
 - **Fail-open vs fail-closed differs from rate limiting:** a rate-limit check fails open; an *authentication* decision must fail closed. This is the key philosophical difference from EXTERNAL_RATE_LIMIT and must be stated loudly in the implementation.
+- **Reset codes** (all options): random, hashed at rest, single use, short TTL, attempt-limited, and every use revokes the user's sessions.
+- **Option D only:**
+  - Login and reset become credential-guessing targets reachable through any consumer. Rate-limit per username and per end-user IP, and slow down after repeated failures.
+  - aio sees the consumer's server IP, not the user's, so the consumer must forward the end-user IP. aio should trust that value only from tokens holding an `auth:*` capability.
+  - Passwords pass through the consumer: TLS between consumer and aio, and neither side may log these request bodies.
+  - The app token can now act on accounts. Capabilities keep a leaked rate-limit token harmless, and requiring the current password keeps a leaked auth token from silently taking over accounts.
 - A full security review is a required gate before enabling in production.
 
 ## 9. Rollout plan
@@ -185,6 +240,7 @@ This step — not the protocol — is where correctness and reversibility must b
 
 ## 10. Open questions
 
+- **Hosted pages (B) or embedded pages (D) for cashflow?** Depends on how much friction a redirect to aio's pages really adds once they are styled per client and served under the same parent domain.
 - **Username collisions in migration:** how to resolve a cashflow username that already exists in aio for a different person (rename on one side, or a manual link decision)?
 - **Account recovery without email:** there is no self-service "forgot password" in either app today. With central auth a forgotten password locks someone out of every connected app at once, so what is the recovery path (admin-issued reset, optional email for recovery)?
 - **Domain layout:** are all apps under one parent domain? If yes, Option C is a legitimate Phase-0 shortcut worth its own mini-RFC.
@@ -194,4 +250,4 @@ This step — not the protocol — is where correctness and reversibility must b
 
 ## 11. Decision
 
-Pending. This RFC recommends **Option B**, phased, feature-flagged, with the user-link migration treated as the primary risk. On acceptance, split into a phased implementation plan under `.context/` and an ADR at closeout (per the repo's `docs/adr` convention).
+Pending. This RFC recommends **Option B**, phased, feature-flagged, with the user-link migration treated as the primary risk. **Option D** is the alternative if hosted pages are judged an adoption risk for cashflow; the data model and migration are shared, so the choice can be revisited later. On acceptance, split into a phased implementation plan under `.context/` and an ADR at closeout (per the repo's `docs/adr` convention).
