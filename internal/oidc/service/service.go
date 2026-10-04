@@ -12,4 +12,5 @@ type Service struct {
 	store  repository.Storage
 	config config.Config
 	log    zerolog.Logger
+	keys   *keySet
 }
