@@ -250,6 +250,9 @@ func (s *server) Start() error {
 	asvc.Handler.RegisterAdminRoutes(adminRoutes)
 	ssvc.RegisterAdminRoutes(adminRoutes)
 	rlsvc.RegisterAdminRoutes(adminRoutes)
+	if osvc != nil {
+		osvc.Handler.RegisterAdminRoutes(adminRoutes)
+	}
 
 	// External rate-limit check API: authenticated by an app token (X-API-Key),
 	// NOT a user JWT and NOT admin-gated. It carries rlMw so the internal

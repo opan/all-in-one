@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	seed "github.com/all-in-one/cmd/all-in-one/db"
+	"github.com/all-in-one/cmd/all-in-one/oidcclient"
 	server "github.com/all-in-one/cmd/all-in-one/server"
 	tokencli "github.com/all-in-one/cmd/all-in-one/token"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/logging"
+	"github.com/all-in-one/internal/oidc/model"
 	"github.com/spf13/cobra"
 )
 
@@ -180,6 +182,7 @@ Examples:
 	root.AddCommand(migrateCmd)
 	root.AddCommand(transferCmd)
 	root.AddCommand(tokenCommands()...)
+	root.AddCommand(oidcClientCommands()...)
 
 	return root
 }
@@ -244,5 +247,68 @@ func tokenCommands() []*cobra.Command {
 		},
 	}
 
+	return []*cobra.Command{createCmd, listCmd, revokeCmd}
+}
+
+// oidcClientCommands manage the apps allowed to log users in through aio
+// (OpenID Connect, RFC-001): oidc:client:create / list / revoke.
+func oidcClientCommands() []*cobra.Command {
+	load := func() (oidcclient.Opts, error) {
+		cfg, err := config.Load()
+		if err != nil {
+			return oidcclient.Opts{}, fmt.Errorf("failed to load config: %w", err)
+		}
+		log, err := logging.New(cfg.Logging)
+		if err != nil {
+			return oidcclient.Opts{}, fmt.Errorf("failed to initialize logger: %w", err)
+		}
+		return oidcclient.Opts{Config: *cfg, Logger: log}, nil
+	}
+
+	var in model.CreateClientInput
+	createCmd := &cobra.Command{
+		Use:   "oidc:client:create",
+		Short: "register an app to log users in through aio",
+		Long:  "Register an OpenID Connect client. The client secret is printed once to stdout.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts, err := load()
+			if err != nil {
+				return err
+			}
+			return oidcclient.RunCreate(cmd.Context(), opts, in)
+		},
+	}
+	createCmd.Flags().StringVar(&in.ID, "id", "", "client id, e.g. cashflow (required)")
+	createCmd.Flags().StringVar(&in.Name, "name", "", "display name shown on aio's login page (required)")
+	createCmd.Flags().StringArrayVar(&in.RedirectURIs, "redirect-uri", nil, "allowed callback URL (repeatable, required)")
+	createCmd.Flags().StringArrayVar(&in.PostLogoutRedirectURIs, "post-logout-redirect-uri", nil, "where logout may return to (repeatable)")
+	_ = createCmd.MarkFlagRequired("id")
+	_ = createCmd.MarkFlagRequired("name")
+	_ = createCmd.MarkFlagRequired("redirect-uri")
+
+	listCmd := &cobra.Command{
+		Use:   "oidc:client:list",
+		Short: "list apps that log in through aio",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts, err := load()
+			if err != nil {
+				return err
+			}
+			return oidcclient.RunList(cmd.Context(), opts)
+		},
+	}
+
+	revokeCmd := &cobra.Command{
+		Use:   "oidc:client:revoke <id>",
+		Short: "revoke an app's ability to log in through aio",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts, err := load()
+			if err != nil {
+				return err
+			}
+			return oidcclient.RunRevoke(cmd.Context(), opts, args[0])
+		},
+	}
 	return []*cobra.Command{createCmd, listCmd, revokeCmd}
 }

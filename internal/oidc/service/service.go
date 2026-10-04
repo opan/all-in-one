@@ -73,6 +73,17 @@ func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog
 	return s, nil
 }
 
+// NewClientRegistry returns a Service that can only manage clients: no
+// signing keys, no provider. Used by the CLI, which must work even when the
+// provider itself is disabled.
+func NewClientRegistry(db *sqlx.DB, cfg config.Config, log zerolog.Logger) (*Service, error) {
+	store, err := repository.NewRepo(db, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &Service{store: store, config: cfg, log: log}, nil
+}
+
 func (s *Service) buildProvider() error {
 	opCfg := &op.Config{
 		// Encrypts opaque access tokens; derived from the JWT secret so no new

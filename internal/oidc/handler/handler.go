@@ -14,6 +14,10 @@ import (
 type Service interface {
 	AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error)
 	CompleteAuthRequest(ctx context.Context, id, userID string) (string, error)
+
+	CreateClient(ctx context.Context, in model.CreateClientInput, createdBy string) (model.Client, string, error)
+	ListClients(ctx context.Context) ([]model.Client, error)
+	RevokeClient(ctx context.Context, id string) error
 }
 
 type Handler struct {
@@ -35,4 +39,12 @@ func (h *Handler) RegisterPublicRoutes(r *mux.Router) {
 // RegisterAuthenticatedRoutes: completing a login requires an aio session.
 func (h *Handler) RegisterAuthenticatedRoutes(r *mux.Router) {
 	r.HandleFunc("/oidc/auth-requests/{id}/complete", h.CompleteAuthRequest).Methods(http.MethodPost)
+}
+
+// RegisterAdminRoutes: managing which apps may log users in through aio.
+// Callers must apply RequireAdmin to the router beforehand.
+func (h *Handler) RegisterAdminRoutes(r *mux.Router) {
+	r.HandleFunc("/oidc/clients", h.ListClients).Methods(http.MethodGet)
+	r.HandleFunc("/oidc/clients", h.CreateClient).Methods(http.MethodPost)
+	r.HandleFunc("/oidc/clients/{id}", h.RevokeClient).Methods(http.MethodDelete)
 }
