@@ -16,9 +16,12 @@ export type CompleteResult =
 
 const BASE = '/api/v1/oidc/auth-requests';
 
+// errorMessage turns an API error into a sentence for the page (the API's
+// messages are lowercase, Go style).
 async function errorMessage(res: Response, fallback: string): Promise<string> {
 	const body = await res.json().catch(() => null);
-	return body?.error || fallback;
+	const msg: string = body?.error || fallback;
+	return msg.charAt(0).toUpperCase() + msg.slice(1);
 }
 
 export async function getAuthRequest(id: string): Promise<AuthRequestInfo> {

@@ -74,6 +74,8 @@ func (h *Handler) sendError(w http.ResponseWriter, r *http.Request, err error) {
 		reason, status, msg = "client", http.StatusNotFound, "this app is no longer allowed to log in with all-in-one"
 	case errors.Is(err, oidc.ErrUserBlocked):
 		reason, status, msg = "blocked", http.StatusForbidden, "this account is blocked"
+	case errors.Is(err, oidc.ErrDemoAccount):
+		reason, status, msg = "demo", http.StatusForbidden, "the shared demo account can't be used to log in to other apps; use your own account"
 	default:
 		logging.GetLoggerFromContext(r.Context()).Error().Err(err).Msg("oidc: auth request failed")
 	}

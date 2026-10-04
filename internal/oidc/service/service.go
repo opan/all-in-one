@@ -155,6 +155,9 @@ func (s *Service) CompleteAuthRequest(ctx context.Context, id, userID string) (s
 	if u.Blocked {
 		return "", oidc.ErrUserBlocked
 	}
+	if s.config.DemoMode.Enabled && strings.EqualFold(u.Username, s.config.DemoMode.Username) {
+		return "", oidc.ErrDemoAccount
+	}
 	if !s.mem.complete(id, userID) {
 		return "", oidc.ErrAuthRequestNotFound
 	}

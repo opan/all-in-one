@@ -95,6 +95,7 @@ func TestCompleteAuthRequest(t *testing.T) {
 		status int
 	}{
 		{"blocked user", oidc.ErrUserBlocked, http.StatusForbidden},
+		{"demo account", oidc.ErrDemoAccount, http.StatusForbidden},
 		{"expired request", oidc.ErrAuthRequestNotFound, http.StatusNotFound},
 		{"revoked client", oidc.ErrClientRevoked, http.StatusNotFound},
 	}

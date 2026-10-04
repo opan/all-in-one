@@ -161,7 +161,7 @@
 
 			<p class="text-sm text-center text-muted-foreground">
 				Already have an account?
-				<a href="/login" class="underline hover:text-foreground">Log in</a>
+				<a href={loginHref} class="underline hover:text-foreground">Log in</a>
 			</p>
 		</Card.Content>
 	</Card.Root>

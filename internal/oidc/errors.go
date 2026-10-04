@@ -16,4 +16,7 @@ var (
 	ErrInvalidClientSecret = errors.New("invalid client secret")
 	ErrAuthRequestNotFound = errors.New("auth request not found or expired")
 	ErrUserBlocked         = errors.New("user is blocked")
+	// ErrDemoAccount: the shared demo account (demo_mode) must not log in to
+	// other apps, where every visitor would share one account and its data.
+	ErrDemoAccount = errors.New("the shared demo account can't log in to other apps")
 )

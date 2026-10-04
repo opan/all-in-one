@@ -254,7 +254,7 @@
 					Login with Google
 				</Button>
 
-				{#if demo.enabled}
+				{#if demo.enabled && !authRequestIdFromNext(next)}
 					<div class="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
 						<div class="flex items-center justify-between gap-2">
 							<span class="font-medium">Just want to look around?</span>

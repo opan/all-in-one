@@ -268,7 +268,7 @@ the counters below cover what the HTTP metrics can't say.
 | Label | Metric | Values |
 |---|---|---|
 | `client` | `login_completed_total` | a registered client id, e.g. `cashflow` (admin-created, so bounded by the number of apps) |
-| `reason` | `login_failed_total` | `expired` (auth request timed out), `client` (unknown/revoked app), `blocked` (user blocked), `internal` |
+| `reason` | `login_failed_total` | `expired` (auth request timed out), `client` (unknown/revoked app), `blocked` (user blocked), `demo` (shared demo account refused), `internal` |
 | `aio_session_cleared` | `logout_total` | `true` (valid `id_token_hint`: aio's session ended too), `false` (no/invalid hint: aio's session kept) |
 | `action` | `clients_changed_total` | `create`, `revoke` |
 
@@ -374,7 +374,7 @@ Total series count at steady state (worst case, all label combinations observed)
 | Rate Limiting | `ratelimit_errors_total` | 4 (only `daily_quota`-kind targets touch the counter store) |
 | Rate Limiting | `ratelimit_config_changed_total` | 24 (8 `target` × 3 `action`) |
 | OIDC | `oidc_login_completed_total` | one per registered app |
-| OIDC | `oidc_login_failed_total` | 4 (`reason`) |
+| OIDC | `oidc_login_failed_total` | 5 (`reason`) |
 | OIDC | `oidc_logout_total` | 2 |
 | OIDC | `oidc_clients_changed_total` | 2 (`action`) |
 | All others | — | 1 each (17 metrics) |

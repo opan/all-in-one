@@ -266,6 +266,13 @@ func TestCompleteAuthRequest_Errors(t *testing.T) {
 	_, err = e.svc.CompleteAuthRequest(context.Background(), e.startLogin(t, nil), blocked.ID.String())
 	assert.ErrorIs(t, err, oidc.ErrUserBlocked, "a blocked aio user can't log in to other apps")
 
+	demo := authnzModel.User{ID: uuid.New(), Username: "demo"}
+	e.users[demo.ID] = demo
+	e.svc.config.DemoMode.Enabled, e.svc.config.DemoMode.Username = true, "demo"
+	_, err = e.svc.CompleteAuthRequest(context.Background(), e.startLogin(t, nil), demo.ID.String())
+	assert.ErrorIs(t, err, oidc.ErrDemoAccount, "the shared demo account must not log in to other apps")
+	e.svc.config.DemoMode.Enabled = false
+
 	id := e.startLogin(t, nil)
 	require.NoError(t, e.svc.RevokeClient(context.Background(), "cashflow"))
 	_, err = e.svc.CompleteAuthRequest(context.Background(), id, e.user.ID.String())

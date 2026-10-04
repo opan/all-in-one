@@ -13,6 +13,8 @@
 	} from '$lib/oidc-api';
 
 	let info = $state<AuthRequestInfo | null>(null);
+	let canSwitchAccount = $state(false);
+	let here = '';
 	let error = $state('');
 	let status = $state('Checking your all-in-one session…');
 
@@ -32,7 +34,7 @@
 			return;
 		}
 
-		const here = `/oauth/login?authRequestID=${encodeURIComponent(id)}`;
+		here = `/oauth/login?authRequestID=${encodeURIComponent(id)}`;
 		if (!(await hasSession())) {
 			const target = info.signup ? '/signup' : '/login';
 			await goto(`${target}?next=${encodeURIComponent(here)}`, { replaceState: true });
@@ -47,8 +49,16 @@
 			await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
 		} else {
 			error = result.message;
+			// e.g. logged in to aio as the shared demo account: let the user log
+			// out of it and continue with their own account.
+			canSwitchAccount = true;
 		}
 	});
+
+	async function switchAccount() {
+		await fetch('/api/v1/sessions', { method: 'DELETE', credentials: 'include' });
+		await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
+	}
 </script>
 
 <svelte:head>
@@ -70,7 +80,10 @@
 		<Card.Content>
 			{#if error}
 				<div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>
-				<Button variant="outline" class="mt-4 w-full" onclick={() => history.back()}>Go back</Button>
+				{#if canSwitchAccount}
+					<Button class="mt-4 w-full" onclick={switchAccount}>Use another account</Button>
+				{/if}
+				<Button variant="outline" class="mt-2 w-full" onclick={() => history.back()}>Go back</Button>
 			{:else}
 				<div class="flex items-center gap-3 text-sm text-muted-foreground">
 					<Loader2 class="size-4 animate-spin" />
