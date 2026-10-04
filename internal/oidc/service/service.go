@@ -39,6 +39,7 @@ type UserLookup interface {
 type Service struct {
 	store    repository.Storage
 	users    UserLookup
+	sessions SessionStore
 	config   config.Config
 	log      zerolog.Logger
 	keys     *keySet
@@ -48,18 +49,19 @@ type Service struct {
 	Handler  *handler.Handler
 }
 
-func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog.Logger, users UserLookup) (*Service, error) {
+func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog.Logger, users UserLookup, sessions SessionStore) (*Service, error) {
 	store, err := repository.NewRepo(db, cfg)
 	if err != nil {
 		return nil, err
 	}
 	s := &Service{
-		store:  store,
-		users:  users,
-		config: cfg,
-		log:    log,
-		mem:    newMemStore(cfg.Auth.OIDC.AuthRequestTTL, cfg.Auth.OIDC.AccessTokenLifetime),
-		issuer: strings.TrimRight(cfg.Auth.OIDC.Issuer, "/"),
+		store:    store,
+		users:    users,
+		sessions: sessions,
+		config:   cfg,
+		log:      log,
+		mem:      newMemStore(cfg.Auth.OIDC.AuthRequestTTL, cfg.Auth.OIDC.AccessTokenLifetime),
+		issuer:   strings.TrimRight(cfg.Auth.OIDC.Issuer, "/"),
 	}
 	if err := s.loadKeys(ctx); err != nil {
 		return nil, err
@@ -75,9 +77,11 @@ func (s *Service) buildProvider() error {
 	opCfg := &op.Config{
 		// Encrypts opaque access tokens; derived from the JWT secret so no new
 		// secret has to be configured.
-		CryptoKey:       sha256.Sum256([]byte("aio-oidc|" + s.config.Auth.JWTSecret)),
-		CodeMethodS256:  true,
-		SupportedScopes: []string{zoidc.ScopeOpenID, zoidc.ScopeProfile, zoidc.ScopeEmail},
+		CryptoKey:      sha256.Sum256([]byte("aio-oidc|" + s.config.Auth.JWTSecret)),
+		CodeMethodS256: true,
+		// Where logout lands when the app sent no registered post-logout URL.
+		DefaultLogoutRedirectURI: "/login",
+		SupportedScopes:          []string{zoidc.ScopeOpenID, zoidc.ScopeProfile, zoidc.ScopeEmail},
 	}
 	opts := []op.Option{
 		op.WithCustomEndpoints(
@@ -103,7 +107,7 @@ func (s *Service) buildProvider() error {
 
 // ProviderHandler serves discovery and every provider endpoint.
 func (s *Service) ProviderHandler() http.Handler {
-	return s.provider
+	return s.withAioLogout(s.provider)
 }
 
 func (s *Service) AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error) {

@@ -29,7 +29,10 @@ import (
 	zoidc "github.com/zitadel/oidc/v3/pkg/oidc"
 )
 
-const testRedirect = "http://localhost:9999/auth/callback"
+const (
+	testRedirect   = "http://localhost:9999/auth/callback"
+	testPostLogout = "http://localhost:9999/"
+)
 
 type fakeUsers map[uuid.UUID]authnzModel.User
 
@@ -42,11 +45,19 @@ func (f fakeUsers) Find(_ context.Context, id uuid.UUID) (authnzModel.User, erro
 }
 
 type flowEnv struct {
-	svc    *Service
-	srv    *httptest.Server
-	secret string
-	user   authnzModel.User
-	users  fakeUsers
+	svc      *Service
+	srv      *httptest.Server
+	secret   string
+	user     authnzModel.User
+	users    fakeUsers
+	sessions *fakeSessions
+}
+
+type fakeSessions struct{ deleted []uuid.UUID }
+
+func (f *fakeSessions) Delete(_ context.Context, id uuid.UUID) error {
+	f.deleted = append(f.deleted, id)
+	return nil
 }
 
 // newFlowEnv starts a real provider behind an httptest server, with a fresh
@@ -74,7 +85,8 @@ func newFlowEnv(t *testing.T) *flowEnv {
 
 	user := authnzModel.User{ID: uuid.New(), Username: "budi", Name: "Budi"}
 	users := fakeUsers{user.ID: user}
-	svc, err := NewService(context.Background(), db, cfg, zerolog.Nop(), users)
+	sessions := &fakeSessions{}
+	svc, err := NewService(context.Background(), db, cfg, zerolog.Nop(), users, sessions)
 	require.NoError(t, err)
 
 	r := mux.NewRouter()
@@ -84,9 +96,10 @@ func newFlowEnv(t *testing.T) *flowEnv {
 
 	_, secret, err := svc.CreateClient(context.Background(), model.CreateClientInput{
 		ID: "cashflow", Name: "Cashflow", RedirectURIs: []string{testRedirect},
+		PostLogoutRedirectURIs: []string{testPostLogout},
 	}, "admin")
 	require.NoError(t, err)
-	return &flowEnv{svc: svc, srv: srv, secret: secret, user: user, users: users}
+	return &flowEnv{svc: svc, srv: srv, secret: secret, user: user, users: users, sessions: sessions}
 }
 
 var noRedirect = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

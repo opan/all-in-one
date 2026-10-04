@@ -153,7 +153,7 @@ func (s *server) Start() error {
 	// auth.oidc.enabled; uses authnz's users as the identity source.
 	var osvc *oidcSvc.Service
 	if s.config.Auth.OIDC.Enabled {
-		osvc, err = oidcSvc.NewService(ctx, db, s.config, s.log, asvc.Store.UserRepo())
+		osvc, err = oidcSvc.NewService(ctx, db, s.config, s.log, asvc.Store.UserRepo(), asvc.Store.SessionRepo())
 		if err != nil {
 			s.log.Error().Err(err).Msg("Failed to create oidc provider")
 			return err
