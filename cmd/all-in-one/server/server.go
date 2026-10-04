@@ -19,6 +19,7 @@ import (
 	listingSvc "github.com/all-in-one/internal/listing/service"
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/observability"
+	oidcSvc "github.com/all-in-one/internal/oidc/service"
 	"github.com/all-in-one/internal/ratelimit"
 	ratelimitSvc "github.com/all-in-one/internal/ratelimit/service"
 	"github.com/all-in-one/internal/rbac"
@@ -148,6 +149,18 @@ func (s *server) Start() error {
 	// RBAC resolver — it opens no DB handle of its own and only reads.
 	dsvc := dashboardSvc.NewService(lsvc.Storage, csvc.Storage, ssvc.Storage, rsvc.Resolver, s.log)
 
+	// OpenID Connect provider for other apps (RFC-001, Option A). Off unless
+	// auth.oidc.enabled; uses authnz's users as the identity source.
+	var osvc *oidcSvc.Service
+	if s.config.Auth.OIDC.Enabled {
+		osvc, err = oidcSvc.NewService(ctx, db, s.config, s.log, asvc.Store.UserRepo())
+		if err != nil {
+			s.log.Error().Err(err).Msg("Failed to create oidc provider")
+			return err
+		}
+		s.log.Info().Str("issuer", s.config.Auth.OIDC.Issuer).Msg("oidc: provider enabled")
+	}
+
 	// Initialize HTTP helper
 	h := httpHelper.NewHTTP(s.log, s.config)
 
@@ -165,6 +178,14 @@ func (s *server) Start() error {
 
 	// Add logging middleware
 	r.Use(h.LoggingMiddleware)
+
+	// OIDC provider endpoints, registered before the /api/v1 subrouter so the
+	// provider owns everything under /api/v1/oauth2/. Discovery sits at the
+	// spec-mandated root path.
+	if osvc != nil {
+		r.Handle(oidcSvc.DiscoveryPath, osvc.Handler())
+		r.PathPrefix(oidcSvc.EndpointPrefix).Handler(osvc.Handler())
+	}
 
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()

@@ -15,4 +15,5 @@ var (
 	ErrInvalidRedirectURI  = errors.New("invalid redirect uri")
 	ErrInvalidClientSecret = errors.New("invalid client secret")
 	ErrAuthRequestNotFound = errors.New("auth request not found or expired")
+	ErrUserBlocked         = errors.New("user is blocked")
 )
