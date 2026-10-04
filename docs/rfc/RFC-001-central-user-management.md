@@ -1,8 +1,8 @@
 # RFC-001: all-in-one as Central User Management (SSO) for other apps
 
-- **Status:** Draft. Author is leaning toward **Option A** (OpenID Connect), not yet an accepted decision
+- **Status:** **Accepted: Option A**, implemented in [#32](https://github.com/opan/all-in-one/pull/32) (aio) and [opan/cashflow#3](https://github.com/opan/cashflow/pull/3). Decisions made during the build are in [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md)
 - **Author:** opan
-- **Created:** 2026-09-27 · **Updated:** 2026-10-03
+- **Created:** 2026-09-27 · **Updated:** 2026-10-04
 - **First consumer:** [cashflow](https://github.com/opan/cashflow); more apps planned
 - **Related:** [EXTERNAL_RATE_LIMIT_ADR](../adr/EXTERNAL_RATE_LIMIT_ADR.md) (the "aio as a service" pattern), [USER_AUTHENTICATION_ADR](../adr/USER_AUTHENTICATION_ADR.md)
 
@@ -264,13 +264,23 @@ Only user **accounts** move to aio. cashflow's data (plans, entries, dues, recei
 
 ## 10. Open questions
 
-- **Provider library:** `zitadel/oidc`, `ory/fosite`, or another? The project prefers few dependencies, but the protocol is security-critical, which argues for a well-tested library over hand-rolled code.
+Answered by the build:
+- **Provider library:** `github.com/zitadel/oidc/v3` (actively maintained; `ory/fosite` had not released in almost two years). Apps use `go-oidc` + `x/oauth2`.
+- **Cross-app authorization:** identity only in v1; each app keeps its own permissions.
+- **Back-channel logout:** a follow-up, not v1. v1 ends aio's session on RP-initiated logout when the app sends a valid `id_token_hint`.
+
+Still open (follow-ups):
 - **Domain layout:** will aio and the apps share a parent domain? This decides how visible the redirect is.
-- **Username collisions:** to be checked against production aio before the import.
-- **Back-channel logout:** in v1, or as the first follow-up? It is needed before a reset can reliably end a suspected attacker's session in every app.
+- **Username collisions:** to be checked against production aio before importing existing cashflow users.
 - **Who can issue reset codes:** only the operator, or any aio admin (RBAC)?
-- **Cross-app authorization:** will aio's RBAC ever gate features inside other apps, or does each app keep its own? (v1: identity only.)
 
 ## 11. Decision
 
-Pending. The author is leaning toward **Option A**, scoped to OIDC core and built on a provider library, because it is standard and more apps are planned. **Option B** stays the fallback if A proves too heavy; the data model and migration are shared, so the choice doesn't touch data. On acceptance: a phased implementation plan under `.context/`, and an ADR at closeout (per the repo's `docs/adr` convention).
+**Accepted: Option A**, scoped to OIDC core and built on a provider library, because it is standard and more apps are planned. Implemented and verified end to end with cashflow in [#32](https://github.com/opan/all-in-one/pull/32) and [opan/cashflow#3](https://github.com/opan/cashflow/pull/3).
+
+The build kept to this RFC, with three additions recorded in [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md):
+- the shared demo account (`demo_mode`) is refused for app logins, since every visitor would share one account there;
+- aio's own session ends on app logout only with a valid `id_token_hint` (logout CSRF guard);
+- a consumer with a strict CSP must allow aio's origin in `form-action`, because logout is a form POST that redirects to aio.
+
+Deferred to follow-ups: admin-issued password reset codes (§6.3), importing existing cashflow users (§7.3), back-channel logout, and an admin UI page for clients.

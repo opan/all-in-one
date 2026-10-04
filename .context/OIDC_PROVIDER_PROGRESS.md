@@ -3,7 +3,7 @@
 > **Live tracker: Nextcloud Deck** — cards prefixed "OIDC" on the All-in-one board (https://nc.opan.dev/index.php/apps/deck/board/3)
 > and the Cashflow board (https://nc.opan.dev/index.php/apps/deck/board/9). This file only records decisions for a resumed session.
 > **Status:** implemented and verified end to end (2026-10-04); decisions in `docs/adr/OIDC_PROVIDER_ADR.md`.
-> **Design:** `docs/rfc/RFC-001-central-user-management.md` (PR #31), Option A.
+> **Design:** `docs/rfc/RFC-001-central-user-management.md` (accepted, Option A; merged into this PR, #31 closed).
 > **Branches:** aio `feat/oidc-provider` · cashflow `feat/aio-oidc-login`.
 
 ## Decisions made during the build
