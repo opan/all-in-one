@@ -22,17 +22,9 @@ var clientIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,62}$`)
 
 const maxClientNameLen = 100
 
-// CreateClientInput is what an admin supplies when registering an app.
-type CreateClientInput struct {
-	ID                     string   `json:"id"`
-	Name                   string   `json:"name"`
-	RedirectURIs           []string `json:"redirect_uris"`
-	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
-}
-
 // CreateClient registers an app and returns it with its plaintext secret,
 // which is shown exactly once: only its SHA-256 hash is stored.
-func (s *Service) CreateClient(ctx context.Context, in CreateClientInput, createdBy string) (model.Client, string, error) {
+func (s *Service) CreateClient(ctx context.Context, in model.CreateClientInput, createdBy string) (model.Client, string, error) {
 	in.ID = strings.TrimSpace(in.ID)
 	in.Name = strings.TrimSpace(in.Name)
 	if !clientIDPattern.MatchString(in.ID) {

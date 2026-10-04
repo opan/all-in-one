@@ -5,6 +5,18 @@
 	import * as Card from '$lib/components/ui/card';
 	import { goto } from '$app/navigation';
 	import { apiPost } from '$lib/api';
+	import { page } from '$app/stores';
+	import { safeNext } from '$lib/safe-next';
+	import { authRequestIdFromNext, getAuthRequest } from '$lib/oidc-api';
+
+	// Same ?next= handling as the login page (see routes/login/+page.svelte).
+	const next = $derived(safeNext($page.url.searchParams.get('next')));
+	const loginHref = $derived(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
+	let appName = $state('');
+	$effect(() => {
+		const id = authRequestIdFromNext(next);
+		if (id) getAuthRequest(id).then((info) => (appName = info.client_name)).catch(() => {});
+	});
 
 	let username = $state('');
 	let email = $state('');
@@ -60,10 +72,10 @@
 			const loginData = await loginResponse.json();
 
 			if (loginResponse.ok && loginData.success && !loginData.data?.requires_2fa) {
-				await goto('/home');
+				await goto(next ?? '/home', { replaceState: true });
 			} else {
 				// Account exists even if auto-login didn't pan out — let them log in manually.
-				await goto('/login');
+				await goto(loginHref);
 			}
 		} catch (err) {
 			console.error('Registration error:', err);
@@ -81,10 +93,14 @@
 				<div>
 					<Card.Title class="text-2xl">Create your account</Card.Title>
 					<Card.Description class="mt-2">
-						Enter a username and password to get started
+						{#if appName}
+							Create an All-in-one account to continue to <strong>{appName}</strong>
+						{:else}
+							Enter a username and password to get started
+						{/if}
 					</Card.Description>
 				</div>
-				<Button variant="ghost" class="text-sm" onclick={() => goto('/login')}>Log In</Button>
+				<Button variant="ghost" class="text-sm" onclick={() => goto(loginHref)}>Log In</Button>
 			</div>
 		</Card.Header>
 		<Card.Content class="space-y-4">

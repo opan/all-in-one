@@ -170,3 +170,11 @@ packages:
           filename: "mock_{{.InterfaceName}}.go"
           mockname: "Mock{{.InterfaceName}}"
           outpkg: mocks
+  github.com/all-in-one/internal/oidc/handler:
+    interfaces:
+      Service:
+        config:
+          dir: "internal/oidc/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks

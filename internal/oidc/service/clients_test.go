@@ -21,8 +21,8 @@ func newClientTestService(t *testing.T, clients *mocks.MockClientRepository) *Se
 	return &Service{store: store, log: zerolog.Nop()}
 }
 
-func validInput() CreateClientInput {
-	return CreateClientInput{
+func validInput() model.CreateClientInput {
+	return model.CreateClientInput{
 		ID: "cashflow", Name: "Cashflow",
 		RedirectURIs:           []string{"https://cashflow.example.com/auth/callback"},
 		PostLogoutRedirectURIs: []string{"https://cashflow.example.com/"},
@@ -49,19 +49,19 @@ func TestCreateClient_StoresHashAndReturnsSecretOnce(t *testing.T) {
 func TestCreateClient_Validation(t *testing.T) {
 	cases := []struct {
 		name   string
-		mutate func(*CreateClientInput)
+		mutate func(*model.CreateClientInput)
 		want   error
 	}{
-		{"uppercase id", func(in *CreateClientInput) { in.ID = "CashFlow" }, oidc.ErrInvalidClientID},
-		{"one-char id", func(in *CreateClientInput) { in.ID = "c" }, oidc.ErrInvalidClientID},
-		{"id with space", func(in *CreateClientInput) { in.ID = "cash flow" }, oidc.ErrInvalidClientID},
-		{"empty name", func(in *CreateClientInput) { in.Name = "  " }, oidc.ErrInvalidClientName},
-		{"no redirect uris", func(in *CreateClientInput) { in.RedirectURIs = nil }, oidc.ErrInvalidRedirectURI},
-		{"relative redirect", func(in *CreateClientInput) { in.RedirectURIs = []string{"/auth/callback"} }, oidc.ErrInvalidRedirectURI},
-		{"http on a public host", func(in *CreateClientInput) { in.RedirectURIs = []string{"http://cashflow.example.com/cb"} }, oidc.ErrInvalidRedirectURI},
-		{"fragment", func(in *CreateClientInput) { in.RedirectURIs = []string{"https://cashflow.example.com/cb#x"} }, oidc.ErrInvalidRedirectURI},
-		{"custom scheme", func(in *CreateClientInput) { in.RedirectURIs = []string{"javascript://cb"} }, oidc.ErrInvalidRedirectURI},
-		{"bad post-logout uri", func(in *CreateClientInput) { in.PostLogoutRedirectURIs = []string{"http://evil.example.com/"} }, oidc.ErrInvalidRedirectURI},
+		{"uppercase id", func(in *model.CreateClientInput) { in.ID = "CashFlow" }, oidc.ErrInvalidClientID},
+		{"one-char id", func(in *model.CreateClientInput) { in.ID = "c" }, oidc.ErrInvalidClientID},
+		{"id with space", func(in *model.CreateClientInput) { in.ID = "cash flow" }, oidc.ErrInvalidClientID},
+		{"empty name", func(in *model.CreateClientInput) { in.Name = "  " }, oidc.ErrInvalidClientName},
+		{"no redirect uris", func(in *model.CreateClientInput) { in.RedirectURIs = nil }, oidc.ErrInvalidRedirectURI},
+		{"relative redirect", func(in *model.CreateClientInput) { in.RedirectURIs = []string{"/auth/callback"} }, oidc.ErrInvalidRedirectURI},
+		{"http on a public host", func(in *model.CreateClientInput) { in.RedirectURIs = []string{"http://cashflow.example.com/cb"} }, oidc.ErrInvalidRedirectURI},
+		{"fragment", func(in *model.CreateClientInput) { in.RedirectURIs = []string{"https://cashflow.example.com/cb#x"} }, oidc.ErrInvalidRedirectURI},
+		{"custom scheme", func(in *model.CreateClientInput) { in.RedirectURIs = []string{"javascript://cb"} }, oidc.ErrInvalidRedirectURI},
+		{"bad post-logout uri", func(in *model.CreateClientInput) { in.PostLogoutRedirectURIs = []string{"http://evil.example.com/"} }, oidc.ErrInvalidRedirectURI},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

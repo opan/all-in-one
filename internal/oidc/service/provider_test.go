@@ -17,6 +17,7 @@ import (
 	authnzModel "github.com/all-in-one/internal/authnz/model"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/oidc"
+	"github.com/all-in-one/internal/oidc/model"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -77,11 +78,11 @@ func newFlowEnv(t *testing.T) *flowEnv {
 	require.NoError(t, err)
 
 	r := mux.NewRouter()
-	r.Handle(DiscoveryPath, svc.Handler())
-	r.PathPrefix(EndpointPrefix).Handler(svc.Handler())
+	r.Handle(DiscoveryPath, svc.ProviderHandler())
+	r.PathPrefix(EndpointPrefix).Handler(svc.ProviderHandler())
 	handler = r
 
-	_, secret, err := svc.CreateClient(context.Background(), CreateClientInput{
+	_, secret, err := svc.CreateClient(context.Background(), model.CreateClientInput{
 		ID: "cashflow", Name: "Cashflow", RedirectURIs: []string{testRedirect},
 	}, "admin")
 	require.NoError(t, err)
@@ -263,7 +264,7 @@ func TestCompleteAuthRequest_Errors(t *testing.T) {
 func TestProvider_ImplicitAndJWTBearerAreRefused(t *testing.T) {
 	e := newFlowEnv(t)
 	httpsRedirect := "https://app.example.com/auth/callback"
-	_, _, err := e.svc.CreateClient(context.Background(), CreateClientInput{
+	_, _, err := e.svc.CreateClient(context.Background(), model.CreateClientInput{
 		ID: "https-app", Name: "HTTPS app", RedirectURIs: []string{httpsRedirect},
 	}, "admin")
 	require.NoError(t, err)

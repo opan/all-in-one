@@ -10,6 +10,8 @@ import (
 	authnzModel "github.com/all-in-one/internal/authnz/model"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/oidc"
+	"github.com/all-in-one/internal/oidc/handler"
+	"github.com/all-in-one/internal/oidc/model"
 	"github.com/all-in-one/internal/oidc/repository"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -43,6 +45,7 @@ type Service struct {
 	mem      *memStore
 	provider *op.Provider
 	issuer   string
+	Handler  *handler.Handler
 }
 
 func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog.Logger, users UserLookup) (*Service, error) {
@@ -64,6 +67,7 @@ func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog
 	if err := s.buildProvider(); err != nil {
 		return nil, err
 	}
+	s.Handler = handler.NewHandler(s, cfg)
 	return s, nil
 }
 
@@ -97,30 +101,21 @@ func (s *Service) buildProvider() error {
 	return nil
 }
 
-// Handler serves discovery and every provider endpoint.
-func (s *Service) Handler() http.Handler {
+// ProviderHandler serves discovery and every provider endpoint.
+func (s *Service) ProviderHandler() http.Handler {
 	return s.provider
 }
 
-// AuthRequestInfo is what aio's login page needs to render an auth request:
-// which app is asking, and whether it asked for the signup form.
-type AuthRequestInfo struct {
-	ID         string `json:"id"`
-	ClientID   string `json:"client_id"`
-	ClientName string `json:"client_name"`
-	Signup     bool   `json:"signup"`
-}
-
-func (s *Service) AuthRequestInfo(ctx context.Context, id string) (AuthRequestInfo, error) {
+func (s *Service) AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error) {
 	r, ok := s.mem.request(id)
 	if !ok {
-		return AuthRequestInfo{}, oidc.ErrAuthRequestNotFound
+		return model.AuthRequestInfo{}, oidc.ErrAuthRequestNotFound
 	}
 	c, err := s.ActiveClient(ctx, r.ClientID)
 	if err != nil {
-		return AuthRequestInfo{}, err
+		return model.AuthRequestInfo{}, err
 	}
-	return AuthRequestInfo{ID: r.ID, ClientID: c.ID, ClientName: c.Name, Signup: r.wantsSignup()}, nil
+	return model.AuthRequestInfo{ID: r.ID, ClientID: c.ID, ClientName: c.Name, Signup: r.wantsSignup()}, nil
 }
 
 // CompleteAuthRequest attaches the logged-in aio user to an auth request and

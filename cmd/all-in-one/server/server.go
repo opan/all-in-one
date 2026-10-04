@@ -183,8 +183,8 @@ func (s *server) Start() error {
 	// provider owns everything under /api/v1/oauth2/. Discovery sits at the
 	// spec-mandated root path.
 	if osvc != nil {
-		r.Handle(oidcSvc.DiscoveryPath, osvc.Handler())
-		r.PathPrefix(oidcSvc.EndpointPrefix).Handler(osvc.Handler())
+		r.Handle(oidcSvc.DiscoveryPath, osvc.ProviderHandler())
+		r.PathPrefix(oidcSvc.EndpointPrefix).Handler(osvc.ProviderHandler())
 	}
 
 	// API routes
@@ -201,6 +201,9 @@ func (s *server) Start() error {
 	lsvc.RegisterRoutes(publicRoutes)
 	asvc.RegisterPublicRoutes(publicRoutes)
 	ssvc.RegisterPublicRoutes(publicRoutes)
+	if osvc != nil {
+		osvc.Handler.RegisterPublicRoutes(publicRoutes)
+	}
 
 	// Authenticated routes (JWT required), split into RBAC-gated siblings —
 	// per-app subrouters are used instead of a single shared one because
@@ -217,6 +220,10 @@ func (s *server) Start() error {
 	// Home dashboard summary — authenticated but not feature-gated, so users
 	// with a subset of features still get their accessible sections.
 	dsvc.RegisterAuthenticatedRoutes(selfRoutes)
+	// Completing an app login (OIDC) needs an aio session but no feature grant.
+	if osvc != nil {
+		osvc.Handler.RegisterAuthenticatedRoutes(selfRoutes)
+	}
 
 	// mkGated builds a subrouter gated by JWT auth plus the named feature.
 	// rlMw runs right after JWTAuth so user-scoped targets can key by the

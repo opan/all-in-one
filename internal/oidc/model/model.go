@@ -59,3 +59,20 @@ type SigningKey struct {
 	CreatedAt           time.Time  `db:"created_at"`
 	RetiredAt           *time.Time `db:"retired_at"`
 }
+
+// AuthRequestInfo is what aio's login page needs to render an auth request:
+// which app is asking, and whether it asked for the signup form.
+type AuthRequestInfo struct {
+	ID         string `json:"id"`
+	ClientID   string `json:"client_id"`
+	ClientName string `json:"client_name"`
+	Signup     bool   `json:"signup"`
+}
+
+// CreateClientInput is what an admin supplies when registering an app.
+type CreateClientInput struct {
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	RedirectURIs           []string `json:"redirect_uris"`
+	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+}

@@ -7,9 +7,23 @@
 	import { apiPost } from '$lib/api';
 	import { page } from '$app/stores';
 	import type { DemoMode } from '$lib/config';
+	import { safeNext } from '$lib/safe-next';
+	import { authRequestIdFromNext, getAuthRequest } from '$lib/oidc-api';
 
 	// Demo-account flag from the root layout load (GET /api/v1/config).
 	const demo = $derived(($page.data.demoMode ?? { enabled: false }) as DemoMode);
+
+	// Where to go after logging in: a same-site path from ?next= (e.g. the
+	// OIDC hand-off at /oauth/login), otherwise the dashboard.
+	const next = $derived(safeNext($page.url.searchParams.get('next')));
+	const afterLogin = () => goto(next ?? '/home', { replaceState: true });
+
+	// When an app sent the user here, say which one.
+	let appName = $state('');
+	$effect(() => {
+		const id = authRequestIdFromNext(next);
+		if (id) getAuthRequest(id).then((info) => (appName = info.client_name)).catch(() => {});
+	});
 
 	let username = $state('');
 	let password = $state('');
@@ -47,7 +61,7 @@
 					challengeToken = data.data.challenge_token;
 					show2FAStep = true;
 				} else {
-					await goto('/home');
+					await afterLogin();
 				}
 			} else {
 				error = data.error || 'Login failed. Please check your credentials.';
@@ -85,7 +99,7 @@
 			const data = await response.json();
 
 			if (response.ok && data.success) {
-				await goto('/home');
+				await afterLogin();
 			} else if (response.status === 429) {
 				error = 'Too many attempts. Please login again.';
 				reset2FA();
@@ -131,12 +145,16 @@
 					{:else}
 						<Card.Title class="text-2xl">Login to your account</Card.Title>
 						<Card.Description class="mt-2">
-							Enter your email below to login to your account
+							{#if appName}
+								Log in with your All-in-one account to continue to <strong>{appName}</strong>
+							{:else}
+								Enter your email below to login to your account
+							{/if}
 						</Card.Description>
 					{/if}
 				</div>
 				{#if !show2FAStep}
-					<Button variant="ghost" class="text-sm" onclick={() => goto('/signup')}>Sign Up</Button>
+					<Button variant="ghost" class="text-sm" onclick={() => goto(next ? `/signup?next=${encodeURIComponent(next)}` : '/signup')}>Sign Up</Button>
 				{/if}
 			</div>
 		</Card.Header>
