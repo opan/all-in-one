@@ -1,7 +1,7 @@
 # OIDC Provider (aio as central auth) — Progress
 
-> **Live tracker: Nextcloud Deck board "aio · Central auth (OIDC)"** — https://nc.opan.dev/index.php/apps/deck/board/10
-> (owned by `llm-bot`, shared with `opan`). This file only records decisions and pointers for a resumed session.
+> **Live tracker: Nextcloud Deck** — cards prefixed "OIDC" on the All-in-one board (https://nc.opan.dev/index.php/apps/deck/board/3)
+> and the Cashflow board (https://nc.opan.dev/index.php/apps/deck/board/9). This file only records decisions for a resumed session.
 > **Design:** `docs/rfc/RFC-001-central-user-management.md` (PR #31), Option A.
 > **Branches:** aio `feat/oidc-provider` · cashflow `feat/aio-oidc-login`.
 
