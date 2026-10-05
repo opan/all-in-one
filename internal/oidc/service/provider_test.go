@@ -51,6 +51,7 @@ type flowEnv struct {
 	user     authnzModel.User
 	users    fakeUsers
 	sessions *fakeSessions
+	browsers map[string]string // auth request id -> browser cookie of the browser that started it
 }
 
 type fakeSessions struct{ deleted []uuid.UUID }
@@ -99,7 +100,8 @@ func newFlowEnv(t *testing.T) *flowEnv {
 		PostLogoutRedirectURIs: []string{testPostLogout},
 	}, "admin")
 	require.NoError(t, err)
-	return &flowEnv{svc: svc, srv: srv, secret: secret, user: user, users: users, sessions: sessions}
+	return &flowEnv{svc: svc, srv: srv, secret: secret, user: user, users: users, sessions: sessions,
+		browsers: map[string]string{}}
 }
 
 var noRedirect = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -110,10 +112,7 @@ func pkce() (verifier, challenge string) {
 	return verifier, base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-// startLogin hits the authorize endpoint like an app would and returns the
-// auth request id from aio's login page redirect.
-func (e *flowEnv) startLogin(t *testing.T, extra url.Values) string {
-	t.Helper()
+func authorizeParams(extra url.Values) url.Values {
 	_, challenge := pkce()
 	q := url.Values{
 		"client_id": {"cashflow"}, "redirect_uri": {testRedirect}, "response_type": {"code"},
@@ -123,28 +122,76 @@ func (e *flowEnv) startLogin(t *testing.T, extra url.Values) string {
 	for k, v := range extra {
 		q[k] = v
 	}
-	res, err := noRedirect.Get(e.srv.URL + EndpointPrefix + "authorize?" + q.Encode())
+	return q
+}
+
+// authorize hits the authorize endpoint like an app would, from a browser
+// holding browserID ("" for a browser that has none yet).
+func (e *flowEnv) authorize(t *testing.T, browserID string, q url.Values) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodGet, e.srv.URL+EndpointPrefix+"authorize?"+q.Encode(), nil)
+	if browserID != "" {
+		req.AddCookie(&http.Cookie{Name: oidc.BrowserCookie, Value: browserID})
+	}
+	res, err := noRedirect.Do(req)
 	require.NoError(t, err)
+	return res
+}
+
+// startLoginIn starts a login and returns the auth request id from aio's
+// login page redirect, plus the browser cookie aio set.
+func (e *flowEnv) startLoginIn(t *testing.T, browserID string, extra url.Values) (id, browser string) {
+	t.Helper()
+	res := e.authorize(t, browserID, authorizeParams(extra))
 	require.Equal(t, http.StatusFound, res.StatusCode)
 	loc, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	require.Equal(t, LoginPath, loc.Path, "unauthenticated users are sent to aio's login page")
-	return loc.Query().Get("authRequestID")
+	for _, c := range res.Cookies() {
+		if c.Name == oidc.BrowserCookie {
+			browser = c.Value
+		}
+	}
+	require.NotEmpty(t, browser, "authorize sets the browser cookie")
+	return loc.Query().Get("authRequestID"), browser
 }
 
-// finishLogin completes the auth request and follows the callback, returning
-// the code delivered to the app's redirect URI.
-func (e *flowEnv) finishLogin(t *testing.T, id string) string {
+func (e *flowEnv) startLogin(t *testing.T, extra url.Values) string {
 	t.Helper()
-	next, err := e.svc.CompleteAuthRequest(context.Background(), id, e.user.ID.String())
-	require.NoError(t, err)
-	res, err := noRedirect.Get(next)
+	id, browser := e.startLoginIn(t, "", extra)
+	e.browsers[id] = browser
+	return id
+}
+
+// callback follows the URL CompleteAuthRequest returned, from a browser with
+// the given browser cookie and aio session cookie (either may be empty/nil).
+func (e *flowEnv) callback(t *testing.T, next, browserID string, session *http.Cookie) *url.URL {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodGet, next, nil)
+	if browserID != "" {
+		req.AddCookie(&http.Cookie{Name: oidc.BrowserCookie, Value: browserID})
+	}
+	if session != nil {
+		req.AddCookie(session)
+	}
+	res, err := noRedirect.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusFound, res.StatusCode)
 	loc, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(loc.String(), testRedirect), "redirected back to the app")
+	require.True(t, strings.HasPrefix(loc.String(), testRedirect), "redirected back to the app: %s", loc)
 	assert.Equal(t, "st4te", loc.Query().Get("state"))
+	return loc
+}
+
+// finishLogin completes the auth request as e.user in the browser that
+// started it, and returns the code delivered to the app's redirect URI.
+func (e *flowEnv) finishLogin(t *testing.T, id string) string {
+	t.Helper()
+	next, err := e.svc.CompleteAuthRequest(context.Background(), id, e.user.ID.String(), e.browsers[id])
+	require.NoError(t, err)
+	loc := e.callback(t, next, e.browsers[id], aioCookie(t, uuid.New(), e.user.ID))
+	require.NotEmpty(t, loc.Query().Get("code"), "callback error: %s", loc.Query().Get("error_description"))
 	return loc.Query().Get("code")
 }
 
@@ -235,11 +282,7 @@ func TestProvider_WrongClientSecretRejected(t *testing.T) {
 
 func TestProvider_UnregisteredRedirectURIRejected(t *testing.T) {
 	e := newFlowEnv(t)
-	_, challenge := pkce()
-	q := url.Values{"client_id": {"cashflow"}, "redirect_uri": {"http://localhost:9999/evil"},
-		"response_type": {"code"}, "scope": {"openid"}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}
-	res, err := noRedirect.Get(e.srv.URL + EndpointPrefix + "authorize?" + q.Encode())
-	require.NoError(t, err)
+	res := e.authorize(t, "", authorizeParams(url.Values{"redirect_uri": {"http://localhost:9999/evil"}}))
 	if res.StatusCode == http.StatusFound {
 		assert.NotContains(t, res.Header.Get("Location"), "localhost:9999/evil", "never redirect to an unregistered URI")
 	} else {
@@ -260,23 +303,110 @@ func TestCompleteAuthRequest_Errors(t *testing.T) {
 	blocked := authnzModel.User{ID: uuid.New(), Username: "blocked", Blocked: true}
 	e.users[blocked.ID] = blocked
 
-	_, err := e.svc.CompleteAuthRequest(context.Background(), "no-such-request", e.user.ID.String())
+	complete := func(id string, userID uuid.UUID) error {
+		_, err := e.svc.CompleteAuthRequest(context.Background(), id, userID.String(), e.browsers[id])
+		return err
+	}
+
+	err := complete("no-such-request", e.user.ID)
 	assert.ErrorIs(t, err, oidc.ErrAuthRequestNotFound)
 
-	_, err = e.svc.CompleteAuthRequest(context.Background(), e.startLogin(t, nil), blocked.ID.String())
+	err = complete(e.startLogin(t, nil), blocked.ID)
 	assert.ErrorIs(t, err, oidc.ErrUserBlocked, "a blocked aio user can't log in to other apps")
 
 	demo := authnzModel.User{ID: uuid.New(), Username: "demo"}
 	e.users[demo.ID] = demo
 	e.svc.config.DemoMode.Enabled, e.svc.config.DemoMode.Username = true, "demo"
-	_, err = e.svc.CompleteAuthRequest(context.Background(), e.startLogin(t, nil), demo.ID.String())
+	err = complete(e.startLogin(t, nil), demo.ID)
 	assert.ErrorIs(t, err, oidc.ErrDemoAccount, "the shared demo account must not log in to other apps")
 	e.svc.config.DemoMode.Enabled = false
 
 	id := e.startLogin(t, nil)
 	require.NoError(t, e.svc.RevokeClient(context.Background(), "cashflow"))
-	_, err = e.svc.CompleteAuthRequest(context.Background(), id, e.user.ID.String())
+	err = complete(id, e.user.ID)
 	assert.ErrorIs(t, err, oidc.ErrClientRevoked, "revoking a client stops logins already in flight")
+}
+
+// The attack the browser binding stops: an attacker starts a login in their
+// own browser and sends aio's /oauth/login link to a victim, whose aio
+// session would finish it with no click.
+func TestProvider_LoginLinkOnlyWorksInTheBrowserThatStartedIt(t *testing.T) {
+	e := newFlowEnv(t)
+	id := e.startLogin(t, nil)
+	_, victimBrowser := e.startLoginIn(t, "", nil)
+
+	for name, browserID := range map[string]string{"no browser cookie": "", "another browser": victimBrowser} {
+		t.Run(name, func(t *testing.T) {
+			_, err := e.svc.CompleteAuthRequest(context.Background(), id, e.user.ID.String(), browserID)
+			assert.ErrorIs(t, err, oidc.ErrOtherBrowser)
+		})
+	}
+	req, _ := e.svc.mem.request(id)
+	assert.False(t, req.done, "the request is untouched and still has no user")
+}
+
+// Even a request completed by its own browser yields a code only in a
+// browser that started it and is logged in to aio as the completing user.
+func TestProvider_CallbackRequiresTheCompletingUsersSession(t *testing.T) {
+	e := newFlowEnv(t)
+	id := e.startLogin(t, nil)
+	browser := e.browsers[id]
+	next, err := e.svc.CompleteAuthRequest(context.Background(), id, e.user.ID.String(), browser)
+	require.NoError(t, err)
+	_, otherBrowser := e.startLoginIn(t, "", nil)
+
+	refused := []struct {
+		name    string
+		browser string
+		session *http.Cookie
+	}{
+		{"no aio session", browser, nil},
+		{"aio session of another user", browser, aioCookie(t, uuid.New(), uuid.New())},
+		{"expired aio session", browser, expiredAioCookie(t, e.user.ID)},
+		{"another browser", otherBrowser, aioCookie(t, uuid.New(), e.user.ID)},
+	}
+	for _, c := range refused {
+		t.Run(c.name, func(t *testing.T) {
+			loc := e.callback(t, next, c.browser, c.session)
+			assert.Empty(t, loc.Query().Get("code"))
+			assert.Equal(t, "access_denied", loc.Query().Get("error"))
+		})
+	}
+
+	loc := e.callback(t, next, browser, aioCookie(t, uuid.New(), e.user.ID))
+	assert.NotEmpty(t, loc.Query().Get("code"), "the browser that finished the login still gets its code")
+}
+
+func TestProvider_SeveralLoginsInOneBrowser(t *testing.T) {
+	e := newFlowEnv(t)
+	first, browser := e.startLoginIn(t, "", nil)
+	second, sameBrowser := e.startLoginIn(t, browser, nil)
+	assert.Equal(t, browser, sameBrowser, "the browser keeps its id, so a second tab doesn't break the first")
+	e.browsers[first], e.browsers[second] = browser, browser
+	assert.NotEmpty(t, e.finishLogin(t, first))
+	assert.NotEmpty(t, e.finishLogin(t, second))
+}
+
+func TestProvider_RefusesRequestsItCantHonour(t *testing.T) {
+	e := newFlowEnv(t)
+	cases := []struct {
+		name  string
+		extra url.Values
+	}{
+		{"no PKCE", url.Values{"code_challenge": nil, "code_challenge_method": nil}},
+		{"plain PKCE", url.Values{"code_challenge_method": {"plain"}}},
+		{"prompt=login", url.Values{"prompt": {"login"}}},
+		{"max_age", url.Values{"max_age": {"0"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := e.authorize(t, "", authorizeParams(c.extra))
+			loc, err := url.Parse(res.Header.Get("Location"))
+			require.NoError(t, err)
+			assert.NotEqual(t, LoginPath, loc.Path, "never reaches the login page")
+			assert.Equal(t, "invalid_request", loc.Query().Get("error"))
+		})
+	}
 }
 
 // Discovery lists implicit and jwt-bearer because the library hard-codes them;

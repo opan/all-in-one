@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rsa"
+	"errors"
 	"strings"
 	"testing"
 
@@ -74,6 +75,46 @@ func TestLoadKeys_WrongEncryptionKeyFailsLoudly(t *testing.T) {
 	err = newKeyTestService(t, repo, otherKey).loadKeys(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "totp_encryption_key")
+}
+
+// Two replicas starting on a fresh install each generate a key; each must
+// publish the other's too, or tokens it didn't sign fail verification.
+func TestPublishedKeys_IncludesKeysOtherReplicasStored(t *testing.T) {
+	mine, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+	theirs, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{mine}, nil).Once()
+	svc := newKeyTestService(t, repo, testEncKey)
+	require.NoError(t, svc.loadKeys(context.Background()))
+
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{theirs, mine}, nil)
+	ids := func() []string {
+		var out []string
+		for _, k := range svc.publishedKeys(context.Background()) {
+			out = append(out, k.ID())
+		}
+		return out
+	}
+	assert.ElementsMatch(t, []string{mine.ID, theirs.ID}, ids())
+	assert.ElementsMatch(t, []string{mine.ID, theirs.ID}, ids(), "no duplicates on later calls")
+	assert.Equal(t, mine.ID, svc.keys.signing().ID(), "each replica keeps signing with its own key")
+}
+
+func TestPublishedKeys_FallsBackToLoadedKeysWhenDBFails(t *testing.T) {
+	mine, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{mine}, nil).Once()
+	svc := newKeyTestService(t, repo, testEncKey)
+	require.NoError(t, svc.loadKeys(context.Background()))
+
+	repo.EXPECT().ListActive(mock.Anything).Return(nil, errors.New("db down"))
+	keys := svc.publishedKeys(context.Background())
+	require.Len(t, keys, 1)
+	assert.Equal(t, mine.ID, keys[0].ID())
 }
 
 func newStoredKeyForTest(t *testing.T) (model.SigningKey, error) {

@@ -21,6 +21,7 @@ type authRequest struct {
 	ResponseType  oidc.ResponseType
 	ResponseMode  oidc.ResponseMode
 	CodeChallenge *oidc.CodeChallenge
+	BrowserHash   string
 	CreatedAt     time.Time
 
 	UserID   string
@@ -133,11 +134,13 @@ func (m *memStore) request(id string) (*authRequest, bool) {
 	return &cp, true
 }
 
+// complete attaches the user to a request. A request that is already done
+// can't be handed to a different user.
 func (m *memStore) complete(id, userID string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	r, ok := m.requests[id]
-	if !ok || m.now().Sub(r.CreatedAt) > m.reqTTL {
+	if !ok || m.now().Sub(r.CreatedAt) > m.reqTTL || (r.done && r.UserID != userID) {
 		return false
 	}
 	r.UserID, r.AuthTime, r.done = userID, m.now(), true
@@ -154,19 +157,28 @@ func (m *memStore) saveCode(id, code string) bool {
 	return true
 }
 
+// requestByCode uses the code up as it looks it up: the library only deletes
+// the request after issuing tokens, so two simultaneous token requests with
+// the same code would otherwise both succeed. A failed exchange burns the
+// code too, which is what RFC 6749 asks for anyway.
 func (m *memStore) requestByCode(code string) (*authRequest, bool) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	id, ok := m.codes[code]
-	m.mu.Unlock()
 	if !ok {
 		return nil, false
 	}
-	return m.request(id)
+	delete(m.codes, code)
+	r, ok := m.requests[id]
+	if !ok || m.now().Sub(r.CreatedAt) > m.reqTTL {
+		return nil, false
+	}
+	cp := *r
+	return &cp, true
 }
 
-// deleteRequest removes a request and every code pointing at it, which is
-// what makes an authorization code single-use: the library deletes the
-// request right after exchanging its code.
+// deleteRequest removes a request and every code pointing at it, so no
+// further code can be issued or redeemed for it after an exchange.
 func (m *memStore) deleteRequest(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

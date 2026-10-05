@@ -1960,7 +1960,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "User is blocked",
+                        "description": "User is blocked, or the login was started in another browser",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }

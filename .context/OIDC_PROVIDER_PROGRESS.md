@@ -19,6 +19,17 @@
 - **Config:** `auth.oidc.{enabled,issuer,auth_request_ttl,access_token_lifetime,id_token_lifetime}`;
   enabled requires an absolute http(s) issuer without a path.
 
+## Review fixes (2026-10-05, PR #32 review passes 1 and 2)
+
+- **Critical, login hand-off:** auth requests are bound to the starting browser (`aio_oidc_browser` cookie,
+  `service/binding.go`); completion needs that cookie, and `authorize/callback` also needs aio's session for
+  the completing user. A completed request can't be re-completed as another user.
+- **Logout CSRF:** aio's session ends only when the hint's `sub` equals the session's `user_id`, and only from
+  `TerminateSessionFromRequest` (after the library accepted the request).
+- PKCE S256 required for all clients; `prompt=login` / `max_age` refused; codes used up atomically on lookup;
+  JWKS publishes every active DB key. Single-replica limit documented (ADR-O3, RFC §8, config.yml);
+  moving auth requests/codes to the DB is the follow-up.
+
 ## Out of scope for this build (Deck "Later" column)
 
 Admin-issued reset codes, `users:import`, back-channel logout, admin UI page for clients.

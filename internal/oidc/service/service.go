@@ -118,7 +118,7 @@ func (s *Service) buildProvider() error {
 
 // ProviderHandler serves discovery and every provider endpoint.
 func (s *Service) ProviderHandler() http.Handler {
-	return s.withAioLogout(s.provider)
+	return s.withBrowserBinding(s.withAioLogout(s.provider))
 }
 
 func (s *Service) AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error) {
@@ -136,10 +136,15 @@ func (s *Service) AuthRequestInfo(ctx context.Context, id string) (model.AuthReq
 // CompleteAuthRequest attaches the logged-in aio user to an auth request and
 // returns the URL the browser must visit next; the provider then issues the
 // authorization code and redirects back to the app.
-func (s *Service) CompleteAuthRequest(ctx context.Context, id, userID string) (string, error) {
+// browserID is the browser cookie of the caller (see binding.go): only the
+// browser that started the login may finish it.
+func (s *Service) CompleteAuthRequest(ctx context.Context, id, userID, browserID string) (string, error) {
 	r, ok := s.mem.request(id)
 	if !ok {
 		return "", oidc.ErrAuthRequestNotFound
+	}
+	if !r.startedBy(browserID) {
+		return "", oidc.ErrOtherBrowser
 	}
 	if _, err := s.ActiveClient(ctx, r.ClientID); err != nil {
 		return "", err

@@ -42,7 +42,7 @@ func (h *Handler) GetAuthRequest(w http.ResponseWriter, r *http.Request) {
 // @Security     BearerAuth || DirectAuth
 // @Success      200  {object}  httpHelper.Response{data=completeResponse}  "Where to send the browser next"
 // @Failure      401  {object}  httpHelper.Response  "Not logged in to aio"
-// @Failure      403  {object}  httpHelper.Response  "User is blocked"
+// @Failure      403  {object}  httpHelper.Response  "User is blocked, or the login was started in another browser"
 // @Failure      404  {object}  httpHelper.Response  "Unknown or expired auth request, or the app was revoked"
 // @Router       /oidc/auth-requests/{id}/complete [post]
 func (h *Handler) CompleteAuthRequest(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func (h *Handler) CompleteAuthRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := mux.Vars(r)["id"]
-	next, err := h.service.CompleteAuthRequest(ctx, id, claims.UserID)
+	next, err := h.service.CompleteAuthRequest(ctx, id, claims.UserID, oidc.BrowserIDFromRequest(r))
 	if err != nil {
 		h.sendError(w, r, err)
 		return
@@ -72,6 +72,8 @@ func (h *Handler) sendError(w http.ResponseWriter, r *http.Request, err error) {
 		reason, status, msg = "expired", http.StatusNotFound, "this login link has expired; go back to the app and try again"
 	case errors.Is(err, oidc.ErrClientNotFound), errors.Is(err, oidc.ErrClientRevoked):
 		reason, status, msg = "client", http.StatusNotFound, "this app is no longer allowed to log in with all-in-one"
+	case errors.Is(err, oidc.ErrOtherBrowser):
+		reason, status, msg = "other_browser", http.StatusForbidden, "this login was started in a different browser; go back to the app and log in from this browser"
 	case errors.Is(err, oidc.ErrUserBlocked):
 		reason, status, msg = "blocked", http.StatusForbidden, "this account is blocked"
 	case errors.Is(err, oidc.ErrDemoAccount):

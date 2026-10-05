@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/all-in-one/internal/auth"
@@ -38,10 +39,14 @@ func newRouter(svc Service, loggedInAs string) *mux.Router {
 	return r
 }
 
-func do(t *testing.T, r *mux.Router, method, path string) (int, httpHelper.Response) {
+func do(t *testing.T, r *mux.Router, method, path string, cookies ...*http.Cookie) (int, httpHelper.Response) {
 	t.Helper()
 	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, httptest.NewRequest(method, path, nil))
+	req := httptest.NewRequest(method, path, nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	r.ServeHTTP(rr, req)
 	var resp httpHelper.Response
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	return rr.Code, resp
@@ -80,11 +85,13 @@ func TestCompleteAuthRequest(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, status)
 	})
 
-	t.Run("completes and returns the next URL", func(t *testing.T) {
+	t.Run("completes with the browser cookie and returns the next URL", func(t *testing.T) {
+		browserID := strings.Repeat("A", 43) // 32 bytes, base64url
 		svc := mocks.NewMockService(t)
-		svc.EXPECT().CompleteAuthRequest(mock.Anything, "r1", "user-1").Return("http://aio/api/v1/oauth2/authorize/callback?id=r1", nil)
+		svc.EXPECT().CompleteAuthRequest(mock.Anything, "r1", "user-1", browserID).Return("http://aio/api/v1/oauth2/authorize/callback?id=r1", nil)
 		svc.EXPECT().AuthRequestInfo(mock.Anything, "r1").Return(model.AuthRequestInfo{ClientID: "cashflow"}, nil)
-		status, resp := do(t, newRouter(svc, "user-1"), http.MethodPost, "/oidc/auth-requests/r1/complete")
+		status, resp := do(t, newRouter(svc, "user-1"), http.MethodPost, "/oidc/auth-requests/r1/complete",
+			&http.Cookie{Name: oidc.BrowserCookie, Value: browserID})
 		require.Equal(t, http.StatusOK, status)
 		assert.Equal(t, "http://aio/api/v1/oauth2/authorize/callback?id=r1", resp.Data.(map[string]any)["redirect_url"])
 	})
@@ -94,6 +101,7 @@ func TestCompleteAuthRequest(t *testing.T) {
 		err    error
 		status int
 	}{
+		{"started in another browser", oidc.ErrOtherBrowser, http.StatusForbidden},
 		{"blocked user", oidc.ErrUserBlocked, http.StatusForbidden},
 		{"demo account", oidc.ErrDemoAccount, http.StatusForbidden},
 		{"expired request", oidc.ErrAuthRequestNotFound, http.StatusNotFound},
@@ -102,7 +110,7 @@ func TestCompleteAuthRequest(t *testing.T) {
 	for _, c := range errs {
 		t.Run(c.name, func(t *testing.T) {
 			svc := mocks.NewMockService(t)
-			svc.EXPECT().CompleteAuthRequest(mock.Anything, "r1", "user-1").Return("", c.err)
+			svc.EXPECT().CompleteAuthRequest(mock.Anything, "r1", "user-1", "").Return("", c.err)
 			status, _ := do(t, newRouter(svc, "user-1"), http.MethodPost, "/oidc/auth-requests/r1/complete")
 			assert.Equal(t, c.status, status)
 		})

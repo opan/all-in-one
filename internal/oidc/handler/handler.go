@@ -13,7 +13,7 @@ import (
 // service package can satisfy it structurally without an import cycle.
 type Service interface {
 	AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error)
-	CompleteAuthRequest(ctx context.Context, id, userID string) (string, error)
+	CompleteAuthRequest(ctx context.Context, id, userID, browserID string) (string, error)
 
 	CreateClient(ctx context.Context, in model.CreateClientInput, createdBy string) (model.Client, string, error)
 	ListClients(ctx context.Context) ([]model.Client, error)

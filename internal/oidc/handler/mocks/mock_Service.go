@@ -79,9 +79,9 @@ func (_c *MockService_AuthRequestInfo_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// CompleteAuthRequest provides a mock function with given fields: ctx, id, userID
-func (_m *MockService) CompleteAuthRequest(ctx context.Context, id string, userID string) (string, error) {
-	ret := _m.Called(ctx, id, userID)
+// CompleteAuthRequest provides a mock function with given fields: ctx, id, userID, browserID
+func (_m *MockService) CompleteAuthRequest(ctx context.Context, id string, userID string, browserID string) (string, error) {
+	ret := _m.Called(ctx, id, userID, browserID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CompleteAuthRequest")
@@ -89,17 +89,17 @@ func (_m *MockService) CompleteAuthRequest(ctx context.Context, id string, userI
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
-		return rf(ctx, id, userID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (string, error)); ok {
+		return rf(ctx, id, userID, browserID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
-		r0 = rf(ctx, id, userID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = rf(ctx, id, userID, browserID)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, id, userID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, id, userID, browserID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -116,13 +116,14 @@ type MockService_CompleteAuthRequest_Call struct {
 //   - ctx context.Context
 //   - id string
 //   - userID string
-func (_e *MockService_Expecter) CompleteAuthRequest(ctx interface{}, id interface{}, userID interface{}) *MockService_CompleteAuthRequest_Call {
-	return &MockService_CompleteAuthRequest_Call{Call: _e.mock.On("CompleteAuthRequest", ctx, id, userID)}
+//   - browserID string
+func (_e *MockService_Expecter) CompleteAuthRequest(ctx interface{}, id interface{}, userID interface{}, browserID interface{}) *MockService_CompleteAuthRequest_Call {
+	return &MockService_CompleteAuthRequest_Call{Call: _e.mock.On("CompleteAuthRequest", ctx, id, userID, browserID)}
 }
 
-func (_c *MockService_CompleteAuthRequest_Call) Run(run func(ctx context.Context, id string, userID string)) *MockService_CompleteAuthRequest_Call {
+func (_c *MockService_CompleteAuthRequest_Call) Run(run func(ctx context.Context, id string, userID string, browserID string)) *MockService_CompleteAuthRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
 	})
 	return _c
 }
@@ -132,7 +133,7 @@ func (_c *MockService_CompleteAuthRequest_Call) Return(_a0 string, _a1 error) *M
 	return _c
 }
 
-func (_c *MockService_CompleteAuthRequest_Call) RunAndReturn(run func(context.Context, string, string) (string, error)) *MockService_CompleteAuthRequest_Call {
+func (_c *MockService_CompleteAuthRequest_Call) RunAndReturn(run func(context.Context, string, string, string) (string, error)) *MockService_CompleteAuthRequest_Call {
 	_c.Call.Return(run)
 	return _c
 }

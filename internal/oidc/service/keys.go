@@ -45,6 +45,7 @@ type keySet struct {
 	mu     sync.RWMutex
 	active *signingKey
 	public []op.Key
+	encKey []byte
 }
 
 func (ks *keySet) signing() *signingKey {
@@ -56,6 +57,37 @@ func (ks *keySet) signing() *signingKey {
 func (ks *keySet) published() []op.Key {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
+	return ks.public
+}
+
+// publishedKeys returns every active key in the database, not only the ones
+// loaded at startup: with several replicas each may sign with a key the
+// others never loaded (two fresh pods each generate one), and an app may
+// fetch the key set from any of them. Newly seen keys are cached.
+func (s *Service) publishedKeys(ctx context.Context) []op.Key {
+	stored, err := s.store.KeyRepo().ListActive(ctx)
+	if err != nil {
+		s.log.Warn().Err(err).Msg("oidc: list signing keys; publishing the ones loaded at startup")
+		return s.keys.published()
+	}
+	ks := s.keys
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	known := make(map[string]bool, len(ks.public))
+	for _, k := range ks.public {
+		known[k.ID()] = true
+	}
+	for _, k := range stored {
+		if known[k.ID] {
+			continue
+		}
+		priv, err := decryptKey(k, ks.encKey)
+		if err != nil {
+			s.log.Error().Err(err).Msg("oidc: skipping a signing key that can't be decrypted")
+			continue
+		}
+		ks.public = append(ks.public, &publicKey{id: k.ID, pub: &priv.PublicKey})
+	}
 	return ks.public
 }
 
@@ -84,7 +116,7 @@ func (s *Service) loadKeys(ctx context.Context) error {
 		stored = []model.SigningKey{k}
 	}
 
-	ks := &keySet{}
+	ks := &keySet{encKey: encKey}
 	for i, k := range stored {
 		priv, err := decryptKey(k, encKey)
 		if err != nil {

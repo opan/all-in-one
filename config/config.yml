@@ -28,7 +28,7 @@ auth:
   secure_cookie: false # Set to true in production with HTTPS
   totp_encryption_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"  # 32-byte hex key - REPLACE in production!
   oidc:
-    enabled: false               # serve aio as an OpenID Connect provider for other apps (RFC-001)
+    enabled: false               # serve aio as an OpenID Connect provider for other apps (RFC-001); single replica only (logins are kept in memory)
     issuer: ""                   # aio's public base URL, e.g. https://auth.example.com (required when enabled)
     auth_request_ttl: 10m        # how long a user has to finish aio's login page after an app redirects them
     access_token_lifetime: 15m   # access tokens (userinfo endpoint)

@@ -15,7 +15,10 @@ var (
 	ErrInvalidRedirectURI  = errors.New("invalid redirect uri")
 	ErrInvalidClientSecret = errors.New("invalid client secret")
 	ErrAuthRequestNotFound = errors.New("auth request not found or expired")
-	ErrUserBlocked         = errors.New("user is blocked")
+	// ErrOtherBrowser: an auth request can only be finished in the browser
+	// that started it, so a login link sent to someone else is useless.
+	ErrOtherBrowser = errors.New("auth request was started in another browser")
+	ErrUserBlocked  = errors.New("user is blocked")
 	// ErrDemoAccount: the shared demo account (demo_mode) must not log in to
 	// other apps, where every visitor would share one account and its data.
 	ErrDemoAccount = errors.New("the shared demo account can't log in to other apps")

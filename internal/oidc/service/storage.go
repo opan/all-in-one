@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
@@ -26,17 +27,26 @@ var (
 	_ op.CanTerminateSessionFromRequest = (*providerStorage)(nil)
 )
 
-func (p *providerStorage) CreateAuthRequest(_ context.Context, req *oidc.AuthRequest, _ string) (op.AuthRequest, error) {
+func (p *providerStorage) CreateAuthRequest(ctx context.Context, req *oidc.AuthRequest, _ string) (op.AuthRequest, error) {
 	if len(req.Prompt) == 1 && req.Prompt[0] == oidc.PromptNone {
 		// Silent login would need a way to check aio's session here; not supported in v1.
 		return nil, oidc.ErrLoginRequired()
 	}
+	// Forcing a fresh login isn't supported: /oauth/login finishes with
+	// single sign-on whenever an aio session exists, so refuse rather than
+	// silently ignore the app's request.
+	if slices.Contains(req.Prompt, oidc.PromptLogin) || req.MaxAge != nil {
+		return nil, oidc.ErrInvalidRequest().WithDescription("prompt=login and max_age are not supported")
+	}
+	// The library only enforces PKCE for public clients; aio requires it for all.
+	if req.CodeChallenge == "" || req.CodeChallengeMethod != oidc.CodeChallengeMethodS256 {
+		return nil, oidc.ErrInvalidRequest().WithDescription("PKCE with code_challenge_method=S256 is required")
+	}
 	r := &authRequest{
 		ClientID: req.ClientID, RedirectURI: req.RedirectURI, State: req.State, Nonce: req.Nonce,
 		Scopes: req.Scopes, Prompt: req.Prompt, ResponseType: req.ResponseType, ResponseMode: req.ResponseMode,
-	}
-	if req.CodeChallenge != "" {
-		r.CodeChallenge = &oidc.CodeChallenge{Challenge: req.CodeChallenge, Method: req.CodeChallengeMethod}
+		CodeChallenge: &oidc.CodeChallenge{Challenge: req.CodeChallenge, Method: req.CodeChallengeMethod},
+		BrowserHash:   hashBrowserID(browserIDFromContext(ctx)),
 	}
 	p.s.mem.addRequest(r)
 	return r, nil
@@ -98,13 +108,14 @@ func (p *providerStorage) TerminateSession(_ context.Context, userID, clientID s
 	return nil
 }
 
-// TerminateSessionFromRequest handles RP-initiated logout. aio's own session
-// cookie is cleared by the HTTP layer (Service.Handler), since storage has no
-// access to the response.
-func (p *providerStorage) TerminateSessionFromRequest(_ context.Context, req *op.EndSessionRequest) (string, error) {
+// TerminateSessionFromRequest handles RP-initiated logout. The library calls
+// it only after accepting the request (valid hint, active client, registered
+// post-logout URI), so aio's own session is ended here too.
+func (p *providerStorage) TerminateSessionFromRequest(ctx context.Context, req *op.EndSessionRequest) (string, error) {
 	if req.UserID != "" {
 		p.s.mem.deleteTokensFor(req.UserID, "")
 	}
+	p.s.endAioSession(ctx, req.UserID)
 	return req.RedirectURI, nil
 }
 
@@ -128,8 +139,8 @@ func (p *providerStorage) SignatureAlgorithms(context.Context) ([]jose.Signature
 	return []jose.SignatureAlgorithm{jose.RS256}, nil
 }
 
-func (p *providerStorage) KeySet(context.Context) ([]op.Key, error) {
-	return p.s.keys.published(), nil
+func (p *providerStorage) KeySet(ctx context.Context) ([]op.Key, error) {
+	return p.s.publishedKeys(ctx), nil
 }
 
 func (p *providerStorage) GetClientByClientID(ctx context.Context, clientID string) (op.Client, error) {

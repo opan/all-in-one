@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -12,10 +13,22 @@ import (
 )
 
 // aioCookie mints aio's own session cookie the way authnz does (HS256 over
-// the JWT secret, sub = session id).
-func aioCookie(t *testing.T, sid uuid.UUID) *http.Cookie {
+// the JWT secret, sub = session id, user_id = the user).
+func aioCookie(t *testing.T, sid, userID uuid.UUID) *http.Cookie {
 	t.Helper()
-	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": sid.String()}).SignedString([]byte("test-secret"))
+	return signedAioCookie(t, jwt.MapClaims{"sub": sid.String(), "user_id": userID.String(),
+		"exp": time.Now().Add(time.Hour).Unix()})
+}
+
+func expiredAioCookie(t *testing.T, userID uuid.UUID) *http.Cookie {
+	t.Helper()
+	return signedAioCookie(t, jwt.MapClaims{"sub": uuid.NewString(), "user_id": userID.String(),
+		"exp": time.Now().Add(-time.Hour).Unix()})
+}
+
+func signedAioCookie(t *testing.T, claims jwt.MapClaims) *http.Cookie {
+	t.Helper()
+	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("test-secret"))
 	require.NoError(t, err)
 	return &http.Cookie{Name: "access_token", Value: tok}
 }
@@ -53,7 +66,7 @@ func TestLogout_WithIDTokenHintEndsAioSessionAndReturnsToApp(t *testing.T) {
 		"id_token_hint":            {e.idToken(t)},
 		"post_logout_redirect_uri": {testPostLogout},
 		"state":                    {"bye"},
-	}, aioCookie(t, sid))
+	}, aioCookie(t, sid, e.user.ID))
 
 	require.Equal(t, http.StatusFound, res.StatusCode)
 	loc, _ := url.Parse(res.Header.Get("Location"))
@@ -79,11 +92,24 @@ func TestLogout_WithoutValidHintKeepsAioSession(t *testing.T) {
 			if c.hint != "" {
 				params.Set("id_token_hint", c.hint)
 			}
-			res := e.logout(t, params, aioCookie(t, uuid.New()))
+			res := e.logout(t, params, aioCookie(t, uuid.New(), e.user.ID))
 			assert.Empty(t, e.sessions.deleted, "a bare link must not log users out of aio (logout CSRF)")
 			assert.False(t, clearsCookie(res, "access_token"))
 		})
 	}
+}
+
+// Any user can get a valid ID token of their own (it is in every app's
+// logout URL), so a hint alone must not end someone else's aio session.
+func TestLogout_HintForAnotherUserKeepsAioSession(t *testing.T) {
+	e := newFlowEnv(t)
+	res := e.logout(t, url.Values{
+		"id_token_hint":            {e.idToken(t)},
+		"post_logout_redirect_uri": {testPostLogout},
+	}, aioCookie(t, uuid.New(), uuid.New()))
+	assert.Equal(t, http.StatusFound, res.StatusCode, "the app's own logout still completes")
+	assert.Empty(t, e.sessions.deleted)
+	assert.False(t, clearsCookie(res, "access_token"))
 }
 
 func TestLogout_UnregisteredPostLogoutURIIsNotFollowed(t *testing.T) {
@@ -91,6 +117,8 @@ func TestLogout_UnregisteredPostLogoutURIIsNotFollowed(t *testing.T) {
 	res := e.logout(t, url.Values{
 		"id_token_hint":            {e.idToken(t)},
 		"post_logout_redirect_uri": {"https://evil.example.com/"},
-	}, nil)
+	}, aioCookie(t, uuid.New(), e.user.ID))
 	assert.NotContains(t, res.Header.Get("Location"), "evil.example.com")
+	assert.Empty(t, e.sessions.deleted, "a logout the library rejects leaves aio's session alone")
+	assert.False(t, clearsCookie(res, "access_token"))
 }

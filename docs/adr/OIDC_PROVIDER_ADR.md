@@ -42,11 +42,16 @@ client registry (`clients`). Everything is behind `auth.oidc.enabled` (off by de
   in constant time), redirect and post-logout URIs. Redirect URIs must be https, except loopback http for local
   development. Revocation is soft.
 - **Signing keys** (`oidc_signing_keys`): RSA-2048, generated on first start, private key encrypted with
-  `auth.totp_encryption_key` via the existing AES-GCM helper. The newest active key signs; all active keys are
-  published so tokens signed before a rotation still verify. Changing that encryption key makes aio refuse to
-  start with a clear error.
+  `auth.totp_encryption_key` via the existing AES-GCM helper. The newest active key signs; every active key in
+  the database is published (re-read on each JWKS request), so tokens signed before a rotation, or by another
+  replica's key, still verify. Changing that encryption key makes aio refuse to start with a clear error.
 - **Auth requests, codes, access tokens**: in memory with a TTL (`auth_request_ttl`, `access_token_lifetime`).
-  A restart mid-login only means the user starts again; apps use the ID token once, at login.
+  A restart mid-login only means the user starts again; apps use the ID token once, at login. A code is used up
+  the moment it is looked up, so simultaneous token requests can't both redeem it.
+- **Single replica only while the provider is on.** Because auth requests and codes live in one process, a
+  login started on one pod and finished on another fails with "this login link has expired". Run one replica
+  with the `Recreate` strategy (a `RollingUpdate` briefly runs two). Moving auth requests and codes into the
+  database lifts this limit and is the follow-up if aio needs more than one replica.
 
 ---
 
@@ -59,20 +64,34 @@ Login and signup accept only same-site `next` paths (no `//host`, no scheme) so 
 redirect, and say "continue to <app>". Completion (`POST .../complete`) requires an aio session, refuses
 blocked users and revoked clients, then returns the provider's callback URL.
 
+**Each login is tied to the browser that started it.** The page completes with no click, so without this an
+attacker could start a login in their own browser, send the `/oauth/login` link to a victim logged in to aio,
+and then follow the callback themselves to get an app session as the victim. Two checks stop it:
+
+- the authorize endpoint sets an `aio_oidc_browser` cookie (random, HttpOnly, path `/api/v1/`, reused across
+  tabs) and the auth request stores its hash; completion requires the same cookie (403, reason `other_browser`);
+- the callback that issues the code (`authorize/callback`) requires the same cookie *and* aio's session cookie
+  for the user who completed the request; otherwise the app gets `access_denied`.
+
+A completed request can't be re-completed as a different user. `prompt=login` and `max_age` are refused
+(`invalid_request`) because the page would answer them with single sign-on, and PKCE with S256 is required for
+every client (the library itself only requires it for public clients).
+
 The SPA uses plain `fetch` for this flow because `apiClient` redirects to `/login` on a 401, which would drop
 `next`.
 
 ---
 
-## ADR-O5: Logout ends aio's session only with a valid id_token_hint
+## ADR-O5: Logout ends aio's session only for the hint's own user
 
-RP-initiated logout (`end_session`) is wrapped so that, besides the library's validation and redirect to the
-client's registered post-logout URI, it deletes aio's session row and clears aio's cookies. This happens only
-when the request carries an ID token aio issued; expired tokens are accepted, the signature is still verified.
-Without it, any page could log users out of aio by linking to the endpoint (logout CSRF).
+RP-initiated logout (`end_session`) also deletes aio's session row and clears aio's cookies, but only when:
 
-The library sets the issuer on the request context only inside its own handler, so the wrapper sets it
-explicitly before verifying the hint.
+- the library has accepted the request (valid `id_token_hint`, active client, registered post-logout URI); this
+  runs in `TerminateSessionFromRequest`, which the library calls only after validating, with the HTTP request
+  and response passed through the context;
+- the hint's `sub` equals the `user_id` of aio's session cookie. Expired hints are accepted, so a hint alone
+  proves nothing: every user can get a valid ID token of their own from an app's logout URL. Without the user
+  check, a link carrying the attacker's token would log any victim out of aio (logout CSRF).
 
 ---
 
@@ -104,7 +123,10 @@ its data.
 
 Unit and in-process tests cover the full code flow (ID token verified against the published keys),
 single-use codes, wrong secrets, unregistered redirect URIs, blocked users, revoked clients, the demo account,
-logout with and without a hint, and memory-store expiry. A real browser run against both apps on separate hosts
+logout with and without a hint, and memory-store expiry. Review fixes added tests for a login link opened in
+another browser, a callback without the completing user's session, several logins in one browser, refused
+`prompt=login`/`max_age`/missing PKCE, logout with another user's hint or a rejected post-logout URI, codes
+redeemed concurrently, and keys stored by another replica. A real browser run against both apps on separate hosts
 (aio on `127.0.0.1`, cashflow on `localhost`) passed 18/18 checks: signup through cashflow, logout ending both
 sessions, login with an existing account, single sign-on with no form, and demo refusal. It also found three
 bugs, all fixed: the CSP issue above, the demo account issue above, and a signup link that dropped `next`.

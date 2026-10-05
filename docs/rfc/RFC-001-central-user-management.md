@@ -244,7 +244,10 @@ Only user **accounts** move to aio. cashflow's data (plans, entries, dues, recei
 - **Redirect URIs** must match the client's registered list exactly; this blocks the classic open-redirect and code-interception attacks.
 - **PKCE (S256)** for every client, including confidential ones.
 - **`state`** against CSRF on the callback; **`nonce`** against ID-token replay.
-- **Authorization codes** are single use with a short TTL (handled by the library).
+- **Authorization codes** are single use with a short TTL; a code is used up the moment it is looked up, so concurrent redemptions can't both succeed.
+- **Logins are bound to the browser that started them.** The authorize step sets a browser cookie; only that browser can complete the auth request, and the code is issued only to that browser while it holds aio's session for the user who completed it. Otherwise a victim's zero-click single sign-on on a login link an attacker started would hand the attacker an app session as the victim.
+- **Logout** ends aio's session only when the `id_token_hint` belongs to the same user as aio's session, and only after the provider has accepted the request.
+- **Single replica** while the provider is on: auth requests and codes are kept in memory.
 - **ID-token validation on the consumer** checks signature (JWKS), `iss`, `aud`, `exp` and `nonce`. Use go-oidc; never parse ID tokens by hand.
 - **Signing keys** are stored encrypted, rotated with overlap, and never leave aio.
 - **Client secrets** are hashed (SHA-256), shown once, and revocable.
