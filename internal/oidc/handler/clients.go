@@ -51,7 +51,7 @@ func (h *Handler) ListClients(w http.ResponseWriter, r *http.Request) {
 // @Param        request  body      model.CreateClientInput  true  "Client id, name and redirect URIs"
 // @Security     BearerAuth || DirectAuth
 // @Success      201  {object}  httpHelper.Response{data=createClientResponse}  "Created client (secret shown once)"
-// @Failure      400  {object}  httpHelper.Response  "Invalid id, name or redirect URI"
+// @Failure      400  {object}  httpHelper.Response  "Invalid id, name, redirect URI or branding"
 // @Failure      401  {object}  httpHelper.Response  "Unauthorized"
 // @Failure      403  {object}  httpHelper.Response  "Forbidden (not an admin)"
 // @Failure      409  {object}  httpHelper.Response  "Client id already taken"
@@ -74,6 +74,37 @@ func (h *Handler) CreateClient(w http.ResponseWriter, r *http.Request) {
 		Client: c, ClientSecret: secret, Issuer: h.config.Auth.OIDC.Issuer,
 		Notice: "Store this client secret now; it will not be shown again.",
 	}}, http.StatusCreated)
+}
+
+// UpdateClient godoc
+// @Summary      Change how an app is presented on aio's login pages
+// @Description  Updates an OIDC client's display name, brand colour (#rrggbb) or icon (an emoji or 1-2 characters). Omitted fields are kept; an empty string clears the colour or icon (admin-only).
+// @Tags         oidc
+// @Accept       json
+// @Produce      json
+// @Param        id       path  string                   true  "Client id"
+// @Param        request  body  model.UpdateClientInput  true  "Fields to change"
+// @Security     BearerAuth || DirectAuth
+// @Success      200  {object}  httpHelper.Response{data=model.Client}  "Updated client"
+// @Failure      400  {object}  httpHelper.Response  "Invalid name or branding"
+// @Failure      401  {object}  httpHelper.Response  "Unauthorized"
+// @Failure      403  {object}  httpHelper.Response  "Forbidden (not an admin)"
+// @Failure      404  {object}  httpHelper.Response  "No such active client"
+// @Router       /oidc/clients/{id} [patch]
+func (h *Handler) UpdateClient(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var in model.UpdateClientInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		httpHelper.SendError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	c, err := h.service.UpdateClient(ctx, mux.Vars(r)["id"], in)
+	if err != nil {
+		h.sendClientError(w, r, err)
+		return
+	}
+	h.metrics.clientChanged(ctx, "update")
+	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Data: c}, http.StatusOK)
 }
 
 // RevokeClient godoc
@@ -99,11 +130,12 @@ func (h *Handler) RevokeClient(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) sendClientError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, oidc.ErrInvalidClientID), errors.Is(err, oidc.ErrInvalidClientName), errors.Is(err, oidc.ErrInvalidRedirectURI):
+	case errors.Is(err, oidc.ErrInvalidClientID), errors.Is(err, oidc.ErrInvalidClientName), errors.Is(err, oidc.ErrInvalidRedirectURI),
+		errors.Is(err, oidc.ErrInvalidBranding):
 		httpHelper.SendError(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, oidc.ErrClientExists):
 		httpHelper.SendError(w, "a client with this id already exists", http.StatusConflict)
-	case errors.Is(err, oidc.ErrClientNotFound):
+	case errors.Is(err, oidc.ErrClientNotFound), errors.Is(err, oidc.ErrClientRevoked):
 		httpHelper.SendError(w, "no such active client", http.StatusNotFound)
 	default:
 		logging.GetLoggerFromContext(r.Context()).Error().Err(err).Msg("oidc: client operation failed")

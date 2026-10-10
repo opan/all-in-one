@@ -11,12 +11,14 @@
 		hasSession,
 		type AuthRequestInfo
 	} from '$lib/oidc-api';
+	import { authMessages } from '$lib/oauth-i18n';
 
 	let info = $state<AuthRequestInfo | null>(null);
 	let canSwitchAccount = $state(false);
 	let here = '';
 	let error = $state('');
-	let status = $state('Checking your all-in-one session…');
+	let continuing = $state(false);
+	const m = $derived(authMessages(info?.locale));
 
 	// Runs the hand-off for an app login: if the user already has an aio
 	// session, finish right away (single sign-on); otherwise send them through
@@ -24,13 +26,13 @@
 	onMount(async () => {
 		const id = $page.url.searchParams.get('authRequestID');
 		if (!id) {
-			error = 'This login link is missing its request. Go back to the app and try again.';
+			error = m.missingRequest;
 			return;
 		}
 		try {
 			info = await getAuthRequest(id);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'This login link is not valid.';
+			error = err instanceof Error && err.message ? err.message : m.invalidLink;
 			return;
 		}
 
@@ -41,14 +43,14 @@
 			return;
 		}
 
-		status = `Continuing to ${info.client_name}…`;
-		const result = await completeAuthRequest(id);
+		continuing = true;
+		const result = await completeAuthRequest(id, info.locale);
 		if (result.kind === 'redirect') {
 			window.location.replace(result.url);
 		} else if (result.kind === 'login-required') {
 			await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
 		} else {
-			error = result.message;
+			error = result.message || m.couldNotFinish;
 			// e.g. logged in to aio as the shared demo account: let the user log
 			// out of it and continue with their own account.
 			canSwitchAccount = true;
@@ -62,18 +64,18 @@
 </script>
 
 <svelte:head>
-	<title>{info ? `Continue to ${info.client_name}` : 'Log in'} · All-in-one</title>
+	<title>{info ? m.handoffTitle(info.client_name) : `${m.handoffFallbackTitle}`}</title>
 </svelte:head>
 
-<div class="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-4">
+<div class="flex items-start justify-center px-4 pt-10 sm:pt-16">
 	<Card.Root class="w-full max-w-md">
 		<Card.Header>
 			<Card.Title class="text-2xl">
-				{info ? `Continue to ${info.client_name}` : 'Log in with All-in-one'}
+				{info ? m.handoffTitle(info.client_name) : m.handoffFallbackTitle}
 			</Card.Title>
 			<Card.Description>
 				{#if info}
-					{info.client_name} uses your all-in-one account to log you in.
+					{m.handoffDescription(info.client_name)}
 				{/if}
 			</Card.Description>
 		</Card.Header>
@@ -81,13 +83,13 @@
 			{#if error}
 				<div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>
 				{#if canSwitchAccount}
-					<Button class="mt-4 w-full" onclick={switchAccount}>Use another account</Button>
+					<Button class="mt-4 w-full" onclick={switchAccount}>{m.useAnotherAccount}</Button>
 				{/if}
-				<Button variant="outline" class="mt-2 w-full" onclick={() => history.back()}>Go back</Button>
+				<Button variant="outline" class="mt-2 w-full" onclick={() => history.back()}>{m.goBack}</Button>
 			{:else}
 				<div class="flex items-center gap-3 text-sm text-muted-foreground">
 					<Loader2 class="size-4 animate-spin" />
-					{status}
+					{info && continuing ? m.continuingTo(info.client_name) : m.checkingSession}
 				</div>
 			{/if}
 		</Card.Content>

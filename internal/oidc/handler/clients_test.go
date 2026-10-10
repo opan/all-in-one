@@ -85,3 +85,33 @@ func TestRevokeClient(t *testing.T) {
 		assert.Equal(t, c.status, rr.Code)
 	}
 }
+
+func TestUpdateClient(t *testing.T) {
+	patch := func(svc Service, body string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		adminRouter(svc).ServeHTTP(rr, httptest.NewRequest(http.MethodPatch, "/oidc/clients/cashflow", bytes.NewBufferString(body)))
+		return rr
+	}
+	t.Run("passes only the given fields", func(t *testing.T) {
+		svc := mocks.NewMockService(t)
+		color := "#0f766e"
+		svc.EXPECT().UpdateClient(mock.Anything, "cashflow", model.UpdateClientInput{BrandColor: &color}).
+			Return(model.Client{ID: "cashflow", Branding: model.Branding{BrandColor: color}}, nil)
+		rr := patch(svc, `{"brand_color":"#0f766e"}`)
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"brand_color":"#0f766e"`)
+	})
+	for _, c := range []struct {
+		err    error
+		status int
+	}{{oidc.ErrInvalidBranding, http.StatusBadRequest}, {oidc.ErrClientNotFound, http.StatusNotFound}, {oidc.ErrClientRevoked, http.StatusNotFound}} {
+		t.Run(c.err.Error(), func(t *testing.T) {
+			svc := mocks.NewMockService(t)
+			svc.EXPECT().UpdateClient(mock.Anything, "cashflow", mock.Anything).Return(model.Client{}, c.err)
+			assert.Equal(t, c.status, patch(svc, `{"icon":"x"}`).Code)
+		})
+	}
+	t.Run("bad json", func(t *testing.T) {
+		assert.Equal(t, http.StatusBadRequest, patch(mocks.NewMockService(t), `{`).Code)
+	})
+}

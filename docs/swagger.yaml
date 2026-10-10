@@ -202,11 +202,18 @@ definitions:
     type: object
   model.AuthRequestInfo:
     properties:
+      brand_color:
+        description: '"#rrggbb"'
+        type: string
       client_id:
         type: string
       client_name:
         type: string
+      icon:
+        type: string
       id:
+        type: string
+      locale:
         type: string
       signup:
         type: boolean
@@ -238,9 +245,14 @@ definitions:
     type: object
   model.Client:
     properties:
+      brand_color:
+        description: '"#rrggbb"'
+        type: string
       created_at:
         type: string
       created_by:
+        type: string
+      icon:
         type: string
       id:
         type: string
@@ -259,6 +271,10 @@ definitions:
     type: object
   model.CreateClientInput:
     properties:
+      brand_color:
+        type: string
+      icon:
+        type: string
       id:
         type: string
       name:
@@ -543,6 +559,15 @@ definitions:
       scope:
         type: string
       type:
+        type: string
+    type: object
+  model.UpdateClientInput:
+    properties:
+      brand_color:
+        type: string
+      icon:
+        type: string
+      name:
         type: string
     type: object
   model.UpdateSessionRequest:
@@ -1925,7 +1950,7 @@ paths:
                   $ref: '#/definitions/handler.createClientResponse'
               type: object
         "400":
-          description: Invalid id, name or redirect URI
+          description: Invalid id, name, redirect URI or branding
           schema:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
         "401":
@@ -1979,6 +2004,58 @@ paths:
       - BearerAuth: []
         DirectAuth: []
       summary: Revoke an app's ability to log in through aio
+      tags:
+      - oidc
+    patch:
+      consumes:
+      - application/json
+      description: Updates an OIDC client's display name, brand colour (#rrggbb) or
+        icon (an emoji or 1-2 characters). Omitted fields are kept; an empty string
+        clears the colour or icon (admin-only).
+      parameters:
+      - description: Client id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateClientInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated client
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Client'
+              type: object
+        "400":
+          description: Invalid name or branding
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "403":
+          description: Forbidden (not an admin)
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: No such active client
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - BearerAuth: []
+        DirectAuth: []
+      summary: Change how an app is presented on aio's login pages
       tags:
       - oidc
   /ratelimit/check:

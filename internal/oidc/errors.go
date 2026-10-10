@@ -14,6 +14,7 @@ var (
 	ErrInvalidClientName   = errors.New("invalid client name")
 	ErrInvalidRedirectURI  = errors.New("invalid redirect uri")
 	ErrInvalidClientSecret = errors.New("invalid client secret")
+	ErrInvalidBranding     = errors.New("invalid branding")
 	ErrAuthRequestNotFound = errors.New("auth request not found or expired")
 	// ErrOtherBrowser: an auth request can only be finished in the browser
 	// that started it, so a login link sent to someone else is useless.

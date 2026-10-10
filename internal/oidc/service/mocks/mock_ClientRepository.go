@@ -234,6 +234,53 @@ func (_c *MockClientRepository_Revoke_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// Update provides a mock function with given fields: ctx, c
+func (_m *MockClientRepository) Update(ctx context.Context, c model.Client) error {
+	ret := _m.Called(ctx, c)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, model.Client) error); ok {
+		r0 = rf(ctx, c)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockClientRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
+type MockClientRepository_Update_Call struct {
+	*mock.Call
+}
+
+// Update is a helper method to define mock.On call
+//   - ctx context.Context
+//   - c model.Client
+func (_e *MockClientRepository_Expecter) Update(ctx interface{}, c interface{}) *MockClientRepository_Update_Call {
+	return &MockClientRepository_Update_Call{Call: _e.mock.On("Update", ctx, c)}
+}
+
+func (_c *MockClientRepository_Update_Call) Run(run func(ctx context.Context, c model.Client)) *MockClientRepository_Update_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(model.Client))
+	})
+	return _c
+}
+
+func (_c *MockClientRepository_Update_Call) Return(_a0 error) *MockClientRepository_Update_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockClientRepository_Update_Call) RunAndReturn(run func(context.Context, model.Client) error) *MockClientRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockClientRepository creates a new instance of MockClientRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockClientRepository(t interface {

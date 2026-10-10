@@ -119,6 +119,39 @@ its data.
 
 ---
 
+## ADR-O8: Login pages are presented as the app that sent the user
+
+**Problem:** a cashflow user who clicks "Masuk" lands on pages that say "All-in-one", in English (cashflow is
+Indonesian), with aio-only extras: a theme toggle, a "Login with Google" button that isn't implemented yet and a
+"Forgot your password?" link to a page that doesn't exist. To someone who has never heard of aio it looks like a
+different, possibly broken, site.
+
+**Decision:** when an auth request opened the page (`/oauth/login`, or `/login` / `/signup` with `?next=` back
+to it), aio presents it as that app's login:
+
+- **Branding per client**, set by an admin, never by the request (a crafted authorize URL can't restyle the page):
+  `brand_color` (`#rrggbb`) and `icon` (an emoji or 1-2 characters) on `oidc_clients` (migration 12), set with
+  `oidc:client:create --brand-color --icon`, changed with `oidc:client:update` or `PATCH /api/v1/oidc/clients/{id}`.
+  The header shows the icon and app name on the brand colour, buttons use it, and the text colour is picked for
+  contrast. A small "Login secured by All-in-one" note under the form says whose account it is.
+- **Language from the app**: the standard OIDC `ui_locales` parameter (cashflow sends `ui_locales=id`). aio
+  stores the first language it supports (`en`, `id`) on the auth request and returns it as `locale`; the pages
+  render from a small catalogue (`web/src/lib/oauth-i18n.ts`). The hand-off API's error messages follow
+  `Accept-Language`, which the page sets to the app's language, so the shared response envelope is unchanged.
+- **aio-only extras are hidden** in this mode (theme toggle, Google button, forgot-password link, the duplicate
+  header buttons). The page waits for the app's details before showing the form so English doesn't flash first.
+- aio's own login and signup pages (not opened by an app) are unchanged.
+
+Found while testing it: the login page sent credentials through the shared API client, which treats any 401 as
+an expired session and redirects to `/login`, dropping `?next=`. A mistyped password therefore lost the app
+hand-off and the next login landed on aio's dashboard. Credentials now go through plain `fetch`.
+
+**Rejected:** an embedded login form inside cashflow (RFC Option D) would remove the hop entirely but puts
+passwords in every app; a fully custom per-app theme (logo images, fonts) is more than first-party apps need now
+and can extend `Branding` later.
+
+---
+
 ## Verification
 
 Unit and in-process tests cover the full code flow (ID token verified against the published keys),
@@ -126,7 +159,10 @@ single-use codes, wrong secrets, unregistered redirect URIs, blocked users, revo
 logout with and without a hint, and memory-store expiry. Review fixes added tests for a login link opened in
 another browser, a callback without the completing user's session, several logins in one browser, refused
 `prompt=login`/`max_age`/missing PKCE, logout with another user's hint or a rejected post-logout URI, codes
-redeemed concurrently, and keys stored by another replica. A real browser run against both apps on separate hosts
+redeemed concurrently, and keys stored by another replica. ADR-O8 added tests for branding validation, storage
+and updates, `ui_locales` → `locale`, localized hand-off errors, and browser checks of the branded pages (colour,
+Indonesian copy, page language, Indonesian wrong-password error that keeps the hand-off, aio's own page
+unchanged). A real browser run against both apps on separate hosts
 (aio on `127.0.0.1`, cashflow on `localhost`) passed 18/18 checks: signup through cashflow, logout ending both
 sessions, login with an existing account, single sign-on with no form, and demo refusal. It also found three
 bugs, all fixed: the CSP issue above, the demo account issue above, and a signup link that dropped `next`.

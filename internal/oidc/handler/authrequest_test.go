@@ -116,3 +116,36 @@ func TestCompleteAuthRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestCompleteAuthRequest_ErrorsInTheRequestedLanguage(t *testing.T) {
+	cases := []struct {
+		acceptLanguage, want string
+	}{
+		{"id", "proses masuk ini dimulai di browser lain"},
+		{"id-ID,id;q=0.9,en;q=0.8", "proses masuk ini dimulai di browser lain"},
+		{"en", "this login was started in a different browser"},
+		{"fr-FR", "this login was started in a different browser"},
+		{"", "this login was started in a different browser"},
+	}
+	for _, c := range cases {
+		t.Run(c.acceptLanguage, func(t *testing.T) {
+			svc := mocks.NewMockService(t)
+			svc.EXPECT().CompleteAuthRequest(mock.Anything, "r1", "user-1", "").Return("", oidc.ErrOtherBrowser)
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/oidc/auth-requests/r1/complete", nil)
+			if c.acceptLanguage != "" {
+				req.Header.Set("Accept-Language", c.acceptLanguage)
+			}
+			newRouter(svc, "user-1").ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusForbidden, rr.Code)
+			assert.Contains(t, rr.Body.String(), c.want)
+		})
+	}
+}
+
+func TestAuthRequestErrors_EveryReasonInEveryLanguage(t *testing.T) {
+	for reason := range authRequestErrors["en"] {
+		assert.NotEmpty(t, authRequestErrors["id"][reason], "missing Indonesian message for %q", reason)
+	}
+	assert.Len(t, authRequestErrors["id"], len(authRequestErrors["en"]))
+}

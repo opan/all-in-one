@@ -68,10 +68,12 @@ func newFlowEnv(t *testing.T) *flowEnv {
 	db, err := sqlx.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
-	schema, err := os.ReadFile("../../../db/migrations/sqlite3/11_add_oidc_clients_and_keys.up.sql")
-	require.NoError(t, err)
-	_, err = db.Exec(string(schema))
-	require.NoError(t, err)
+	for _, m := range []string{"11_add_oidc_clients_and_keys", "12_add_oidc_client_branding"} {
+		schema, err := os.ReadFile("../../../db/migrations/sqlite3/" + m + ".up.sql")
+		require.NoError(t, err)
+		_, err = db.Exec(string(schema))
+		require.NoError(t, err)
+	}
 
 	var handler http.Handler
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { handler.ServeHTTP(w, r) }))
@@ -296,6 +298,37 @@ func TestProvider_PromptCreateMeansSignup(t *testing.T) {
 	info, err := e.svc.AuthRequestInfo(context.Background(), id)
 	require.NoError(t, err)
 	assert.True(t, info.Signup)
+}
+
+func TestProvider_AuthRequestInfoCarriesBrandingAndLocale(t *testing.T) {
+	e := newFlowEnv(t)
+	color, icon := "#0f766e", "💰"
+	_, err := e.svc.UpdateClient(context.Background(), "cashflow", model.UpdateClientInput{BrandColor: &color, Icon: &icon})
+	require.NoError(t, err)
+
+	cases := []struct {
+		uiLocales string
+		want      string
+	}{
+		{"id", "id"},
+		{"id-ID en", "id"},
+		{"fr en-GB", "en"},
+		{"fr", ""},
+		{"", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.uiLocales, func(t *testing.T) {
+			extra := url.Values{}
+			if c.uiLocales != "" {
+				extra.Set("ui_locales", c.uiLocales)
+			}
+			info, err := e.svc.AuthRequestInfo(context.Background(), e.startLogin(t, extra))
+			require.NoError(t, err)
+			assert.Equal(t, c.want, info.Locale)
+			assert.Equal(t, model.Branding{BrandColor: "#0f766e", Icon: "💰"}, info.Branding)
+			assert.Equal(t, "Cashflow", info.ClientName)
+		})
+	}
 }
 
 func TestCompleteAuthRequest_Errors(t *testing.T) {

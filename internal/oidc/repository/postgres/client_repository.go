@@ -25,8 +25,8 @@ func (r *ClientRepository) Create(ctx context.Context, c model.Client) error {
 	logging.GetLoggerFromContext(ctx).Info().Str("entity", "OIDCClientRepo").Str("action", "Create").
 		Str("client_id", c.ID).Msg("creating oidc client")
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO oidc_clients (id, name, secret_hash, redirect_uris, post_logout_redirect_uris, created_at, created_by)
-		VALUES (:id, :name, :secret_hash, :redirect_uris, :post_logout_redirect_uris, :created_at, :created_by)`, c)
+		`INSERT INTO oidc_clients (id, name, secret_hash, redirect_uris, post_logout_redirect_uris, brand_color, icon, created_at, created_by)
+		VALUES (:id, :name, :secret_hash, :redirect_uris, :post_logout_redirect_uris, :brand_color, :icon, :created_at, :created_by)`, c)
 	if isUniqueViolation(err) {
 		return oidc.ErrClientExists
 	}
@@ -46,6 +46,20 @@ func (r *ClientRepository) List(ctx context.Context) ([]model.Client, error) {
 	clients := []model.Client{}
 	err := r.db.SelectContext(ctx, &clients, "SELECT * FROM oidc_clients ORDER BY created_at")
 	return clients, err
+}
+
+func (r *ClientRepository) Update(ctx context.Context, c model.Client) error {
+	logging.GetLoggerFromContext(ctx).Info().Str("entity", "OIDCClientRepo").Str("action", "Update").
+		Str("client_id", c.ID).Msg("updating oidc client")
+	res, err := r.db.ExecContext(ctx,
+		"UPDATE oidc_clients SET name = $1, brand_color = $2, icon = $3 WHERE id = $4 AND revoked_at IS NULL", c.Name, c.BrandColor, c.Icon, c.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return oidc.ErrClientNotFound
+	}
+	return nil
 }
 
 func (r *ClientRepository) Revoke(ctx context.Context, id string, at time.Time) error {

@@ -19,10 +19,12 @@ func newTestDB(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
-	schema, err := os.ReadFile("../../../../db/migrations/sqlite3/11_add_oidc_clients_and_keys.up.sql")
-	require.NoError(t, err)
-	_, err = db.Exec(string(schema))
-	require.NoError(t, err)
+	for _, m := range []string{"11_add_oidc_clients_and_keys", "12_add_oidc_client_branding"} {
+		schema, err := os.ReadFile("../../../../db/migrations/sqlite3/" + m + ".up.sql")
+		require.NoError(t, err)
+		_, err = db.Exec(string(schema))
+		require.NoError(t, err)
+	}
 	return db
 }
 
@@ -46,6 +48,29 @@ func TestClientRepository_CreateGetRoundTrip(t *testing.T) {
 	assert.Equal(t, model.StringList{"https://cashflow.example.com/auth/callback"}, got.RedirectURIs)
 	assert.Equal(t, model.StringList{"https://cashflow.example.com/"}, got.PostLogoutRedirectURIs)
 	assert.Nil(t, got.RevokedAt)
+}
+
+func TestClientRepository_BrandingRoundTripAndUpdate(t *testing.T) {
+	repo := NewClientRepository(newTestDB(t))
+	ctx := context.Background()
+
+	c := sampleClient("cashflow")
+	c.Branding = model.Branding{BrandColor: "#0f766e", Icon: "💰"}
+	require.NoError(t, repo.Create(ctx, c))
+	got, err := repo.Get(ctx, "cashflow")
+	require.NoError(t, err)
+	assert.Equal(t, c.Branding, got.Branding)
+
+	got.Name, got.Branding = "Cashflow Kas", model.Branding{BrandColor: "#1d4ed8"}
+	require.NoError(t, repo.Update(ctx, got))
+	updated, err := repo.Get(ctx, "cashflow")
+	require.NoError(t, err)
+	assert.Equal(t, "Cashflow Kas", updated.Name)
+	assert.Equal(t, model.Branding{BrandColor: "#1d4ed8"}, updated.Branding)
+
+	require.NoError(t, repo.Revoke(ctx, "cashflow", time.Now()))
+	assert.ErrorIs(t, repo.Update(ctx, updated), oidc.ErrClientNotFound, "a revoked client can't be edited")
+	assert.ErrorIs(t, repo.Update(ctx, sampleClient("nope")), oidc.ErrClientNotFound)
 }
 
 func TestClientRepository_Errors(t *testing.T) {

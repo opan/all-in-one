@@ -270,7 +270,7 @@ the counters below cover what the HTTP metrics can't say.
 | `client` | `login_completed_total` | a registered client id, e.g. `cashflow` (admin-created, so bounded by the number of apps) |
 | `reason` | `login_failed_total` | `expired` (auth request timed out), `client` (unknown/revoked app), `other_browser` (login link opened in a browser that didn't start the login), `blocked` (user blocked), `demo` (shared demo account refused), `internal` |
 | `aio_session_cleared` | `logout_total` | `true` (valid `id_token_hint` for the same user as aio's session: aio's session ended too), `false` (no/invalid hint, hint for another user, no aio session, or logout rejected: aio's session kept) |
-| `action` | `clients_changed_total` | `create`, `revoke` |
+| `action` | `clients_changed_total` | `create`, `update`, `revoke` |
 
 **Example queries**
 
@@ -378,7 +378,7 @@ Total series count at steady state (worst case, all label combinations observed)
 | OIDC | `oidc_login_completed_total` | one per registered app |
 | OIDC | `oidc_login_failed_total` | 6 (`reason`) |
 | OIDC | `oidc_logout_total` | 2 |
-| OIDC | `oidc_clients_changed_total` | 2 (`action`) |
+| OIDC | `oidc_clients_changed_total` | 3 (`action`) |
 | All others | — | 1 each (17 metrics) |
 
 **Total: ~101 series** (with one OIDC app registered) — well within Prometheus' comfortable range for a single-instance app.

@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	zoidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
+	"golang.org/x/text/language"
 )
 
 // Endpoint paths, relative to the issuer. Discovery is served at the fixed
@@ -130,7 +131,22 @@ func (s *Service) AuthRequestInfo(ctx context.Context, id string) (model.AuthReq
 	if err != nil {
 		return model.AuthRequestInfo{}, err
 	}
-	return model.AuthRequestInfo{ID: r.ID, ClientID: c.ID, ClientName: c.Name, Signup: r.wantsSignup()}, nil
+	return model.AuthRequestInfo{ID: r.ID, ClientID: c.ID, ClientName: c.Name, Branding: c.Branding,
+		Locale: r.Locale, Signup: r.wantsSignup()}, nil
+}
+
+// supportedLocales are the languages aio's login pages are written in.
+var supportedLocales = language.NewMatcher([]language.Tag{language.English, language.Indonesian})
+
+// supportedLocale picks the first of the app's ui_locales that aio's login
+// pages support ("en" or "id"), or "" when it asked for none of them.
+func supportedLocale(requested zoidc.Locales) string {
+	for _, tag := range requested {
+		if _, i, c := supportedLocales.Match(tag); c >= language.High {
+			return []string{"en", "id"}[i]
+		}
+	}
+	return ""
 }
 
 // CompleteAuthRequest attaches the logged-in aio user to an auth request and

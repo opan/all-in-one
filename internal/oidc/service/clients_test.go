@@ -62,6 +62,12 @@ func TestCreateClient_Validation(t *testing.T) {
 		{"fragment", func(in *model.CreateClientInput) { in.RedirectURIs = []string{"https://cashflow.example.com/cb#x"} }, oidc.ErrInvalidRedirectURI},
 		{"custom scheme", func(in *model.CreateClientInput) { in.RedirectURIs = []string{"javascript://cb"} }, oidc.ErrInvalidRedirectURI},
 		{"bad post-logout uri", func(in *model.CreateClientInput) { in.PostLogoutRedirectURIs = []string{"http://evil.example.com/"} }, oidc.ErrInvalidRedirectURI},
+		{"color name", func(in *model.CreateClientInput) { in.BrandColor = "teal" }, oidc.ErrInvalidBranding},
+		{"short hex color", func(in *model.CreateClientInput) { in.BrandColor = "#0f7" }, oidc.ErrInvalidBranding},
+		{"css injection", func(in *model.CreateClientInput) { in.BrandColor = "#0f766e;background:url(x)" }, oidc.ErrInvalidBranding},
+		{"icon too long", func(in *model.CreateClientInput) { in.Icon = "Cashflow app icon" }, oidc.ErrInvalidBranding},
+		{"icon with space", func(in *model.CreateClientInput) { in.Icon = "C F" }, oidc.ErrInvalidBranding},
+		{"icon with control char", func(in *model.CreateClientInput) { in.Icon = "C\u0000" }, oidc.ErrInvalidBranding},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -107,4 +113,71 @@ func TestAuthenticateClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateClient_StoresBranding(t *testing.T) {
+	repo := mocks.NewMockClientRepository(t)
+	var stored model.Client
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c model.Client) bool { stored = c; return true })).Return(nil)
+
+	in := validInput()
+	in.BrandColor, in.Icon = " #0F766E ", "💰"
+	_, _, err := newClientTestService(t, repo).CreateClient(context.Background(), in, "admin")
+	require.NoError(t, err)
+	assert.Equal(t, model.Branding{BrandColor: "#0f766e", Icon: "💰"}, stored.Branding, "trimmed, colour lowercased")
+}
+
+func TestCreateClient_BrandingIsOptional(t *testing.T) {
+	repo := mocks.NewMockClientRepository(t)
+	repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+	_, _, err := newClientTestService(t, repo).CreateClient(context.Background(), validInput(), "admin")
+	assert.NoError(t, err)
+}
+
+func TestUpdateClient(t *testing.T) {
+	existing := func() model.Client {
+		return model.Client{ID: "cashflow", Name: "Cashflow", Branding: model.Branding{BrandColor: "#0f766e", Icon: "💰"}}
+	}
+	str := func(s string) *string { return &s }
+	cases := []struct {
+		name string
+		in   model.UpdateClientInput
+		want model.Client
+	}{
+		{"colour only, rest kept", model.UpdateClientInput{BrandColor: str("#1D4ED8")},
+			model.Client{ID: "cashflow", Name: "Cashflow", Branding: model.Branding{BrandColor: "#1d4ed8", Icon: "💰"}}},
+		{"clear icon", model.UpdateClientInput{Icon: str("")},
+			model.Client{ID: "cashflow", Name: "Cashflow", Branding: model.Branding{BrandColor: "#0f766e"}}},
+		{"rename", model.UpdateClientInput{Name: str(" Cashflow Kas ")},
+			model.Client{ID: "cashflow", Name: "Cashflow Kas", Branding: model.Branding{BrandColor: "#0f766e", Icon: "💰"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repo := mocks.NewMockClientRepository(t)
+			repo.EXPECT().Get(mock.Anything, "cashflow").Return(existing(), nil)
+			repo.EXPECT().Update(mock.Anything, c.want).Return(nil)
+			got, err := newClientTestService(t, repo).UpdateClient(context.Background(), "cashflow", c.in)
+			require.NoError(t, err)
+			assert.Equal(t, c.want, got)
+		})
+	}
+
+	t.Run("invalid values are refused before storing", func(t *testing.T) {
+		for _, in := range []model.UpdateClientInput{{BrandColor: str("red")}, {Icon: str("a b")}, {Name: str("")}} {
+			repo := mocks.NewMockClientRepository(t)
+			repo.EXPECT().Get(mock.Anything, "cashflow").Return(existing(), nil)
+			_, err := newClientTestService(t, repo).UpdateClient(context.Background(), "cashflow", in)
+			assert.Error(t, err)
+		}
+	})
+
+	t.Run("revoked client", func(t *testing.T) {
+		repo := mocks.NewMockClientRepository(t)
+		revoked := existing()
+		now := time.Now()
+		revoked.RevokedAt = &now
+		repo.EXPECT().Get(mock.Anything, "cashflow").Return(revoked, nil)
+		_, err := newClientTestService(t, repo).UpdateClient(context.Background(), "cashflow", model.UpdateClientInput{Icon: str("x")})
+		assert.ErrorIs(t, err, oidc.ErrClientRevoked)
+	})
 }

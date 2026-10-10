@@ -47,6 +47,7 @@ func (p *providerStorage) CreateAuthRequest(ctx context.Context, req *oidc.AuthR
 		Scopes: req.Scopes, Prompt: req.Prompt, ResponseType: req.ResponseType, ResponseMode: req.ResponseMode,
 		CodeChallenge: &oidc.CodeChallenge{Challenge: req.CodeChallenge, Method: req.CodeChallengeMethod},
 		BrowserHash:   hashBrowserID(browserIDFromContext(ctx)),
+		Locale:        supportedLocale(req.UILocales),
 	}
 	p.s.mem.addRequest(r)
 	return r, nil

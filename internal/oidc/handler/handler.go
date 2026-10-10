@@ -16,6 +16,7 @@ type Service interface {
 	CompleteAuthRequest(ctx context.Context, id, userID, browserID string) (string, error)
 
 	CreateClient(ctx context.Context, in model.CreateClientInput, createdBy string) (model.Client, string, error)
+	UpdateClient(ctx context.Context, id string, in model.UpdateClientInput) (model.Client, error)
 	ListClients(ctx context.Context) ([]model.Client, error)
 	RevokeClient(ctx context.Context, id string) error
 }
@@ -46,5 +47,6 @@ func (h *Handler) RegisterAuthenticatedRoutes(r *mux.Router) {
 func (h *Handler) RegisterAdminRoutes(r *mux.Router) {
 	r.HandleFunc("/oidc/clients", h.ListClients).Methods(http.MethodGet)
 	r.HandleFunc("/oidc/clients", h.CreateClient).Methods(http.MethodPost)
+	r.HandleFunc("/oidc/clients/{id}", h.UpdateClient).Methods(http.MethodPatch)
 	r.HandleFunc("/oidc/clients/{id}", h.RevokeClient).Methods(http.MethodDelete)
 }

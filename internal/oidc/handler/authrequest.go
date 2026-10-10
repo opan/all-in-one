@@ -9,6 +9,7 @@ import (
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/oidc"
 	"github.com/gorilla/mux"
+	"golang.org/x/text/language"
 )
 
 type completeResponse struct {
@@ -65,22 +66,58 @@ func (h *Handler) CompleteAuthRequest(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Data: completeResponse{RedirectURL: next}}, http.StatusOK)
 }
 
+// authRequestErrors are the hand-off page's error messages per reason, in
+// the languages aio's login pages support. The page asks for the app's
+// language with Accept-Language.
+var authRequestErrors = map[string]map[string]string{
+	"en": {
+		"expired":       "this login link has expired; go back to the app and try again",
+		"client":        "this app is no longer allowed to log in with all-in-one",
+		"other_browser": "this login was started in a different browser; go back to the app and log in from this browser",
+		"blocked":       "this account is blocked",
+		"demo":          "the shared demo account can't be used to log in to other apps; use your own account",
+		"internal":      "internal server error",
+	},
+	"id": {
+		"expired":       "tautan masuk ini sudah kedaluwarsa; kembali ke aplikasi dan coba lagi",
+		"client":        "aplikasi ini tidak lagi diizinkan masuk dengan all-in-one",
+		"other_browser": "proses masuk ini dimulai di browser lain; kembali ke aplikasi dan masuk dari browser ini",
+		"blocked":       "akun ini diblokir",
+		"demo":          "akun demo bersama tidak bisa dipakai untuk masuk ke aplikasi lain; pakai akun kamu sendiri",
+		"internal":      "terjadi kesalahan di server",
+	},
+}
+
+// messageLanguage is "id" when the request prefers Indonesian, else "en".
+func messageLanguage(r *http.Request) string {
+	tags, _, err := language.ParseAcceptLanguage(r.Header.Get("Accept-Language"))
+	if err != nil || len(tags) == 0 {
+		return "en"
+	}
+	if _, i, c := messageLanguages.Match(tags...); c >= language.High && i == 1 {
+		return "id"
+	}
+	return "en"
+}
+
+var messageLanguages = language.NewMatcher([]language.Tag{language.English, language.Indonesian})
+
 func (h *Handler) sendError(w http.ResponseWriter, r *http.Request, err error) {
-	reason, status, msg := "internal", http.StatusInternalServerError, "internal server error"
+	reason, status := "internal", http.StatusInternalServerError
 	switch {
 	case errors.Is(err, oidc.ErrAuthRequestNotFound):
-		reason, status, msg = "expired", http.StatusNotFound, "this login link has expired; go back to the app and try again"
+		reason, status = "expired", http.StatusNotFound
 	case errors.Is(err, oidc.ErrClientNotFound), errors.Is(err, oidc.ErrClientRevoked):
-		reason, status, msg = "client", http.StatusNotFound, "this app is no longer allowed to log in with all-in-one"
+		reason, status = "client", http.StatusNotFound
 	case errors.Is(err, oidc.ErrOtherBrowser):
-		reason, status, msg = "other_browser", http.StatusForbidden, "this login was started in a different browser; go back to the app and log in from this browser"
+		reason, status = "other_browser", http.StatusForbidden
 	case errors.Is(err, oidc.ErrUserBlocked):
-		reason, status, msg = "blocked", http.StatusForbidden, "this account is blocked"
+		reason, status = "blocked", http.StatusForbidden
 	case errors.Is(err, oidc.ErrDemoAccount):
-		reason, status, msg = "demo", http.StatusForbidden, "the shared demo account can't be used to log in to other apps; use your own account"
+		reason, status = "demo", http.StatusForbidden
 	default:
 		logging.GetLoggerFromContext(r.Context()).Error().Err(err).Msg("oidc: auth request failed")
 	}
 	h.metrics.loginFailed(r.Context(), reason)
-	httpHelper.SendError(w, msg, status)
+	httpHelper.SendError(w, authRequestErrors[messageLanguage(r)][reason], status)
 }

@@ -44,6 +44,9 @@ func RunCreate(ctx context.Context, opts Opts, in model.CreateClientInput) error
 	if len(c.PostLogoutRedirectURIs) > 0 {
 		fmt.Fprintf(os.Stderr, "  post-logout URIs:  %s\n", strings.Join(c.PostLogoutRedirectURIs, ", "))
 	}
+	if b := brandingSummary(c); b != "-" {
+		fmt.Fprintf(os.Stderr, "  branding:          %s\n", b)
+	}
 	if opts.Config.Auth.OIDC.Issuer != "" {
 		fmt.Fprintf(os.Stderr, "  issuer:            %s\n", opts.Config.Auth.OIDC.Issuer)
 	}
@@ -62,16 +65,42 @@ func RunList(ctx context.Context, opts Opts) error {
 		return err
 	}
 	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "ID\tNAME\tREDIRECT URIS\tCREATED\tREVOKED")
+	fmt.Fprintln(tw, "ID\tNAME\tBRANDING\tREDIRECT URIS\tCREATED\tREVOKED")
 	for _, c := range clients {
 		revoked := "-"
 		if c.RevokedAt != nil {
 			revoked = c.RevokedAt.UTC().Format(time.DateTime)
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", c.ID, c.Name, strings.Join(c.RedirectURIs, ","),
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", c.ID, c.Name, brandingSummary(c), strings.Join(c.RedirectURIs, ","),
 			c.CreatedAt.UTC().Format(time.DateTime), revoked)
 	}
 	return tw.Flush()
+}
+
+func RunUpdate(ctx context.Context, opts Opts, id string, in model.UpdateClientInput) error {
+	svc, err := registry(opts)
+	if err != nil {
+		return err
+	}
+	c, err := svc.UpdateClient(ctx, id, in)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "updated client %q: name %q, branding %s\n", c.ID, c.Name, brandingSummary(c))
+	return nil
+}
+
+func brandingSummary(c model.Client) string {
+	parts := []string{}
+	for _, p := range []string{c.Icon, c.BrandColor} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return "-"
+	}
+	return strings.Join(parts, " ")
 }
 
 func RunRevoke(ctx context.Context, opts Opts, id string) error {

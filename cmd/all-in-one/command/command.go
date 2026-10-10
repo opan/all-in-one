@@ -251,7 +251,7 @@ func tokenCommands() []*cobra.Command {
 }
 
 // oidcClientCommands manage the apps allowed to log users in through aio
-// (OpenID Connect, RFC-001): oidc:client:create / list / revoke.
+// (OpenID Connect, RFC-001): oidc:client:create / list / update / revoke.
 func oidcClientCommands() []*cobra.Command {
 	load := func() (oidcclient.Opts, error) {
 		cfg, err := config.Load()
@@ -282,6 +282,8 @@ func oidcClientCommands() []*cobra.Command {
 	createCmd.Flags().StringVar(&in.Name, "name", "", "display name shown on aio's login page (required)")
 	createCmd.Flags().StringArrayVar(&in.RedirectURIs, "redirect-uri", nil, "allowed callback URL (repeatable, required)")
 	createCmd.Flags().StringArrayVar(&in.PostLogoutRedirectURIs, "post-logout-redirect-uri", nil, "where logout may return to (repeatable)")
+	createCmd.Flags().StringVar(&in.BrandColor, "brand-color", "", "the app's colour on aio's login pages, e.g. '#0f766e'")
+	createCmd.Flags().StringVar(&in.Icon, "icon", "", "an emoji or 1-2 characters shown before the app's name, e.g. 💰")
 	_ = createCmd.MarkFlagRequired("id")
 	_ = createCmd.MarkFlagRequired("name")
 	_ = createCmd.MarkFlagRequired("redirect-uri")
@@ -298,6 +300,39 @@ func oidcClientCommands() []*cobra.Command {
 		},
 	}
 
+	var upd model.UpdateClientInput
+	updateCmd := &cobra.Command{
+		Use:   "oidc:client:update <id>",
+		Short: "change an app's name or branding on aio's login pages",
+		Long:  "Change an OpenID Connect client's display name, brand colour or icon. Only the flags you pass change; pass an empty value (--icon '') to clear one.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts, err := load()
+			if err != nil {
+				return err
+			}
+			flags := cmd.Flags()
+			in := model.UpdateClientInput{}
+			if flags.Changed("name") {
+				in.Name = upd.Name
+			}
+			if flags.Changed("brand-color") {
+				in.BrandColor = upd.BrandColor
+			}
+			if flags.Changed("icon") {
+				in.Icon = upd.Icon
+			}
+			if in == (model.UpdateClientInput{}) {
+				return fmt.Errorf("nothing to change: pass --name, --brand-color or --icon")
+			}
+			return oidcclient.RunUpdate(cmd.Context(), opts, args[0], in)
+		},
+	}
+	upd.Name, upd.BrandColor, upd.Icon = new(string), new(string), new(string)
+	updateCmd.Flags().StringVar(upd.Name, "name", "", "display name")
+	updateCmd.Flags().StringVar(upd.BrandColor, "brand-color", "", "colour, e.g. '#0f766e' ('' to clear)")
+	updateCmd.Flags().StringVar(upd.Icon, "icon", "", "emoji or 1-2 characters ('' to clear)")
+
 	revokeCmd := &cobra.Command{
 		Use:   "oidc:client:revoke <id>",
 		Short: "revoke an app's ability to log in through aio",
@@ -310,5 +345,5 @@ func oidcClientCommands() []*cobra.Command {
 			return oidcclient.RunRevoke(cmd.Context(), opts, args[0])
 		},
 	}
-	return []*cobra.Command{createCmd, listCmd, revokeCmd}
+	return []*cobra.Command{createCmd, listCmd, updateCmd, revokeCmd}
 }

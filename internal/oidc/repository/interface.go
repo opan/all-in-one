@@ -14,6 +14,8 @@ type ClientRepository interface {
 	// oidc.ErrClientNotFound if no such id.
 	Get(ctx context.Context, id string) (model.Client, error)
 	List(ctx context.Context) ([]model.Client, error)
+	// Update stores name and branding; oidc.ErrClientNotFound if no live client matches.
+	Update(ctx context.Context, c model.Client) error
 	// Revoke sets revoked_at; oidc.ErrClientNotFound if no live client matches.
 	Revoke(ctx context.Context, id string, at time.Time) error
 }

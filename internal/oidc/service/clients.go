@@ -13,14 +13,24 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/all-in-one/internal/oidc"
 	"github.com/all-in-one/internal/oidc/model"
 )
 
-var clientIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,62}$`)
+var (
+	clientIDPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,62}$`)
+	brandColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+)
 
-const maxClientNameLen = 100
+const (
+	maxClientNameLen = 100
+	// An icon is an emoji or one or two characters; 16 bytes fits multi-code-
+	// point emoji such as flags or skin tones.
+	maxIconBytes = 16
+)
 
 // CreateClient registers an app and returns it with its plaintext secret,
 // which is shown exactly once: only its SHA-256 hash is stored.
@@ -30,8 +40,12 @@ func (s *Service) CreateClient(ctx context.Context, in model.CreateClientInput, 
 	if !clientIDPattern.MatchString(in.ID) {
 		return model.Client{}, "", fmt.Errorf("%w: use 2-63 lowercase letters, digits, '-' or '_'", oidc.ErrInvalidClientID)
 	}
-	if in.Name == "" || len(in.Name) > maxClientNameLen {
-		return model.Client{}, "", fmt.Errorf("%w: 1-%d characters", oidc.ErrInvalidClientName, maxClientNameLen)
+	if err := validateClientName(in.Name); err != nil {
+		return model.Client{}, "", err
+	}
+	branding, err := normalizeBranding(in.BrandColor, in.Icon)
+	if err != nil {
+		return model.Client{}, "", err
 	}
 	if len(in.RedirectURIs) == 0 {
 		return model.Client{}, "", fmt.Errorf("%w: at least one redirect uri is required", oidc.ErrInvalidRedirectURI)
@@ -54,6 +68,7 @@ func (s *Service) CreateClient(ctx context.Context, in model.CreateClientInput, 
 		SecretHash:             hashSecret(secret),
 		RedirectURIs:           in.RedirectURIs,
 		PostLogoutRedirectURIs: in.PostLogoutRedirectURIs,
+		Branding:               branding,
 		CreatedAt:              time.Now().UTC(),
 	}
 	if createdBy != "" {
@@ -67,6 +82,35 @@ func (s *Service) CreateClient(ctx context.Context, in model.CreateClientInput, 
 
 func (s *Service) ListClients(ctx context.Context) ([]model.Client, error) {
 	return s.store.ClientRepo().List(ctx)
+}
+
+// UpdateClient changes an app's name or branding; ids, URIs and secrets are
+// fixed at registration (re-register to change them).
+func (s *Service) UpdateClient(ctx context.Context, id string, in model.UpdateClientInput) (model.Client, error) {
+	c, err := s.ActiveClient(ctx, id)
+	if err != nil {
+		return model.Client{}, err
+	}
+	if in.Name != nil {
+		c.Name = strings.TrimSpace(*in.Name)
+		if err := validateClientName(c.Name); err != nil {
+			return model.Client{}, err
+		}
+	}
+	color, icon := c.BrandColor, c.Icon
+	if in.BrandColor != nil {
+		color = *in.BrandColor
+	}
+	if in.Icon != nil {
+		icon = *in.Icon
+	}
+	if c.Branding, err = normalizeBranding(color, icon); err != nil {
+		return model.Client{}, err
+	}
+	if err := s.store.ClientRepo().Update(ctx, c); err != nil {
+		return model.Client{}, err
+	}
+	return c, nil
 }
 
 func (s *Service) RevokeClient(ctx context.Context, id string) error {
@@ -95,6 +139,28 @@ func (s *Service) AuthenticateClient(ctx context.Context, id, secret string) err
 		return oidc.ErrInvalidClientSecret
 	}
 	return nil
+}
+
+func validateClientName(name string) error {
+	if name == "" || len(name) > maxClientNameLen {
+		return fmt.Errorf("%w: 1-%d characters", oidc.ErrInvalidClientName, maxClientNameLen)
+	}
+	return nil
+}
+
+// normalizeBranding checks an optional "#rrggbb" colour (stored lowercase)
+// and an optional short icon without spaces or control characters.
+func normalizeBranding(color, icon string) (model.Branding, error) {
+	color, icon = strings.TrimSpace(color), strings.TrimSpace(icon)
+	if color != "" && !brandColorPattern.MatchString(color) {
+		return model.Branding{}, fmt.Errorf("%w: brand color must look like #0f766e", oidc.ErrInvalidBranding)
+	}
+	if len(icon) > maxIconBytes || !utf8.ValidString(icon) || strings.IndexFunc(icon, func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsControl(r)
+	}) >= 0 {
+		return model.Branding{}, fmt.Errorf("%w: icon must be an emoji or 1-2 characters, without spaces", oidc.ErrInvalidBranding)
+	}
+	return model.Branding{BrandColor: strings.ToLower(color), Icon: icon}, nil
 }
 
 // validateRedirectURI requires an absolute https URL without a fragment.

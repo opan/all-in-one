@@ -2075,7 +2075,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid id, name or redirect URI",
+                        "description": "Invalid id, name, redirect URI or branding",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -2129,6 +2129,87 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Revoked",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden (not an admin)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "No such active client",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Updates an OIDC client's display name, brand colour (#rrggbb) or icon (an emoji or 1-2 characters). Omitted fields are kept; an empty string clears the colour or icon (admin-only).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oidc"
+                ],
+                "summary": "Change how an app is presented on aio's login pages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateClientInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated client",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Client"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid name or branding",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -4052,13 +4133,23 @@ const docTemplate = `{
         "model.AuthRequestInfo": {
             "type": "object",
             "properties": {
+                "brand_color": {
+                    "description": "\"#rrggbb\"",
+                    "type": "string"
+                },
                 "client_id": {
                     "type": "string"
                 },
                 "client_name": {
                     "type": "string"
                 },
+                "icon": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "locale": {
                     "type": "string"
                 },
                 "signup": {
@@ -4108,10 +4199,17 @@ const docTemplate = `{
         "model.Client": {
             "type": "object",
             "properties": {
+                "brand_color": {
+                    "description": "\"#rrggbb\"",
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "created_by": {
+                    "type": "string"
+                },
+                "icon": {
                     "type": "string"
                 },
                 "id": {
@@ -4140,6 +4238,12 @@ const docTemplate = `{
         "model.CreateClientInput": {
             "type": "object",
             "properties": {
+                "brand_color": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4565,6 +4669,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateClientInput": {
+            "type": "object",
+            "properties": {
+                "brand_color": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

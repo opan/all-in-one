@@ -22,6 +22,7 @@ type authRequest struct {
 	ResponseMode  oidc.ResponseMode
 	CodeChallenge *oidc.CodeChallenge
 	BrowserHash   string
+	Locale        string
 	CreatedAt     time.Time
 
 	UserID   string

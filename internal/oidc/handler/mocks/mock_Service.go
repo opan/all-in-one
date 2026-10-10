@@ -308,6 +308,64 @@ func (_c *MockService_RevokeClient_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// UpdateClient provides a mock function with given fields: ctx, id, in
+func (_m *MockService) UpdateClient(ctx context.Context, id string, in model.UpdateClientInput) (model.Client, error) {
+	ret := _m.Called(ctx, id, in)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateClient")
+	}
+
+	var r0 model.Client
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, model.UpdateClientInput) (model.Client, error)); ok {
+		return rf(ctx, id, in)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, model.UpdateClientInput) model.Client); ok {
+		r0 = rf(ctx, id, in)
+	} else {
+		r0 = ret.Get(0).(model.Client)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, model.UpdateClientInput) error); ok {
+		r1 = rf(ctx, id, in)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_UpdateClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateClient'
+type MockService_UpdateClient_Call struct {
+	*mock.Call
+}
+
+// UpdateClient is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - in model.UpdateClientInput
+func (_e *MockService_Expecter) UpdateClient(ctx interface{}, id interface{}, in interface{}) *MockService_UpdateClient_Call {
+	return &MockService_UpdateClient_Call{Call: _e.mock.On("UpdateClient", ctx, id, in)}
+}
+
+func (_c *MockService_UpdateClient_Call) Run(run func(ctx context.Context, id string, in model.UpdateClientInput)) *MockService_UpdateClient_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(model.UpdateClientInput))
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateClient_Call) Return(_a0 model.Client, _a1 error) *MockService_UpdateClient_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_UpdateClient_Call) RunAndReturn(run func(context.Context, string, model.UpdateClientInput) (model.Client, error)) *MockService_UpdateClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockService creates a new instance of MockService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockService(t interface {

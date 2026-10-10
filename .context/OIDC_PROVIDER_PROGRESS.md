@@ -30,6 +30,14 @@
   JWKS publishes every active DB key. Single-replica limit documented (ADR-O3, RFC §8, config.yml);
   moving auth requests/codes to the DB is the follow-up.
 
+## App-branded login pages (2026-10-10, ADR-O8)
+
+- Clients carry `brand_color` + `icon` (migration 12); CLI `oidc:client:update`, admin `PATCH /oidc/clients/{id}`.
+- `ui_locales` → `locale` on the auth request; pages render from `web/src/lib/oauth-i18n.ts` (en, id); hand-off
+  API errors follow `Accept-Language`. Shared frame: `web/src/components/auth-shell.svelte`.
+- cashflow sends `ui_locales=id`; register it with `--brand-color '#0f766e' --icon 💰`.
+- Fixed: wrong password on the login page lost `?next=` (api.ts 401 redirect); login now uses plain fetch.
+
 ## Out of scope for this build (Deck "Later" column)
 
 Admin-issued reset codes, `users:import`, back-channel logout, admin UI page for clients.
