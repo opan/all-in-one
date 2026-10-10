@@ -9,6 +9,7 @@
 	import { safeNext } from '$lib/safe-next';
 	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '$lib/oidc-api';
 	import { authMessages } from '$lib/oauth-i18n';
+	import { passwordTooShort } from '$lib/password';
 
 	// Same ?next= handling as the login page (see routes/login/+page.svelte).
 	const next = $derived(safeNext($page.url.searchParams.get('next')));
@@ -50,7 +51,7 @@
 			return;
 		}
 
-		if (password.length < 3) {
+		if (passwordTooShort(password)) {
 			error = m.passwordTooShort;
 			return;
 		}
@@ -73,7 +74,7 @@
 				} else if (response.status === 429) {
 					error = m.tooManySignups;
 				} else if (response.status === 400 && translated) {
-					error = m.usernamePasswordRequired;
+					error = data.error?.includes('at least') ? m.passwordTooShort : m.usernamePasswordRequired;
 				} else {
 					error = (!translated && data.error) || m.signupFailed;
 				}

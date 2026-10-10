@@ -120,13 +120,13 @@ func (h *Handler) directAuthCurrentUser(username, email string) CurrentUserRespo
 
 // RegisterUser godoc
 // @Summary      Register a new user
-// @Description  Create a new user account with username, password, email, and name
+// @Description  Create a new user account with username, password (at least 5 characters, at most 72 bytes), email, and name
 // @Tags         users
 // @Accept       json
 // @Produce      json
 // @Param        user  body      RegisterUserRequest  true  "User registration details"
 // @Success      201   {object}  httpHelper.Response  "User created successfully"
-// @Failure      400   {object}  httpHelper.Response  "Invalid request body or missing required fields"
+// @Failure      400   {object}  httpHelper.Response  "Invalid request body, missing required fields, or password too short/long"
 // @Failure      409   {object}  httpHelper.Response  "User already exists"
 // @Failure      500   {object}  httpHelper.Response  "Internal server error"
 // @Router       /users [post]
@@ -144,6 +144,12 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	if req.Username == "" || req.Password == "" {
 		log.Error().Msg("username or password is empty")
 		httpHelper.SendError(w, "username and password are required", http.StatusBadRequest)
+		return
+	}
+
+	if err := auth.ValidatePassword(req.Password); err != nil {
+		h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "failure")))
+		httpHelper.SendError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -202,14 +208,14 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 // ResetPasswordUser godoc
 // @Summary      Reset user password
-// @Description  Reset the password for the currently authenticated user
+// @Description  Reset the password for the currently authenticated user (new password: at least 5 characters, at most 72 bytes)
 // @Tags         users
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth || DirectAuth
 // @Param        password  body      model.UserPasswordReset  true  "Current and new password"
 // @Success      200       {object}  httpHelper.Response      "Password reset successfully"
-// @Failure      400       {object}  httpHelper.Response      "Invalid request body"
+// @Failure      400       {object}  httpHelper.Response      "Invalid request body, or new password too short/long"
 // @Failure      401       {object}  httpHelper.Response      "Unauthorized or invalid current password"
 // @Failure      500       {object}  httpHelper.Response      "Internal server error"
 // @Router       /users/me/password [put]
@@ -235,6 +241,11 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Error().Err(err).Msg("failed to decode request body")
 		httpHelper.SendError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := auth.ValidatePassword(req.Password); err != nil {
+		httpHelper.SendError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

@@ -3600,7 +3600,7 @@ const docTemplate = `{
         },
         "/users": {
             "post": {
-                "description": "Create a new user account with username, password, email, and name",
+                "description": "Create a new user account with username, password (at least 5 characters, at most 72 bytes), email, and name",
                 "consumes": [
                     "application/json"
                 ],
@@ -3630,7 +3630,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or missing required fields",
+                        "description": "Invalid request body, missing required fields, or password too short/long",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -3708,7 +3708,7 @@ const docTemplate = `{
                         "DirectAuth": []
                     }
                 ],
-                "description": "Reset the password for the currently authenticated user",
+                "description": "Reset the password for the currently authenticated user (new password: at least 5 characters, at most 72 bytes)",
                 "consumes": [
                     "application/json"
                 ],
@@ -3738,7 +3738,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Invalid request body, or new password too short/long",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }

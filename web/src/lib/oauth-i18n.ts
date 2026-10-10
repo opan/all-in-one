@@ -2,6 +2,8 @@
 // wording; other languages are used only when an app sends users here and
 // asks for one with ui_locales (see AuthRequestInfo.locale).
 
+import { MIN_PASSWORD_LENGTH } from '$lib/password';
+
 export type Locale = 'en' | 'id';
 
 export interface AuthMessages {
@@ -128,7 +130,7 @@ const en: AuthMessages = {
 	haveAccount: 'Already have an account?',
 	usernamePasswordRequired: 'Username and password are required',
 	passwordsDontMatch: 'Passwords do not match',
-	passwordTooShort: 'Password must be at least 3 characters long',
+	passwordTooShort: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
 	usernameTaken: 'Username already taken',
 	tooManySignups: 'Too many sign-up attempts. Please try again later.',
 	signupFailed: 'Failed to create account. Please try again.',
@@ -196,7 +198,7 @@ const id: AuthMessages = {
 	haveAccount: 'Sudah punya akun?',
 	usernamePasswordRequired: 'Nama pengguna dan kata sandi wajib diisi.',
 	passwordsDontMatch: 'Kata sandi tidak sama.',
-	passwordTooShort: 'Kata sandi minimal 3 karakter.',
+	passwordTooShort: `Kata sandi minimal ${MIN_PASSWORD_LENGTH} karakter.`,
 	usernameTaken: 'Nama pengguna sudah dipakai.',
 	tooManySignups: 'Terlalu banyak percobaan daftar. Coba lagi nanti.',
 	signupFailed: 'Gagal membuat akun. Coba lagi.',

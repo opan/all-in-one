@@ -46,6 +46,12 @@
 - Protected names: `rbac.admin_username` (reserved, linkable), `demo_mode.username` (blocked).
 - Runbook + Kubernetes Job in cashflow's README ("Memindahkan pengguna lama ke All-in-one").
 
+## Password minimum (2026-10-10)
+
+- New passwords need at least 5 characters (opan's choice; signup used to allow 3, API anything non-empty)
+  and at most 72 bytes (bcrypt). Server: `auth.ValidatePassword` in signup + password change. Frontend:
+  `web/src/lib/password.ts` (signup, settings, oauth-i18n messages).
+
 ## Out of scope for this build (Deck "Later" column)
 
 Admin-issued reset codes, back-channel logout, admin UI page for clients.

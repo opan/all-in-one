@@ -788,3 +788,38 @@ func TestGetCurrentUser_DirectAuth_NotConfiguredAsAdmin(t *testing.T) {
 	cu := decodeCurrentUserResponse(t, rr)
 	assert.False(t, cu.IsAdmin)
 }
+
+// Short passwords are refused before anything touches the database (the
+// mocks have no expectations, so any repository call fails the test).
+func TestRegisterUser_PasswordTooShort(t *testing.T) {
+	storage := &MockStorage{
+		userRepo:    mocks.NewMockUserRepository(t),
+		sessionRepo: mocks.NewMockSessionRepository(t),
+	}
+	handler := NewHandler(storage, config.Config{})
+
+	body, _ := json.Marshal(RegisterUserRequest{Username: "testuser", Password: "abcd"})
+	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewReader(body)).WithContext(tester.ContextWithLogger())
+	rr := httptest.NewRecorder()
+	handler.RegisterUser(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "at least 5 characters")
+}
+
+func TestResetPasswordUser_NewPasswordTooShort(t *testing.T) {
+	storage := &MockStorage{
+		userRepo:    mocks.NewMockUserRepository(t),
+		sessionRepo: mocks.NewMockSessionRepository(t),
+	}
+	handler := NewHandler(storage, config.Config{})
+
+	body, _ := json.Marshal(model.UserPasswordReset{CurrentPassword: "old-password", Password: "abcd"})
+	req := httptest.NewRequest(http.MethodPost, "/users/reset_password", bytes.NewReader(body))
+	req = req.WithContext(tester.ContextWithUser(uuid.New().String(), "testuser", "test@example.com", uuid.New().String()))
+	rr := httptest.NewRecorder()
+	handler.ResetPasswordUser(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "at least 5 characters")
+}

@@ -2921,7 +2921,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new user account with username, password, email, and name
+      description: Create a new user account with username, password (at least 5 characters,
+        at most 72 bytes), email, and name
       parameters:
       - description: User registration details
         in: body
@@ -2937,7 +2938,8 @@ paths:
           schema:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
         "400":
-          description: Invalid request body or missing required fields
+          description: Invalid request body, missing required fields, or password
+            too short/long
           schema:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
         "409":
@@ -2985,7 +2987,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Reset the password for the currently authenticated user
+      description: 'Reset the password for the currently authenticated user (new password:
+        at least 5 characters, at most 72 bytes)'
       parameters:
       - description: Current and new password
         in: body
@@ -3001,7 +3004,7 @@ paths:
           schema:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
         "400":
-          description: Invalid request body
+          description: Invalid request body, or new password too short/long
           schema:
             $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
         "401":
