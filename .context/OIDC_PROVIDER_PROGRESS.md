@@ -38,6 +38,14 @@
 - cashflow sends `ui_locales=id`; register it with `--brand-color '#0f766e' --icon 💰`.
 - Fixed: wrong password on the login page lost `?next=` (api.ts 401 redirect); login now uses plain fetch.
 
+## Existing cashflow users (2026-10-10, ADR-O9)
+
+- Production cashflow has users → `all-in-one users:import` (`internal/authnz/userimport`,
+  `cmd/all-in-one/userimport`). Reads cashflow's DB from `CASHFLOW_DATABASE_URL` (same PG server), copies
+  username + bcrypt hash, links `users.aio_user_id`. Dry run default; `--apply`; `--link-existing`.
+- Protected names: `rbac.admin_username` (reserved, linkable), `demo_mode.username` (blocked).
+- Runbook + Kubernetes Job in cashflow's README ("Memindahkan pengguna lama ke All-in-one").
+
 ## Out of scope for this build (Deck "Later" column)
 
-Admin-issued reset codes, `users:import`, back-channel logout, admin UI page for clients.
+Admin-issued reset codes, back-channel logout, admin UI page for clients.

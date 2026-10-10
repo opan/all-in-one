@@ -7,6 +7,7 @@ import (
 	"github.com/all-in-one/cmd/all-in-one/oidcclient"
 	server "github.com/all-in-one/cmd/all-in-one/server"
 	tokencli "github.com/all-in-one/cmd/all-in-one/token"
+	"github.com/all-in-one/cmd/all-in-one/userimport"
 	"github.com/all-in-one/internal/config"
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/oidc/model"
@@ -183,6 +184,7 @@ Examples:
 	root.AddCommand(transferCmd)
 	root.AddCommand(tokenCommands()...)
 	root.AddCommand(oidcClientCommands()...)
+	root.AddCommand(usersImportCommand())
 
 	return root
 }
@@ -346,4 +348,48 @@ func oidcClientCommands() []*cobra.Command {
 		},
 	}
 	return []*cobra.Command{createCmd, listCmd, updateCmd, revokeCmd}
+}
+
+// usersImportCommand moves cashflow's existing accounts into aio so they can
+// log in to cashflow through aio with their current passwords (RFC-001 §7.3).
+func usersImportCommand() *cobra.Command {
+	var apply bool
+	var linkExisting []string
+	cmd := &cobra.Command{
+		Use:   "users:import",
+		Short: "import cashflow's existing accounts into aio and link them",
+		Long: `Copy cashflow's local accounts (username + bcrypt password hash, as-is) into aio,
+then link each one in cashflow (users.aio_user_id), so users log in to cashflow
+through aio with the password they already have. Cashflow's data stays put.
+
+Reads cashflow's database URL from ` + userimport.CashflowDSNEnv + ` (an env var, so the
+password stays out of the process list). Without --apply it only prints the plan.
+--apply writes nothing while any account is skipped; re-running is safe.
+
+Skipped accounts need a decision: a username aio already has (rename one side,
+or --link-existing <username> if it is the same person), aio's bootstrap admin
+username, or aio's shared demo account.
+
+Examples:
+  export ` + userimport.CashflowDSNEnv + `='postgres://cashflow:...@db:5432/cashflow?sslmode=disable'
+  all-in-one users:import                       # dry run
+  all-in-one users:import --link-existing opan  # opan in cashflow is opan in aio
+  all-in-one users:import --apply`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+			log, err := logging.New(cfg.Logging)
+			if err != nil {
+				return fmt.Errorf("failed to initialize logger: %w", err)
+			}
+			return userimport.RunImport(cmd.Context(), userimport.Opts{
+				Config: *cfg, Logger: log, Apply: apply, LinkExisting: linkExisting,
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&apply, "apply", false, "create the aio accounts and link them in cashflow (default: dry run)")
+	cmd.Flags().StringSliceVar(&linkExisting, "link-existing", nil, "usernames whose existing aio account is the same person (comma-separated)")
+	return cmd
 }

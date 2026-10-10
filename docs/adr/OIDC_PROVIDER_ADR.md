@@ -152,6 +152,33 @@ and can extend `Branding` later.
 
 ---
 
+## ADR-O9: Moving existing cashflow accounts (`users:import`)
+
+**Problem:** production cashflow already has users. Switching it to `AUTH_PROVIDER=aio` without them
+would make their passwords useless and give them new, empty accounts.
+
+**Decision:** a one-off CLI, `all-in-one users:import` (RFC-001 §7.3), in `internal/authnz/userimport`:
+
+- **Reads cashflow's database directly** from `CASHFLOW_DATABASE_URL` (an env var, so the password stays
+  out of the process list): users with a local password and no `aio_user_id`. cashflow and aio share one
+  Postgres server, so this replaced the RFC's export file and SQL script: password hashes never touch disk.
+- **Copies username + bcrypt hash as-is** into aio (both apps use bcrypt), so users keep their passwords.
+  CLI only, never an API endpoint: accepting pre-hashed passwords is safe only from a trusted operator.
+- **Dry run by default.** `--apply` writes nothing while any account is skipped, creates the aio accounts
+  in one transaction, then sets `users.aio_user_id` in cashflow in one transaction (refusing if an account
+  vanished or is linked to a different aio account).
+- **Skipped until the operator decides:** a username aio already has (`--link-existing <name>` when it is the
+  same person, who then logs in with the aio password; otherwise rename one side), a case-only match, aio's
+  bootstrap admin name (`rbac.admin_username`: RBAC bootstrap would grant it the admin group; linking is
+  allowed), aio's shared demo account (never imported or linked), invalid usernames or hashes, duplicates.
+- **Idempotent:** an aio account with the same username and hash counts as already imported, so a re-run
+  after a failed link only links. Accounts already linked aren't read again.
+
+cashflow needs no code for this; its README has the runbook (including a Kubernetes Job, since aio's image
+is distroless). `password_hash` stays in cashflow for now, so `AUTH_PROVIDER=local` remains a rollback.
+
+---
+
 ## Verification
 
 Unit and in-process tests cover the full code flow (ID token verified against the published keys),
@@ -162,12 +189,14 @@ another browser, a callback without the completing user's session, several login
 redeemed concurrently, and keys stored by another replica. ADR-O8 added tests for branding validation, storage
 and updates, `ui_locales` → `locale`, localized hand-off errors, and browser checks of the branded pages (colour,
 Indonesian copy, page language, Indonesian wrong-password error that keeps the hand-off, aio's own page
-unchanged). A real browser run against both apps on separate hosts
+unchanged). ADR-O9 was checked against one Postgres server holding both databases: dry run, refused apply
+with skips, `--link-existing` + renames, apply, idempotent re-run, then an existing cashflow session
+surviving the switch and logins through aio with the old cashflow password landing on the same account and
+cashplans. A real browser run against both apps on separate hosts
 (aio on `127.0.0.1`, cashflow on `localhost`) passed 18/18 checks: signup through cashflow, logout ending both
 sessions, login with an existing account, single sign-on with no form, and demo refusal. It also found three
 bugs, all fixed: the CSP issue above, the demo account issue above, and a signup link that dropped `next`.
 
 ## Not in this build
 
-Admin-issued password reset codes, `users:import` for existing cashflow accounts, back-channel logout and an
-admin UI page for clients (RFC-001 §6.3, §7.3; Deck "Later" cards).
+Admin-issued password reset codes, back-channel logout and an admin UI page for clients (RFC-001 §6.3, §7.3; Deck "Later" cards).

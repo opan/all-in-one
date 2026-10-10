@@ -220,6 +220,11 @@ Later, users who add an optional email can get a reset link instead, using the s
 
 ### 7.3 Moving existing cashflow users
 
+> **Implemented (2026-10) as `all-in-one users:import`**, see ADR-O9. One change from the plan below:
+> cashflow and aio share a Postgres server, so the command reads cashflow's `users` table and writes
+> `aio_user_id` directly (from `CASHFLOW_DATABASE_URL`) instead of going through an export file and a mapping;
+> password hashes never touch disk. Collisions are resolved with `--link-existing` or a rename in cashflow.
+
 Only user **accounts** move to aio. cashflow's data (plans, entries, dues, receipts) stays in cashflow's database, and cashflow's `users` rows keep their ids, so nothing that references them changes.
 
 **Why it's cheap:**
