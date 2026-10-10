@@ -1,0 +1,131 @@
+package service
+
+import (
+	"context"
+	"crypto/rsa"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/all-in-one/internal/auth"
+	"github.com/all-in-one/internal/config"
+	"github.com/all-in-one/internal/oidc/model"
+	"github.com/all-in-one/internal/oidc/service/mocks"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+)
+
+const testEncKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+func newKeyTestService(t *testing.T, keys *mocks.MockKeyRepository, encKey string) *Service {
+	t.Helper()
+	store := mocks.NewMockStorage(t)
+	store.EXPECT().KeyRepo().Return(keys).Maybe()
+	cfg := config.Config{}
+	cfg.Auth.TOTPEncryptionKey = encKey
+	return &Service{store: store, config: cfg, log: zerolog.Nop()}
+}
+
+func TestLoadKeys_GeneratesAndStoresEncryptedKeyOnFirstStart(t *testing.T) {
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return(nil, nil)
+	var stored model.SigningKey
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(k model.SigningKey) bool { stored = k; return true })).Return(nil)
+
+	svc := newKeyTestService(t, repo, testEncKey)
+	require.NoError(t, svc.loadKeys(context.Background()))
+
+	assert.NotContains(t, stored.PrivateKeyEncrypted, "PRIVATE KEY", "the private key is never stored as plain PEM")
+	assert.Equal(t, "RS256", stored.Algorithm)
+	signer := svc.keys.signing()
+	require.NotNil(t, signer)
+	assert.Equal(t, stored.ID, signer.ID())
+	assert.Equal(t, jose.RS256, signer.SignatureAlgorithm())
+	assert.Equal(t, signingKeyBits, signer.Key().(*rsa.PrivateKey).N.BitLen())
+	require.Len(t, svc.keys.published(), 1)
+	assert.Equal(t, "sig", svc.keys.published()[0].Use())
+}
+
+func TestLoadKeys_ReusesStoredKeysNewestSigns(t *testing.T) {
+	newest, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+	older, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{newest, older}, nil)
+	// no Create expectation: an existing install must not generate a new key
+
+	svc := newKeyTestService(t, repo, testEncKey)
+	require.NoError(t, svc.loadKeys(context.Background()))
+	assert.Equal(t, newest.ID, svc.keys.signing().ID())
+	assert.Len(t, svc.keys.published(), 2, "older keys stay published so recently signed tokens still verify")
+}
+
+func TestLoadKeys_WrongEncryptionKeyFailsLoudly(t *testing.T) {
+	k, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{k}, nil)
+
+	otherKey := strings.Repeat("f", 64)
+	err = newKeyTestService(t, repo, otherKey).loadKeys(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "totp_encryption_key")
+}
+
+// Two replicas starting on a fresh install each generate a key; each must
+// publish the other's too, or tokens it didn't sign fail verification.
+func TestPublishedKeys_IncludesKeysOtherReplicasStored(t *testing.T) {
+	mine, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+	theirs, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{mine}, nil).Once()
+	svc := newKeyTestService(t, repo, testEncKey)
+	require.NoError(t, svc.loadKeys(context.Background()))
+
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{theirs, mine}, nil)
+	ids := func() []string {
+		var out []string
+		for _, k := range svc.publishedKeys(context.Background()) {
+			out = append(out, k.ID())
+		}
+		return out
+	}
+	assert.ElementsMatch(t, []string{mine.ID, theirs.ID}, ids())
+	assert.ElementsMatch(t, []string{mine.ID, theirs.ID}, ids(), "no duplicates on later calls")
+	assert.Equal(t, mine.ID, svc.keys.signing().ID(), "each replica keeps signing with its own key")
+}
+
+func TestPublishedKeys_FallsBackToLoadedKeysWhenDBFails(t *testing.T) {
+	mine, err := newStoredKeyForTest(t)
+	require.NoError(t, err)
+	repo := mocks.NewMockKeyRepository(t)
+	repo.EXPECT().ListActive(mock.Anything).Return([]model.SigningKey{mine}, nil).Once()
+	svc := newKeyTestService(t, repo, testEncKey)
+	require.NoError(t, svc.loadKeys(context.Background()))
+
+	repo.EXPECT().ListActive(mock.Anything).Return(nil, errors.New("db down"))
+	keys := svc.publishedKeys(context.Background())
+	require.Len(t, keys, 1)
+	assert.Equal(t, mine.ID, keys[0].ID())
+}
+
+func newStoredKeyForTest(t *testing.T) (model.SigningKey, error) {
+	t.Helper()
+	enc, err := hexKey(testEncKey)
+	if err != nil {
+		return model.SigningKey{}, err
+	}
+	return newStoredKey(enc)
+}
+
+func hexKey(s string) ([]byte, error) {
+	return auth.ParseEncryptionKey(s)
+}

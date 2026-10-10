@@ -250,6 +250,44 @@ sum by (app, allowed) (rate(aio_ratelimit_check_total[5m]))
 sum by (reason) (rate(aio_ratelimit_token_auth_failures_total[5m]))
 ```
 
+### OIDC (aio as identity provider)
+
+aio logs users in to other apps over OpenID Connect (RFC-001). Every provider endpoint
+(`/.well-known/openid-configuration`, `/api/v1/oauth2/*`) is traced by `otelmux` like any other route;
+the counters below cover what the HTTP metrics can't say.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `aio_oidc_login_completed_total` | Counter | `client` | Logins into other apps finished on aio's login page (`internal/oidc/handler`) |
+| `aio_oidc_login_failed_total` | Counter | `reason` | Logins aio's login page could not finish |
+| `aio_oidc_logout_total` | Counter | `aio_session_cleared` | RP-initiated logouts received from apps (`internal/oidc/service`) |
+| `aio_oidc_clients_changed_total` | Counter | `action` | Admin changes to the registered apps |
+
+**Label values**
+
+| Label | Metric | Values |
+|---|---|---|
+| `client` | `login_completed_total` | a registered client id, e.g. `cashflow` (admin-created, so bounded by the number of apps) |
+| `reason` | `login_failed_total` | `expired` (auth request timed out), `client` (unknown/revoked app), `other_browser` (login link opened in a browser that didn't start the login), `blocked` (user blocked), `demo` (shared demo account refused), `internal` |
+| `aio_session_cleared` | `logout_total` | `true` (valid `id_token_hint` for the same user as aio's session: aio's session ended too), `false` (no/invalid hint, hint for another user, no aio session, or logout rejected: aio's session kept) |
+| `action` | `clients_changed_total` | `create`, `update`, `revoke` |
+
+**Example queries**
+
+```promql
+# Logins into other apps, per app
+sum by (client) (rate(aio_oidc_login_completed_total[1h]))
+
+# Why logins fail — a rise in `expired` means users take longer than
+# auth.oidc.auth_request_ttl on aio's login page (or a login hopped between
+# replicas: auth requests live in one process); `other_browser` can mean
+# someone is passing login links around
+sum by (reason) (rate(aio_oidc_login_failed_total[1h]))
+
+# Logouts that could not end aio's session (apps not sending id_token_hint)
+rate(aio_oidc_logout_total{aio_session_cleared="false"}[1h])
+```
+
 ---
 
 ## Framework Metrics
@@ -337,9 +375,13 @@ Total series count at steady state (worst case, all label combinations observed)
 | Rate Limiting | `ratelimit_rejected_total` | 8 (bounded by target count, not `target`×`scope`×`kind`) |
 | Rate Limiting | `ratelimit_errors_total` | 4 (only `daily_quota`-kind targets touch the counter store) |
 | Rate Limiting | `ratelimit_config_changed_total` | 24 (8 `target` × 3 `action`) |
+| OIDC | `oidc_login_completed_total` | one per registered app |
+| OIDC | `oidc_login_failed_total` | 6 (`reason`) |
+| OIDC | `oidc_logout_total` | 2 |
+| OIDC | `oidc_clients_changed_total` | 3 (`action`) |
 | All others | — | 1 each (17 metrics) |
 
-**Total: ~93 series** — well within Prometheus' comfortable range for a single-instance app.
+**Total: ~101 series** (with one OIDC app registered) — well within Prometheus' comfortable range for a single-instance app.
 
 Labels are always **bounded enums** — entity IDs (user IDs, session IDs, etc.) are never used as label values to prevent cardinality explosion.
 

@@ -19,6 +19,7 @@ import (
 	listingSvc "github.com/all-in-one/internal/listing/service"
 	"github.com/all-in-one/internal/logging"
 	"github.com/all-in-one/internal/observability"
+	oidcSvc "github.com/all-in-one/internal/oidc/service"
 	"github.com/all-in-one/internal/ratelimit"
 	ratelimitSvc "github.com/all-in-one/internal/ratelimit/service"
 	"github.com/all-in-one/internal/rbac"
@@ -148,6 +149,18 @@ func (s *server) Start() error {
 	// RBAC resolver — it opens no DB handle of its own and only reads.
 	dsvc := dashboardSvc.NewService(lsvc.Storage, csvc.Storage, ssvc.Storage, rsvc.Resolver, s.log)
 
+	// OpenID Connect provider for other apps (RFC-001, Option A). Off unless
+	// auth.oidc.enabled; uses authnz's users as the identity source.
+	var osvc *oidcSvc.Service
+	if s.config.Auth.OIDC.Enabled {
+		osvc, err = oidcSvc.NewService(ctx, db, s.config, s.log, asvc.Store.UserRepo(), asvc.Store.SessionRepo())
+		if err != nil {
+			s.log.Error().Err(err).Msg("Failed to create oidc provider")
+			return err
+		}
+		s.log.Info().Str("issuer", s.config.Auth.OIDC.Issuer).Msg("oidc: provider enabled")
+	}
+
 	// Initialize HTTP helper
 	h := httpHelper.NewHTTP(s.log, s.config)
 
@@ -166,6 +179,14 @@ func (s *server) Start() error {
 	// Add logging middleware
 	r.Use(h.LoggingMiddleware)
 
+	// OIDC provider endpoints, registered before the /api/v1 subrouter so the
+	// provider owns everything under /api/v1/oauth2/. Discovery sits at the
+	// spec-mandated root path.
+	if osvc != nil {
+		r.Handle(oidcSvc.DiscoveryPath, osvc.ProviderHandler())
+		r.PathPrefix(oidcSvc.EndpointPrefix).Handler(osvc.ProviderHandler())
+	}
+
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 
@@ -180,6 +201,9 @@ func (s *server) Start() error {
 	lsvc.RegisterRoutes(publicRoutes)
 	asvc.RegisterPublicRoutes(publicRoutes)
 	ssvc.RegisterPublicRoutes(publicRoutes)
+	if osvc != nil {
+		osvc.Handler.RegisterPublicRoutes(publicRoutes)
+	}
 
 	// Authenticated routes (JWT required), split into RBAC-gated siblings —
 	// per-app subrouters are used instead of a single shared one because
@@ -196,6 +220,10 @@ func (s *server) Start() error {
 	// Home dashboard summary — authenticated but not feature-gated, so users
 	// with a subset of features still get their accessible sections.
 	dsvc.RegisterAuthenticatedRoutes(selfRoutes)
+	// Completing an app login (OIDC) needs an aio session but no feature grant.
+	if osvc != nil {
+		osvc.Handler.RegisterAuthenticatedRoutes(selfRoutes)
+	}
 
 	// mkGated builds a subrouter gated by JWT auth plus the named feature.
 	// rlMw runs right after JWTAuth so user-scoped targets can key by the
@@ -222,6 +250,9 @@ func (s *server) Start() error {
 	asvc.Handler.RegisterAdminRoutes(adminRoutes)
 	ssvc.RegisterAdminRoutes(adminRoutes)
 	rlsvc.RegisterAdminRoutes(adminRoutes)
+	if osvc != nil {
+		osvc.Handler.RegisterAdminRoutes(adminRoutes)
+	}
 
 	// External rate-limit check API: authenticated by an app token (X-API-Key),
 	// NOT a user JWT and NOT admin-gated. It carries rlMw so the internal

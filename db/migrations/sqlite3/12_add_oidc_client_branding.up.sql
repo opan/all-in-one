@@ -1,0 +1,2 @@
+ALTER TABLE oidc_clients ADD COLUMN brand_color TEXT NOT NULL DEFAULT '';
+ALTER TABLE oidc_clients ADD COLUMN icon TEXT NOT NULL DEFAULT '';
