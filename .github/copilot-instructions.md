@@ -5,7 +5,7 @@
 All-in-one is a multi-functional apps. Originally built for learning purpose but later decided to be the super-apps that try to address all my problems by trying to build everything in-house.
 
 - Full-stack web application.
-- **Backend:** Go (1.25+), REST API, stored in the project root.
+- **Backend:** Go (1.26+), REST API, stored in the project root.
 - **Frontend:** Svelte 5+ with TypeScript 5.9+, source under `web/`.
 
 
@@ -20,7 +20,7 @@ All-in-one is a multi-functional apps. Originally built for learning purpose but
 ## Tech stacks
 
 ### Backend (Go) Guidelines
-- **Go version:** 1.25+
+- **Go version:** 1.26+
 - **Libraries to prefer:**
   - `github.com/mattn/go-sqlite3` (SQLite driver)
   - `github.com/lib/pq` (PostgreSQL driver)

@@ -1,0 +1,3 @@
+# Made-up test key (0123456789abcdef repeated) in a commit on the OIDC branch;
+# the file now builds it with strings.Repeat.
+6e95209474d3bf0ef6c180a3c7db36bfb8efe0cb:internal/oidc/service/keys_test.go:generic-api-key:20
