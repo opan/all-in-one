@@ -11,6 +11,7 @@ A multi-functional full-stack web application built for learning purposes.
 - **Chat** — Real-time chat with WebSocket support, invite system
 - **Authentication** — JWT-based auth (username/password) with session management
 - **Two-Factor Authentication (2FA)** — Opt-in TOTP-based 2FA (Google Authenticator, Authy, etc.)
+- **Login for other apps (OpenID Connect)** — Other first-party apps (e.g. cashflow) log users in with their aio account; off by default, see [below](#login-for-other-apps-openid-connect)
 - **Observability** — OpenTelemetry traces (Jaeger) and metrics (Prometheus) via OTel Collector
 
 ## Project Structure
@@ -25,6 +26,7 @@ all-in-one/
 │   ├── authnz/             # Authentication & authorization (handlers, middleware, repository)
 │   ├── chat/               # Chat app (WebSocket, sessions, invites)
 │   ├── listing/            # Listing app (topics, items, JSON schema forms)
+│   ├── oidc/               # OpenID Connect provider (login for other apps)
 │   ├── config/             # Configuration loading (Viper)
 │   ├── http/               # Shared HTTP helpers and middleware
 │   └── storage/            # Database connection and migration runner
@@ -78,6 +80,11 @@ go run ./cmd/all-in-one db:migrate down --steps 1                     # Roll bac
 go run ./cmd/all-in-one db:seed                                       # Seed sample users, topics, and chat data
 go run ./cmd/all-in-one db:transfer --direction sqlite-to-pg --confirm  # Copy data from SQLite → PostgreSQL
 go run ./cmd/all-in-one db:transfer --direction pg-to-sqlite --confirm  # Copy data from PostgreSQL → SQLite
+go run ./cmd/all-in-one oidc:client:create --id <id> --name <name> --redirect-uri <url>  # Register an app for OIDC login (prints its secret once)
+go run ./cmd/all-in-one oidc:client:list                             # List registered apps
+go run ./cmd/all-in-one oidc:client:update <id> --brand-color '#0f766e' --icon 💰  # Change an app's name or branding
+go run ./cmd/all-in-one oidc:client:revoke <id>                      # Stop an app from logging users in
+go run ./cmd/all-in-one users:import [--apply]                       # Move cashflow's existing accounts into aio (dry run without --apply)
 ```
 
 > **`db:transfer` prerequisites:**
@@ -121,6 +128,12 @@ auth:
   totp_encryption_key: ""         # REQUIRED — 64-char hex string (32 bytes) for encrypting 2FA secrets
   secure_cookie: false            # Set to true in production (requires HTTPS)
   direct_auth_enabled: false      # Dev only — bypass auth via x-direct-auth-username header
+  oidc:
+    enabled: false                # Serve aio as an OpenID Connect provider for other apps (single replica only)
+    issuer: ""                    # aio's public base URL, e.g. https://auth.example.com (required when enabled)
+    auth_request_ttl: 10m         # How long a user has to finish aio's login page after an app sends them
+    access_token_lifetime: 15m    # Access tokens (userinfo endpoint)
+    id_token_lifetime: 5m         # ID tokens (apps read them once, at login)
 
 shortener:
   code_length: 7                  # Length of generated short codes
@@ -158,6 +171,8 @@ telemetry:
 | `ALLINONE_AUTH_JWT_SECRET` | JWT signing secret |
 | `ALLINONE_AUTH_TOTP_ENCRYPTION_KEY` | 32-byte hex key for 2FA secret encryption |
 | `ALLINONE_AUTH_SECURE_COOKIE` | `true` in production with HTTPS |
+| `ALLINONE_AUTH_OIDC_ENABLED` | `true` to serve aio as an OpenID Connect provider (default: `false`) |
+| `ALLINONE_AUTH_OIDC_ISSUER` | aio's public base URL, required when OIDC is enabled |
 | `ALLINONE_SERVER_PORT` | HTTP server port (default: `8080`) |
 | `ALLINONE_SERVER_SWAGGER_ENABLED` | `true` to enable Swagger UI (default: `false`) |
 | `ALLINONE_STORAGE_TYPE` | `sqlite` (default) |
@@ -234,6 +249,160 @@ kubectl get secret all-in-one-secrets -n app \
   -o jsonpath='{.data.totp_encryption_secret}' | base64 -d | wc -c
 # Must print 64
 ```
+
+## Login for other apps (OpenID Connect)
+
+aio can act as an OpenID Connect provider, so other first-party apps log users in with their aio account instead of keeping their own passwords. cashflow is the first app to use it. It is **off by default**.
+
+```
+App "Log in" → aio /api/v1/oauth2/authorize → aio's login or signup page (shown as the app)
+           ← app /callback?code=…          ← aio (or straight back if already logged in to aio)
+App exchanges the code for an ID token, verifies it, and starts its own session.
+```
+
+Design decisions are in [docs/adr/OIDC_PROVIDER_ADR.md](docs/adr/OIDC_PROVIDER_ADR.md) and the background in [RFC-001](docs/rfc/RFC-001-central-user-management.md). cashflow's side (its config and rollout) is in [cashflow's README](https://github.com/opan/cashflow/blob/main/README.en.md#logging-in-through-all-in-one-optional).
+
+### Turning it on
+
+```yaml
+auth:
+  oidc:
+    enabled: true
+    issuer: "https://aio.example.com"
+```
+
+- `issuer` is aio's public base URL, the one both browsers and apps reach. It must be absolute and without a path. Use `http://` only for local development.
+- On start, aio runs its migrations (the `oidc_clients` table) and creates an RSA signing key in the database. The private key is encrypted with `auth.totp_encryption_key`: if that key changes, aio refuses to start.
+- Check it with `curl https://aio.example.com/.well-known/openid-configuration`.
+
+| Endpoint | Path |
+|---|---|
+| Discovery | `/.well-known/openid-configuration` |
+| Authorize, token, userinfo, keys (JWKS), end_session, revoke | `/api/v1/oauth2/…` |
+| Login hand-off used by aio's pages | `/api/v1/oidc/auth-requests/{id}` |
+| Registered apps (admin only) | `/api/v1/oidc/clients` (see Swagger) |
+
+### Registering an app
+
+```bash
+go run ./cmd/all-in-one oidc:client:create \
+  --id cashflow --name Cashflow \
+  --redirect-uri https://cashflow.example.com/auth/callback \
+  --post-logout-redirect-uri https://cashflow.example.com/ \
+  --brand-color '#0f766e' --icon 💰
+```
+
+The client secret is printed **once**; aio stores only its hash. Redirect URIs must be `https://`, except `http://` on `localhost` or a loopback IP, for development. `oidc:client:list`, `oidc:client:update` and `oidc:client:revoke` manage apps afterwards, as do the admin endpoints under `/api/v1/oidc/clients`.
+
+In Kubernetes the image is distroless, but the binary can be run directly:
+
+```bash
+kubectl -n app exec deploy/all-in-one -- /app/all-in-one oidc:client:create \
+  --id cashflow --name Cashflow \
+  --redirect-uri https://kas.opanmustopah.com/auth/callback \
+  --post-logout-redirect-uri https://kas.opanmustopah.com/ \
+  --brand-color '#0f766e' --icon 💰
+```
+
+### What an app gets
+
+- Authorization code flow only, with **PKCE (S256) required** and the client secret sent as HTTP Basic auth (`client_secret_basic`). No refresh tokens: apps start their own session after login.
+- Scopes and claims: `openid` → `sub` (aio's user id), `profile` → `preferred_username` and `name`, `email` → `email` (when set, `email_verified: false`).
+- `ui_locales` picks the language of aio's pages (`en` or `id`). `prompt=create` opens signup instead of login. `prompt=login` and `max_age` are refused.
+- Logout: send the user to `end_session` with the ID token as `id_token_hint`. aio also ends its own session when the hint belongs to the user logged in to aio.
+- The shared demo account (`demo_mode`) can't log in to other apps.
+
+When an app sends users to aio, the login and signup pages show the app's name, icon, colour and language, with a small "Login secured by All-in-one" note. aio's own login page is unchanged.
+
+### Moving an app's existing users
+
+`users:import` copies cashflow's local accounts (username and bcrypt hash, as-is) into aio and links them, so users keep their passwords. It reads cashflow's database from `CASHFLOW_DATABASE_URL`, is a dry run without `--apply`, and writes nothing while any account needs a decision. See `users:import --help`, and [cashflow's runbook](https://github.com/opan/cashflow/blob/main/README.en.md#moving-existing-users-to-all-in-one) for how to resolve skipped accounts.
+
+Locally:
+
+```bash
+export CASHFLOW_DATABASE_URL='postgres://cashflow:<password>@<pg-server>:5432/cashflow?sslmode=disable'
+go run ./cmd/all-in-one users:import                                  # dry run
+go run ./cmd/all-in-one users:import --apply --link-existing opan     # for real
+```
+
+In Kubernetes, `kubectl exec` can't set environment variables (it runs the command in the existing container, and the distroless image has no shell to prefix one). Run it as a Job instead, with the same image, config and secrets as aio's deployment, plus `CASHFLOW_DATABASE_URL` from cashflow's secret. Save this as `users-import-job.yaml`:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: all-in-one-users-import
+  namespace: app
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: users-import
+          image: opanmustopah/all-in-one:latest   # same tag as aio's deployment
+          args: ["users:import"]                  # dry run; for real: ["users:import", "--apply", "--link-existing", "opan"]
+          env:
+            - name: CASHFLOW_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cashflow-secrets
+                  key: DATABASE_URL
+            - name: ALLINONE_AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: all-in-one-secrets
+                  key: jwt-secret
+            - name: ALLINONE_AUTH_TOTP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: all-in-one-secrets
+                  key: totp_encryption_secret
+            - name: ALLINONE_STORAGE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: all-in-one-secrets
+                  key: postgres_password
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: all-in-one-config
+```
+
+Then:
+
+```bash
+# 1. Dry run: read the plan
+kubectl apply -f users-import-job.yaml
+kubectl -n app logs -f job/all-in-one-users-import
+kubectl -n app delete job all-in-one-users-import     # a Job can't be re-run; delete it before the next run
+
+# 2. Resolve skipped accounts, change args to ["users:import", "--apply", ...], and run it for real
+kubectl apply -f users-import-job.yaml
+kubectl -n app logs -f job/all-in-one-users-import    # ends with "Every cashflow account is linked"
+kubectl -n app delete job all-in-one-users-import
+```
+
+### Running it
+
+- **Single replica.** Logins in progress (auth requests and codes) are kept in memory, so a login started on one pod and finished on another fails. During a `RollingUpdate` deploy, someone mid-login may see "this login link has expired" and has to start again; the `Recreate` strategy avoids even that.
+- Metrics (`aio_oidc_login_completed_total`, `aio_oidc_login_failed_total`, …) are listed in [docs/metrics.md](docs/metrics.md).
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| aio won't start: issuer error | `auth.oidc.issuer` is empty, relative, or has a path |
+| aio won't start: signing key can't be decrypted | `auth.totp_encryption_key` changed since the key was created |
+| "This login link has expired" | The user took longer than `auth_request_ttl`, aio restarted, or the login hopped between replicas |
+| App gets `invalid_request` | Missing PKCE, or `prompt=login` / `max_age` sent |
+| App gets `access_denied` after login | aio's callback ran in a browser without the cookie from the start of the login, or without the session of the user who logged in (e.g. the link was opened in another browser) |
+| Logout form does nothing in the app | The app's Content-Security-Policy `form-action` must allow aio's origin |
 
 ## API Documentation (Swagger)
 
@@ -334,6 +503,7 @@ docker compose down
 - [ ] Build the frontend: `cd web && npm run build` (output in `web/build/`, served by the Go server)
 - [ ] If using SQLite, set the Kubernetes deployment strategy to `Recreate` (see note below)
 - [ ] If enabling telemetry, set `ALLINONE_TELEMETRY_OTLP_ENDPOINT` and lower `ALLINONE_TELEMETRY_SAMPLE_RATIO` to `0.1`
+- [ ] If enabling OIDC, set `ALLINONE_AUTH_OIDC_ISSUER` to aio's public `https://` URL and run a single replica (see [Running it](#running-it))
 
 ### SQLite and Kubernetes Deployment Strategy
 
