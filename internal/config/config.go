@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"time"
 
@@ -102,10 +103,29 @@ type HTTPConfig struct {
 }
 
 type Auth struct {
-	JWTSecret         string `mapstructure:"jwt_secret"`
-	DirectAuthEnabled bool   `mapstructure:"direct_auth_enabled"`
-	SecureCookie      bool   `mapstructure:"secure_cookie"`
-	TOTPEncryptionKey string `mapstructure:"totp_encryption_key"`
+	JWTSecret         string     `mapstructure:"jwt_secret"`
+	DirectAuthEnabled bool       `mapstructure:"direct_auth_enabled"`
+	SecureCookie      bool       `mapstructure:"secure_cookie"`
+	TOTPEncryptionKey string     `mapstructure:"totp_encryption_key"`
+	OIDC              OIDCConfig `mapstructure:"oidc"`
+}
+
+// OIDCConfig configures aio as an OpenID Connect provider for other apps
+// (docs/rfc/RFC-001-central-user-management.md, Option A).
+type OIDCConfig struct {
+	// Enabled mounts the provider endpoints. Off by default.
+	Enabled bool `mapstructure:"enabled"`
+	// Issuer is aio's public base URL as seen by browsers and apps, e.g.
+	// https://auth.example.com. It is embedded in every ID token and must
+	// match exactly what clients are configured with.
+	Issuer string `mapstructure:"issuer"`
+	// AuthRequestTTL bounds how long a login may take between an app's
+	// redirect and the user finishing aio's login page.
+	AuthRequestTTL time.Duration `mapstructure:"auth_request_ttl"`
+	// AccessTokenLifetime applies to access tokens used at the userinfo endpoint.
+	AccessTokenLifetime time.Duration `mapstructure:"access_token_lifetime"`
+	// IDTokenLifetime applies to ID tokens; apps only use them at login.
+	IDTokenLifetime time.Duration `mapstructure:"id_token_lifetime"`
 }
 
 type RBACConfig struct {
@@ -201,6 +221,11 @@ func Load() (*Config, error) {
 	viper.SetDefault("telemetry.otlp_insecure", true)
 	viper.SetDefault("telemetry.sample_ratio", 1.0)
 	viper.SetDefault("telemetry.metric_interval", 15*time.Second)
+	viper.SetDefault("auth.oidc.enabled", false)
+	viper.SetDefault("auth.oidc.issuer", "")
+	viper.SetDefault("auth.oidc.auth_request_ttl", 10*time.Minute)
+	viper.SetDefault("auth.oidc.access_token_lifetime", 15*time.Minute)
+	viper.SetDefault("auth.oidc.id_token_lifetime", 5*time.Minute)
 	viper.SetDefault("demo_mode.enabled", false)
 	viper.SetDefault("demo_mode.username", "demo")
 
@@ -218,6 +243,11 @@ func Load() (*Config, error) {
 	viper.BindEnv("auth.totp_encryption_key", "ALLINONE_AUTH_TOTP_ENCRYPTION_KEY")
 	viper.BindEnv("auth.direct_auth_enabled", "ALLINONE_AUTH_DIRECT_AUTH_ENABLED")
 	viper.BindEnv("auth.secure_cookie", "ALLINONE_AUTH_SECURE_COOKIE")
+	viper.BindEnv("auth.oidc.enabled", "ALLINONE_AUTH_OIDC_ENABLED")
+	viper.BindEnv("auth.oidc.issuer", "ALLINONE_AUTH_OIDC_ISSUER")
+	viper.BindEnv("auth.oidc.auth_request_ttl", "ALLINONE_AUTH_OIDC_AUTH_REQUEST_TTL")
+	viper.BindEnv("auth.oidc.access_token_lifetime", "ALLINONE_AUTH_OIDC_ACCESS_TOKEN_LIFETIME")
+	viper.BindEnv("auth.oidc.id_token_lifetime", "ALLINONE_AUTH_OIDC_ID_TOKEN_LIFETIME")
 	viper.BindEnv("storage.sqlite.db_path", "ALLINONE_STORAGE_SQLITE_DB_PATH")
 	viper.BindEnv("storage.postgres.host", "ALLINONE_STORAGE_POSTGRES_HOST")
 	viper.BindEnv("storage.postgres.port", "ALLINONE_STORAGE_POSTGRES_PORT")
@@ -276,5 +306,23 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
+	if err := config.Auth.OIDC.validate(); err != nil {
+		return nil, err
+	}
+
 	return &config, nil
+}
+
+func (c OIDCConfig) validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	u, err := url.Parse(c.Issuer)
+	if c.Issuer == "" || err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+		return fmt.Errorf("auth.oidc.issuer must be an absolute http(s) URL when auth.oidc.enabled is true")
+	}
+	if u.Path != "" && u.Path != "/" {
+		return fmt.Errorf("auth.oidc.issuer must not contain a path (discovery is served at the root)")
+	}
+	return nil
 }

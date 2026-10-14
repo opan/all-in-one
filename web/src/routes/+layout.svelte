@@ -14,11 +14,13 @@
 	});
 
 	// Check if current route should use the bare layout (no app sidebar/shell).
-	// This covers the auth pages and the public landing page at "/".
+	// This covers the auth pages (including the OIDC hand-off at /oauth) and
+	// the public landing page at "/".
 	const isBarePage = $derived(
 		$page.url.pathname === '/' ||
 			$page.url.pathname.startsWith('/login') ||
-			$page.url.pathname.startsWith('/signup')
+			$page.url.pathname.startsWith('/signup') ||
+			$page.url.pathname.startsWith('/oauth')
 	);
 
 	// Build breadcrumbs from page data breadcrumb metadata

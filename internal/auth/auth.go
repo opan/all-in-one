@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,6 +20,29 @@ type UserClaims struct {
 	Email     string `json:"email"`
 	Username  string `json:"username"`
 	UserID    string `json:"user_id"`
+}
+
+// Rules for new passwords (signup and password change). bcrypt refuses input
+// longer than 72 bytes, so that is the upper bound.
+const (
+	MinPasswordLength = 5
+	MaxPasswordBytes  = 72
+)
+
+var (
+	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters", MinPasswordLength)
+	ErrPasswordTooLong  = errors.New("password is too long")
+)
+
+// ValidatePassword checks a new password against aio's rules.
+func ValidatePassword(password string) error {
+	if utf8.RuneCountInString(password) < MinPasswordLength {
+		return ErrPasswordTooShort
+	}
+	if len(password) > MaxPasswordBytes {
+		return ErrPasswordTooLong
+	}
+	return nil
 }
 
 func CheckPassword(password, hash string) (bool, error) {

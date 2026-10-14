@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MIN_PASSWORD_LENGTH, passwordTooShort } from '$lib/password';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
@@ -199,8 +200,8 @@
 			return;
 		}
 
-		if (password.length < 3) {
-			toast.error('Password must be at least 3 characters long');
+		if (passwordTooShort(password)) {
+			toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
 			return;
 		}
 

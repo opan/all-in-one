@@ -4,12 +4,67 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import { goto } from '$app/navigation';
-	import { apiPost } from '$lib/api';
 	import { page } from '$app/stores';
 	import type { DemoMode } from '$lib/config';
+	import { safeNext } from '$lib/safe-next';
+	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '$lib/oidc-api';
+	import { authMessages } from '$lib/oauth-i18n';
 
 	// Demo-account flag from the root layout load (GET /api/v1/config).
 	const demo = $derived(($page.data.demoMode ?? { enabled: false }) as DemoMode);
+
+	// Where to go after logging in: a same-site path from ?next= (e.g. the
+	// OIDC hand-off at /oauth/login), otherwise the dashboard.
+	const next = $derived(safeNext($page.url.searchParams.get('next')));
+	const afterLogin = () => goto(next ?? '/home', { replaceState: true });
+
+	// When an app sent the user here, this is that app's login: its name and
+	// language, without aio-only extras. Wait for the app's details before
+	// showing the form so its language doesn't flash in after English.
+	const appRequestId = $derived(authRequestIdFromNext(next));
+	let app = $state<AuthRequestInfo | null>(null);
+	let appLookupDone = $state(false);
+	$effect(() => {
+		const id = appRequestId;
+		app = null;
+		appLookupDone = !id;
+		if (id)
+			getAuthRequest(id)
+				.then((info) => (app = info))
+				.catch(() => {})
+				.finally(() => (appLookupDone = true));
+	});
+	const m = $derived(authMessages(app?.locale));
+
+	// Credentials go through plain fetch, not the api.ts client: that client
+	// treats any 401 as an expired session and redirects to /login, which
+	// would turn a mistyped password into a lost ?next= (the app hand-off).
+	function postCredentials(url: string, body: unknown): Promise<Response> {
+		return fetch(url, {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body)
+		});
+	}
+	const translated = $derived(!!app?.locale && app.locale !== 'en');
+
+	// aio's English API messages are shown as-is; in another language the
+	// page uses its own sentence for each status.
+	function loginError(status: number, apiError: string | undefined): string {
+		if (!translated && apiError) return apiError;
+		switch (status) {
+			case 401:
+			case 404:
+				return m.invalidCredentials;
+			case 403:
+				return apiError?.includes('blocked') ? m.accountBlocked : m.loginFailed;
+			case 429:
+				return m.tooManyAttempts;
+			default:
+				return m.loginFailed;
+		}
+	}
 
 	let username = $state('');
 	let password = $state('');
@@ -27,7 +82,7 @@
 		event?.preventDefault();
 
 		if (!username || !password) {
-			error = 'Username and password are required';
+			error = m.credentialsRequired;
 			return;
 		}
 
@@ -35,7 +90,7 @@
 		error = '';
 
 		try {
-			const response = await apiPost('/api/v1/sessions', {
+			const response = await postCredentials('/api/v1/sessions', {
 				username,
 				password,
 			});
@@ -47,14 +102,14 @@
 					challengeToken = data.data.challenge_token;
 					show2FAStep = true;
 				} else {
-					await goto('/home');
+					await afterLogin();
 				}
 			} else {
-				error = data.error || 'Login failed. Please check your credentials.';
+				error = loginError(response.status, data.error);
 			}
 		} catch (err) {
 			console.error('Login error:', err);
-			error = 'An error occurred during login. Please try again.';
+			error = m.loginError;
 		} finally {
 			loading = false;
 		}
@@ -65,7 +120,7 @@
 
 		const code = useRecoveryCode ? recoveryCode.trim() : totpCode.trim();
 		if (!code) {
-			error = useRecoveryCode ? 'Recovery code is required' : 'Verification code is required';
+			error = useRecoveryCode ? m.recoveryCodeRequired : m.verificationCodeRequired;
 			return;
 		}
 
@@ -81,20 +136,20 @@
 				? { challenge_token: challengeToken, recovery_code: code }
 				: { challenge_token: challengeToken, code };
 
-			const response = await apiPost(endpoint, body);
+			const response = await postCredentials(endpoint, body);
 			const data = await response.json();
 
 			if (response.ok && data.success) {
-				await goto('/home');
+				await afterLogin();
 			} else if (response.status === 429) {
-				error = 'Too many attempts. Please login again.';
+				error = m.tooManyCodeAttempts;
 				reset2FA();
 			} else {
-				error = data.error || 'Invalid code. Please try again.';
+				error = translated ? m.invalidCode : data.error || m.invalidCode;
 			}
 		} catch (err) {
 			console.error('2FA verification error:', err);
-			error = 'An error occurred. Please try again.';
+			error = m.loginError;
 		} finally {
 			loading = false;
 		}
@@ -114,29 +169,30 @@
 	}
 </script>
 
-<div class="flex items-start justify-center pt-[33vh]">
+<svelte:head>
+	{#if app}<title>{m.loginTitleApp(app.client_name)}</title>{/if}
+</svelte:head>
+
+{#if appLookupDone}
+<div class="flex items-start justify-center px-4 {appRequestId ? 'pt-10 sm:pt-16' : 'pt-[33vh]'}">
 	<Card.Root class="w-full max-w-md">
 		<Card.Header>
 			<div class="flex justify-between items-start">
 				<div>
 					{#if show2FAStep}
-						<Card.Title class="text-2xl">Two-Factor Authentication</Card.Title>
+						<Card.Title class="text-2xl">{m.twoFactorTitle}</Card.Title>
 						<Card.Description class="mt-2">
-							{#if useRecoveryCode}
-								Enter one of your recovery codes
-							{:else}
-								Enter the 6-digit code from your authenticator app
-							{/if}
+							{useRecoveryCode ? m.enterRecoveryCode : m.enterTotpCode}
 						</Card.Description>
 					{:else}
-						<Card.Title class="text-2xl">Login to your account</Card.Title>
+						<Card.Title class="text-2xl">{app ? m.loginTitleApp(app.client_name) : m.loginTitle}</Card.Title>
 						<Card.Description class="mt-2">
-							Enter your email below to login to your account
+							{app ? m.loginSubtitleApp : m.loginSubtitle}
 						</Card.Description>
 					{/if}
 				</div>
-				{#if !show2FAStep}
-					<Button variant="ghost" class="text-sm" onclick={() => goto('/signup')}>Sign Up</Button>
+				{#if !show2FAStep && !app}
+					<Button variant="ghost" class="text-sm" onclick={() => goto(next ? `/signup?next=${encodeURIComponent(next)}` : '/signup')}>{m.signUp}</Button>
 				{/if}
 			</div>
 		</Card.Header>
@@ -151,7 +207,7 @@
 				<form onsubmit={handleVerify2FA} class="space-y-4">
 					{#if useRecoveryCode}
 						<div class="space-y-2">
-							<Label for="recovery-code">Recovery Code</Label>
+							<Label for="recovery-code">{m.recoveryCode}</Label>
 							<Input
 								id="recovery-code"
 								type="text"
@@ -164,7 +220,7 @@
 						</div>
 					{:else}
 						<div class="space-y-2">
-							<Label for="totp-code">Verification Code</Label>
+							<Label for="totp-code">{m.verificationCode}</Label>
 							<Input
 								id="totp-code"
 								type="text"
@@ -179,7 +235,7 @@
 						</div>
 					{/if}
 					<Button type="submit" class="w-full" disabled={loading}>
-						{loading ? 'Verifying...' : 'Verify'}
+						{loading ? m.verifying : m.verify}
 					</Button>
 				</form>
 
@@ -189,24 +245,24 @@
 						class="text-muted-foreground hover:underline"
 						onclick={() => { useRecoveryCode = !useRecoveryCode; error = ''; }}
 					>
-						{useRecoveryCode ? 'Use authenticator app instead' : 'Use a recovery code'}
+						{useRecoveryCode ? m.useAuthenticator : m.useRecoveryCode}
 					</button>
 					<button
 						type="button"
 						class="text-muted-foreground hover:underline"
 						onclick={reset2FA}
 					>
-						Back to login
+						{m.backToLogin}
 					</button>
 				</div>
 			{:else}
 				<form onsubmit={handleLogin} class="space-y-4">
 					<div class="space-y-2">
-						<Label for="username">Username</Label>
+						<Label for="username">{m.username}</Label>
 						<Input
 							id="username"
 							type="text"
-							placeholder="Enter your username"
+							placeholder={m.usernamePlaceholder}
 							bind:value={username}
 							disabled={loading}
 							required
@@ -214,10 +270,12 @@
 					</div>
 					<div class="space-y-2">
 						<div class="flex justify-between items-center">
-							<Label for="password">Password</Label>
-							<a href="/forgot-password" class="text-sm text-muted-foreground hover:underline">
-								Forgot your password?
-							</a>
+							<Label for="password">{m.password}</Label>
+							{#if !app}
+								<a href="/forgot-password" class="text-sm text-muted-foreground hover:underline">
+									Forgot your password?
+								</a>
+							{/if}
 						</div>
 						<Input
 							id="password"
@@ -225,18 +283,25 @@
 							bind:value={password}
 							disabled={loading}
 							required
-							placeholder="Your password"
+							placeholder={m.passwordPlaceholder}
 						/>
 					</div>
 					<Button type="submit" class="w-full" disabled={loading}>
-						{loading ? 'Logging in...' : 'Login'}
+						{loading ? m.loggingIn : m.loginButton}
 					</Button>
 				</form>
-				<Button variant="outline" class="w-full" onclick={() => handleGoogleLogin()} disabled={loading}>
-					Login with Google
-				</Button>
+				{#if app}
+					<p class="text-sm text-center text-muted-foreground">
+						{m.noAccount}
+						<a href={`/signup?next=${encodeURIComponent(next ?? '')}`} class="underline hover:text-foreground">{m.signUp}</a>
+					</p>
+				{:else}
+					<Button variant="outline" class="w-full" onclick={() => handleGoogleLogin()} disabled={loading}>
+						Login with Google
+					</Button>
+				{/if}
 
-				{#if demo.enabled}
+				{#if demo.enabled && !authRequestIdFromNext(next)}
 					<div class="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
 						<div class="flex items-center justify-between gap-2">
 							<span class="font-medium">Just want to look around?</span>
@@ -265,3 +330,4 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+{/if}

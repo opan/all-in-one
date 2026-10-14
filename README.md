@@ -2,7 +2,7 @@
 
 A multi-functional full-stack web application built for learning purposes.
 
-- **Backend:** Go 1.25+, REST API
+- **Backend:** Go 1.26+, REST API
 - **Frontend:** Svelte 5+, TypeScript 5.9+, Vite 7+
 
 ## Features
@@ -33,7 +33,7 @@ all-in-one/
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Node.js 22.19+, npm 10+
 - SQLite (via `go-sqlite3`, requires CGO — `gcc` must be installed)
 - Docker (optional — for the local observability stack)
