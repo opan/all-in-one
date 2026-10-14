@@ -316,7 +316,77 @@ When an app sends users to aio, the login and signup pages show the app's name, 
 
 ### Moving an app's existing users
 
-`users:import` copies cashflow's local accounts (username and bcrypt hash, as-is) into aio and links them, so users keep their passwords. It reads cashflow's database from `CASHFLOW_DATABASE_URL`, is a dry run without `--apply`, and writes nothing while any account needs a decision. See `users:import --help`, and [cashflow's runbook](https://github.com/opan/cashflow/blob/main/README.en.md#moving-existing-users-to-all-in-one), which runs it as a Kubernetes Job.
+`users:import` copies cashflow's local accounts (username and bcrypt hash, as-is) into aio and links them, so users keep their passwords. It reads cashflow's database from `CASHFLOW_DATABASE_URL`, is a dry run without `--apply`, and writes nothing while any account needs a decision. See `users:import --help`, and [cashflow's runbook](https://github.com/opan/cashflow/blob/main/README.en.md#moving-existing-users-to-all-in-one) for how to resolve skipped accounts.
+
+Locally:
+
+```bash
+export CASHFLOW_DATABASE_URL='postgres://cashflow:<password>@<pg-server>:5432/cashflow?sslmode=disable'
+go run ./cmd/all-in-one users:import                                  # dry run
+go run ./cmd/all-in-one users:import --apply --link-existing opan     # for real
+```
+
+In Kubernetes, `kubectl exec` can't set environment variables (it runs the command in the existing container, and the distroless image has no shell to prefix one). Run it as a Job instead, with the same image, config and secrets as aio's deployment, plus `CASHFLOW_DATABASE_URL` from cashflow's secret. Save this as `users-import-job.yaml`:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: all-in-one-users-import
+  namespace: app
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: users-import
+          image: opanmustopah/all-in-one:latest   # same tag as aio's deployment
+          args: ["users:import"]                  # dry run; for real: ["users:import", "--apply", "--link-existing", "opan"]
+          env:
+            - name: CASHFLOW_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cashflow-secrets
+                  key: DATABASE_URL
+            - name: ALLINONE_AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: all-in-one-secrets
+                  key: jwt-secret
+            - name: ALLINONE_AUTH_TOTP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: all-in-one-secrets
+                  key: totp_encryption_secret
+            - name: ALLINONE_STORAGE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: all-in-one-secrets
+                  key: postgres_password
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: all-in-one-config
+```
+
+Then:
+
+```bash
+# 1. Dry run: read the plan
+kubectl apply -f users-import-job.yaml
+kubectl -n app logs -f job/all-in-one-users-import
+kubectl -n app delete job all-in-one-users-import     # a Job can't be re-run; delete it before the next run
+
+# 2. Resolve skipped accounts, change args to ["users:import", "--apply", ...], and run it for real
+kubectl apply -f users-import-job.yaml
+kubectl -n app logs -f job/all-in-one-users-import    # ends with "Every cashflow account is linked"
+kubectl -n app delete job all-in-one-users-import
+```
 
 ### Running it
 
