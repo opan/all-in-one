@@ -297,7 +297,11 @@ The client secret is printed **once**; aio stores only its hash. Redirect URIs m
 In Kubernetes the image is distroless, but the binary can be run directly:
 
 ```bash
-kubectl -n app exec deploy/all-in-one -- /app/all-in-one oidc:client:create --id cashflow ...
+kubectl -n app exec deploy/all-in-one -- /app/all-in-one oidc:client:create \
+  --id cashflow --name Cashflow \
+  --redirect-uri https://kas.opanmustopah.com/auth/callback \
+  --post-logout-redirect-uri https://kas.opanmustopah.com/ \
+  --brand-color '#0f766e' --icon 💰
 ```
 
 ### What an app gets
