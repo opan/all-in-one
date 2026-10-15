@@ -179,6 +179,23 @@ is distroless). `password_hash` stays in cashflow for now, so `AUTH_PROVIDER=loc
 
 ---
 
+## ADR-O10: Admin status for apps (proposed, RFC-002)
+
+**Status:** Proposed; see [RFC-002](../rfc/RFC-002-admin-status-for-apps.md).
+
+**Decision:** a custom `aio_admin` scope, allowed for every registered client. When requested, the ID token
+carries `aio_admin: true|false` from `rbac.Resolver.IsAdmin`; a resolver error fails the token request. Apps
+store the flag and its check time on the session and, before an admin page, redo the login round trip (single
+sign-on, no form) when the check is older than 15 minutes, so demotion or blocking in aio reaches apps within
+minutes despite 30-day app sessions. Admin is keyed by `sub`; app admin pages are read-only GET handlers with
+an audit log.
+
+**Rejected:** a per-app RBAC feature (Bootstrap grants new non-admin-only features to `regular-user`, so every
+user would become an app admin; admin-only features equal `IsAdmin`); `userinfo` polling (15-minute access
+tokens, no refresh tokens); a machine API per admin request (more surface than needed now).
+
+---
+
 ## Verification
 
 Unit and in-process tests cover the full code flow (ID token verified against the published keys),
