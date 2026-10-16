@@ -183,16 +183,23 @@ is distroless). `password_hash` stays in cashflow for now, so `AUTH_PROVIDER=loc
 
 **Status:** Proposed; see [RFC-002](../rfc/RFC-002-admin-status-for-apps.md).
 
-**Decision:** a custom `aio_admin` scope, allowed for every registered client. When requested, the ID token
-carries `aio_admin: true|false` from `rbac.Resolver.IsAdmin`; a resolver error fails the token request. Apps
-store the flag and its check time on the session and, before an admin page, redo the login round trip (single
-sign-on, no form) when the check is older than 15 minutes, so demotion or blocking in aio reaches apps within
-minutes despite 30-day app sessions. Admin is keyed by `sub`; app admin pages are read-only GET handlers with
-an audit log.
+**Decision:** aio exposes `GET /api/v1/oidc/users/{sub}/status` → `{admin, blocked}`, authenticated with the
+app's OIDC client id and secret (HTTP Basic). `admin` comes from `rbac.Resolver.IsAdmin` and is false for
+blocked users. Apps call it on **every** admin request, with no cache, over the cluster-local address
+(`AIO_INTERNAL_URL`, e.g. `http://all-in-one.app.svc.cluster.local`; falls back to `AIO_ISSUER`), and refuse
+the page on any error (fails closed). Demotion or blocking in aio therefore applies on the next request.
+Admin is keyed by `sub`; app admin pages are read-only GET handlers with an audit log. A value fetched once
+at login may decide whether to show the "Admin" link, never access.
 
-**Rejected:** a per-app RBAC feature (Bootstrap grants new non-admin-only features to `regular-user`, so every
-user would become an app admin; admin-only features equal `IsAdmin`); `userinfo` polling (15-minute access
-tokens, no refresh tokens); a machine API per admin request (more surface than needed now).
+**Rejected:** an `aio_admin` ID token claim, at login only (stale for the 30-day app session) or re-checked by
+a re-login round trip every 15 minutes (a demoted admin keeps access for up to 15 minutes, and each re-check
+is ~4 browser redirects); a per-app RBAC feature (Bootstrap grants new non-admin-only features to
+`regular-user`, so every user would become an app admin; admin-only features equal `IsAdmin`); `userinfo`
+(15-minute access tokens, no refresh tokens).
+
+**Consequence:** the cluster-local call is plain HTTP, so the client secret crosses the pod network
+unencrypted; acceptable in a single-tenant cluster, with a NetworkPolicy as a follow-up. Logging out of aio
+does not lock app admin pages while the app session lasts.
 
 ---
 

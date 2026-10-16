@@ -2,94 +2,132 @@
 
 - **Status:** Draft
 - **Author:** opan
-- **Created:** 2026-10-15
+- **Created:** 2026-10-15 · **Updated:** 2026-10-16
 - **Consumers:** cashflow, tally (both log in through aio, RFC-001)
-- **Related:** [RFC-001](RFC-001-central-user-management.md), [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md) (ADR-O10), [ACCESS_MANAGEMENT_ADR](../adr/ACCESS_MANAGEMENT_ADR.md)
+- **Related:** [RFC-001](RFC-001-central-user-management.md), [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md) (ADR-O10), [ACCESS_MANAGEMENT_ADR](../adr/ACCESS_MANAGEMENT_ADR.md), [EXTERNAL_RATE_LIMIT_ADR](../adr/EXTERNAL_RATE_LIMIT_ADR.md) (the "aio as a service" pattern)
 
 ## Complexity score: **3 / 10**
 
-aio already knows who is an admin; this only hands that fact to apps at login and keeps it fresh.
+aio already knows who is an admin (`rbac.Resolver.IsAdmin`). This adds one server-to-server endpoint that
+answers for a given user, and apps call it on every admin request.
 
 ## 1. Summary
 
-Add an `aio_admin` scope. When an app requests it, aio puts `"aio_admin": true|false` in the ID token, from
-`rbac.Resolver.IsAdmin`. Apps use it to gate a **read-only** admin overview of all their data. Because app
-sessions last 30 days, apps re-check the flag through a fresh single sign-on round trip before showing an
-admin page if the last check is older than 15 minutes.
+Add `GET /api/v1/oidc/users/{sub}/status`, authenticated with the app's existing OIDC client credentials,
+returning `{"admin": bool, "blocked": bool}`. Apps call it **on every admin request**, over the cluster-local
+address (`http://all-in-one.app.svc.cluster.local`), with no cache. A user removed from aio's admin group
+loses app admin access on their next request, not after a delay.
 
 ## 2. Motivation
 
 cashflow and tally have no admin page. The operator wants a read-only overview of all users' data in each
-app, without a second admin list per app.
+app, without keeping a second admin list per app, and with **no window** in which a demoted or blocked user
+can still act as an admin.
 
 ## 3. Current state
 
 - ID token claims: `sub`, `preferred_username`, `name`, `email` only (`fillUserinfo`,
   `internal/oidc/service/storage.go`). cashflow and tally request `openid profile`.
 - aio admin = member of the built-in `admin` group (`Resolver.IsAdmin`); aio's own admin routes use `RequireAdmin`.
-- The library drops any scope beyond the standard ones unless `Client.IsScopeAllowed` allows it
-  (`op.ValidateAuthReqScopes`); today `IsScopeAllowed` returns false.
 - No refresh tokens; access tokens live 15 minutes. App sessions live 30 days.
+- aio, cashflow and tally run in the same Kubernetes namespace (`app`). aio's Service is `all-in-one` on
+  port 80. Today both apps reach aio only through its public URL (`https://aio.opanmustopah.com`).
 
 ## 4. Goals / Non-goals
 
-**Goals:** apps can tell, at login, whether the user is an aio admin; demotion or blocking in aio takes effect
-in apps within minutes, not 30 days; no new secrets or machine APIs.
+**Goals**
+- Apps can tell whether the current user is an aio admin, checked on every admin request.
+- Demotion or blocking in aio takes effect in apps on the next request.
+- No new credentials: apps authenticate with the OIDC client id and secret they already have.
 
-**Non-goals:** per-app or delegated roles (e.g. a read-only support group); write access for admins in apps;
-back-channel push of role changes.
+**Non-goals**
+- Per-app or delegated roles (e.g. a read-only support group).
+- Write access for admins in apps.
+- Ending app sessions when aio logs out or blocks a user (back-channel logout, RFC-001 follow-up).
 
 ## 5. Options
 
 | Option | Verdict |
 |---|---|
-| **A. `aio_admin` claim + fresh check via SSO round trip** | **Proposed.** Small, standard, freshness bounded to 15 min |
-| B. Per-app RBAC feature (`cashflow-admin`) in the claim | Later. Bootstrap auto-grants new non-admin-only features to `regular-user`, which would make everyone an app admin; marking it admin-only makes it equal to `IsAdmin` |
-| C. App calls `userinfo` when needed | Rejected. Access token expires in 15 min and there are no refresh tokens |
-| D. New machine API (`client credentials`) per admin request | Rejected for now. Always current, but a new authenticated endpoint plus a network call on every admin request |
+| **A. Server-to-server status check on every admin request, cluster-local, no cache** | **Proposed.** No staleness window; one cheap in-cluster call per admin page |
+| B. `aio_admin` claim in the ID token + re-login round trip every 15 min (first draft) | Rejected. A demoted admin keeps access for up to 15 minutes; every re-check is ~4 browser redirects |
+| C. `aio_admin` claim at login only | Rejected. App sessions last 30 days, so a demoted admin keeps access for up to a month |
+| D. Per-app RBAC feature (`cashflow-admin`) | Later. Bootstrap grants new non-admin-only features to `regular-user`, which would make every user an app admin; an admin-only feature is the same as `IsAdmin` |
+| E. Call `userinfo` when needed | Rejected. Needs an access token, which expires in 15 minutes, and there are no refresh tokens |
 
-## 6. Design (Option A)
+No `aio_admin` claim is added. Apps that want to show an "Admin" link call the same endpoint once at login
+and keep the result on the session as a display hint only (§6.2).
 
-### 6.1 aio
-- Constant scope `aio_admin`, listed in discovery `scopes_supported`.
-- `opClient.IsScopeAllowed("aio_admin")` returns true (all clients are first-party and admin-registered).
-  A per-client allow-list can come with the RFC-001 "allowed scopes" column if third parties ever appear.
-- The OIDC service gets the RBAC resolver; `fillUserinfo` adds `aio_admin` via `info.AppendClaims` when the
-  scope is present. A resolver error fails the token request (never defaults to `true`).
-- Metric: count of ID tokens issued with `aio_admin=true`, by client (update `docs/metrics.md`).
+## 6. Design
+
+### 6.1 aio: `GET /api/v1/oidc/users/{sub}/status`
+
+- **Auth:** HTTP Basic with the OIDC `client_id` and `client_secret` (`Service.AuthenticateClient`, constant
+  time). Unknown, wrong or revoked client → 401. No user session involved.
+- **Response:** `200 {"success":true,"data":{"admin":bool,"blocked":bool}}` in the standard envelope.
+  Unknown `sub` (not a UUID, or no such user) → 404. Resolver or database error → 500; apps treat any
+  non-200 as "not admin".
+- **Admin** comes from `Resolver.IsAdmin`. **Blocked** users are reported as `admin: false` as well, so a
+  blocked admin can't use app admin pages even though their group is unchanged.
+- **Routing:** registered with the other aio-specific OIDC routes under `/api/v1/oidc/`, outside JWT auth
+  and RBAC middleware, only when `auth.oidc.enabled`.
+- **Observability:** OTel span plus metric `aio.oidc.user_status` (attributes `client_id`, `result`:
+  `admin`, `not_admin`, `unknown_user`, `unauthorized`, `error`). Update `docs/metrics.md` and swagger.
+- **Scope of answers:** any registered client can ask about any user. All clients are first-party and
+  registered by an admin, so this is acceptable; restrict to users who have logged in to that client if
+  third-party clients ever appear.
 
 ### 6.2 Apps (cashflow, tally)
-- Request scopes `openid profile aio_admin`.
-- Store `is_admin` and `admin_checked_at` on the **session** row, set from the ID token at callback.
-- `requireAdmin`: if the session is not admin → 404 (don't advertise the page). If `admin_checked_at` is
-  older than 15 min → redirect to `/auth/login?next=<page>`. With an aio session, SSO completes with no form;
-  the callback starts a new session with a fresh flag. Demoted → flag false; blocked → aio refuses login;
-  logged out of aio → login form.
-- Admin is keyed by the aio `sub` only, never by username; local-only accounts (`AUTH_PROVIDER=local`) are
-  never admin.
-- Admin pages are separate GET-only handlers (read-only enforced server-side, not by hiding buttons).
+
+- New optional setting `AIO_INTERNAL_URL` (e.g. `http://all-in-one.app.svc.cluster.local`). When unset the
+  app uses `AIO_ISSUER`. Only this call uses it; discovery, the code exchange and ID token checks keep using
+  the public issuer, since the token's `iss` is the public URL.
+- `requireAdmin(w, r)`: the user must be logged in through aio (has an `aio_user_id`); then call the status
+  endpoint with the user's `aio_user_id`. **No cache**; a short timeout (2 s).
+  - `admin: true` → serve the page.
+  - `admin: false` or 404 → 404 (don't advertise the page).
+  - error, timeout or 5xx → 503 "Admin pages are unavailable while all-in-one is unreachable" (**fails closed**).
+- Local-only accounts (`AUTH_PROVIDER=local`, or no `aio_user_id`) are never admin. Admin is keyed by the aio
+  `sub`, never by username.
+- **Nav hint:** the callback calls the endpoint once and stores `is_admin_hint` on the session to decide
+  whether to show the "Admin" link. It is never used for authorization; a stale hint only shows or hides a link.
+- Admin pages are separate GET-only handlers: read-only is enforced on the server, not by hiding buttons.
 - Each admin view is logged (admin, page, which user's data) since it exposes other people's finances.
 
-## 7. Security considerations
+## 7. Request load
 
-- The claim raises the stakes of any login flaw from account takeover to admin takeover; it depends on the
-  browser binding and `prompt=login` refusal already in place (ADR-O4).
-- The shared demo account can't log in to apps (ADR-O6); `direct-auth` can't complete an app login (its
-  user id is not a UUID).
-- Stored ID tokens (logout hint) now carry the flag; they are never used for authorization after login.
+One extra call per admin page view, inside the cluster: no ingress, TLS or Cloudflare hop. aio answers from
+two indexed lookups (user row, group membership). With one admin browsing read-only pages this is negligible,
+so there is no cache, and therefore no staleness window.
 
-## 8. Rollout
+## 8. Security considerations
 
-1. aio: scope + claim + tests, behind the existing `auth.oidc.enabled`.
-2. cashflow, then tally: request the scope, session columns (idempotent `ALTER ... IF NOT EXISTS`),
-   `requireAdmin`, read-only overview pages.
-3. An app that doesn't request the scope sees no change.
+- **Secret on the cluster network:** the cluster-local call is plain HTTP, so the client secret travels
+  unencrypted between pods in namespace `app`. It is the same secret the apps already hold. The cluster is
+  single-tenant and has no NetworkPolicies today; a NetworkPolicy limiting who can reach aio's pod port is a
+  follow-up. Apps that can't reach the cluster address can keep using the public https URL.
+- **Fails closed:** if aio is down or slow, admin pages are refused; normal app pages are unaffected.
+- **Login flaws now matter more:** an app admin session depends on the login being sound; the browser binding
+  and `prompt=login` refusal (ADR-O4) are prerequisites.
+- The shared demo account can't log in to apps (ADR-O6); `direct-auth` can't complete an app login (its user
+  id is not a UUID), so neither can reach an app admin page.
+- **Accepted limitation:** the endpoint checks the account, not the browser. Logging out of aio does not lock
+  an app's admin pages while the app session lasts; demotion and blocking do, immediately.
 
-## 9. Open questions
+## 9. Rollout
 
-- Freshness window: 15 minutes, or configurable per app?
+1. aio: endpoint, metric, swagger, tests (behind `auth.oidc.enabled`).
+2. cashflow, then tally: `AIO_INTERNAL_URL`, `requireAdmin`, nav hint, read-only overview pages, audit log.
+   The homelab deployments set `AIO_INTERNAL_URL=http://all-in-one.app.svc.cluster.local`.
+3. Apps that don't call the endpoint see no change.
+
+## 10. Open questions
+
 - Should the overview hide amounts by default (counts only) and reveal per user on click?
+- Should the internal call use the client secret, or a separate per-app status token, so the OIDC secret
+  never crosses plain HTTP?
+- Should cashflow's rate-limit check (`AIO_RATELIMIT_URL`) move to the cluster address too? (Out of scope here.)
 
-## 10. Decision
+## 11. Decision
 
 Pending review.
