@@ -179,6 +179,30 @@ is distroless). `password_hash` stays in cashflow for now, so `AUTH_PROVIDER=loc
 
 ---
 
+## ADR-O10: Admin status for apps (proposed, RFC-002)
+
+**Status:** Proposed; see [RFC-002](../rfc/RFC-002-admin-status-for-apps.md).
+
+**Decision:** aio exposes `GET /api/v1/oidc/users/{sub}/status` → `{admin, blocked}`, authenticated with the
+app's OIDC client id and secret (HTTP Basic). `admin` comes from `rbac.Resolver.IsAdmin` and is false for
+blocked users. Apps call it on **every** admin request, with no cache, over the cluster-local address
+(`AIO_INTERNAL_URL`, e.g. `http://all-in-one.app.svc.cluster.local`; falls back to `AIO_ISSUER`), and refuse
+the page on any error (fails closed). Demotion or blocking in aio therefore applies on the next request.
+Admin is keyed by `sub`; app admin pages are read-only GET handlers with an audit log. A value fetched once
+at login may decide whether to show the "Admin" link, never access.
+
+**Rejected:** an `aio_admin` ID token claim, at login only (stale for the 30-day app session) or re-checked by
+a re-login round trip every 15 minutes (a demoted admin keeps access for up to 15 minutes, and each re-check
+is ~4 browser redirects); a per-app RBAC feature (Bootstrap grants new non-admin-only features to
+`regular-user`, so every user would become an app admin; admin-only features equal `IsAdmin`); `userinfo`
+(15-minute access tokens, no refresh tokens).
+
+**Consequence:** the call reuses the OIDC client secret; whether it travels over the cluster network (plain
+HTTP) or the public https URL is a deployment setting, changeable without code. Logging out of aio does not
+lock app admin pages while the app session lasts.
+
+---
+
 ## Verification
 
 Unit and in-process tests cover the full code flow (ID token verified against the published keys),
