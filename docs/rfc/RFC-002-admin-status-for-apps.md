@@ -2,7 +2,7 @@
 
 - **Status:** Draft
 - **Author:** opan
-- **Created:** 2026-10-15 · **Updated:** 2026-10-16
+- **Created:** 2026-10-15 · **Updated:** 2026-10-17
 - **Consumers:** cashflow, tally (both log in through aio, RFC-001)
 - **Related:** [RFC-001](RFC-001-central-user-management.md), [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md) (ADR-O10), [ACCESS_MANAGEMENT_ADR](../adr/ACCESS_MANAGEMENT_ADR.md), [EXTERNAL_RATE_LIMIT_ADR](../adr/EXTERNAL_RATE_LIMIT_ADR.md) (the "aio as a service" pattern)
 
@@ -102,10 +102,10 @@ so there is no cache, and therefore no staleness window.
 
 ## 8. Security considerations
 
-- **Secret on the cluster network:** the cluster-local call is plain HTTP, so the client secret travels
-  unencrypted between pods in namespace `app`. It is the same secret the apps already hold. The cluster is
-  single-tenant and has no NetworkPolicies today; a NetworkPolicy limiting who can reach aio's pod port is a
-  follow-up. Apps that can't reach the cluster address can keep using the public https URL.
+- **Secret on the cluster network:** the call uses the client secret the apps already hold; no separate
+  token. Which address it goes to is a deployment setting (`AIO_INTERNAL_URL`): the cluster address is plain
+  HTTP between pods in a single-tenant cluster, and leaving it unset uses the public https URL. Switching is a
+  config change, no code change.
 - **Fails closed:** if aio is down or slow, admin pages are refused; normal app pages are unaffected.
 - **Login flaws now matter more:** an app admin session depends on the login being sound; the browser binding
   and `prompt=login` refusal (ADR-O4) are prerequisites.
@@ -124,9 +124,12 @@ so there is no cache, and therefore no staleness window.
 ## 10. Open questions
 
 - Should the overview hide amounts by default (counts only) and reveal per user on click?
-- Should the internal call use the client secret, or a separate per-app status token, so the OIDC secret
-  never crosses plain HTTP?
-- Should cashflow's rate-limit check (`AIO_RATELIMIT_URL`) move to the cluster address too? (Out of scope here.)
+
+Settled in review:
+- **Credential:** the existing OIDC client secret, no separate status token. The address is configurable
+  (cluster or public), so plain HTTP is a deployment choice that can change later.
+- **Rate-limit check:** `AIO_RATELIMIT_URL` is already configurable; moving it to the cluster address is a
+  config change, outside this RFC.
 
 ## 11. Decision
 

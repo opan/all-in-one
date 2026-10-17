@@ -197,9 +197,9 @@ is ~4 browser redirects); a per-app RBAC feature (Bootstrap grants new non-admin
 `regular-user`, so every user would become an app admin; admin-only features equal `IsAdmin`); `userinfo`
 (15-minute access tokens, no refresh tokens).
 
-**Consequence:** the cluster-local call is plain HTTP, so the client secret crosses the pod network
-unencrypted; acceptable in a single-tenant cluster, with a NetworkPolicy as a follow-up. Logging out of aio
-does not lock app admin pages while the app session lasts.
+**Consequence:** the call reuses the OIDC client secret; whether it travels over the cluster network (plain
+HTTP) or the public https URL is a deployment setting, changeable without code. Logging out of aio does not
+lock app admin pages while the app session lasts.
 
 ---
 
