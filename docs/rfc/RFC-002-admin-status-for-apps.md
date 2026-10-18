@@ -2,7 +2,7 @@
 
 - **Status:** Draft
 - **Author:** opan
-- **Created:** 2026-10-15 · **Updated:** 2026-10-17
+- **Created:** 2026-10-15 · **Updated:** 2026-10-18
 - **Consumers:** cashflow, tally (both log in through aio, RFC-001)
 - **Related:** [RFC-001](RFC-001-central-user-management.md), [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md) (ADR-O10), [ACCESS_MANAGEMENT_ADR](../adr/ACCESS_MANAGEMENT_ADR.md), [EXTERNAL_RATE_LIMIT_ADR](../adr/EXTERNAL_RATE_LIMIT_ADR.md) (the "aio as a service" pattern)
 
@@ -93,6 +93,10 @@ and keep the result on the session as a display hint only (§6.2).
   whether to show the "Admin" link. It is never used for authorization; a stale hint only shows or hides a link.
 - Admin pages are separate GET-only handlers: read-only is enforced on the server, not by hiding buttons.
 - Each admin view is logged (admin, page, which user's data) since it exposes other people's finances.
+- **cashflow overview shows activity, not money, by default:** per user, the number of cashplans and entries,
+  last activity and sign-up date. Rupiah figures (entry `amount`, balances, `due_amount`) appear only when the
+  admin opens one user's page, which is also the audit-logged event. Revisit once the pages are in use.
+  (tally stores no money; its overview has no such split.)
 
 ## 7. Request load
 
@@ -123,13 +127,14 @@ so there is no cache, and therefore no staleness window.
 
 ## 10. Open questions
 
-- Should the overview hide amounts by default (counts only) and reveal per user on click?
+None left.
 
 Settled in review:
 - **Credential:** the existing OIDC client secret, no separate status token. The address is configurable
   (cluster or public), so plain HTTP is a deployment choice that can change later.
 - **Rate-limit check:** `AIO_RATELIMIT_URL` is already configurable; moving it to the cluster address is a
   config change, outside this RFC.
+- **Money in the cashflow overview:** hidden by default, shown per user on drill-down (§6.2); to be revisited.
 
 ## 11. Decision
 
