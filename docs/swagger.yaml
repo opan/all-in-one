@@ -627,6 +627,13 @@ definitions:
       password:
         type: string
     type: object
+  model.UserStatus:
+    properties:
+      admin:
+        type: boolean
+      blocked:
+        type: boolean
+    type: object
   model.WindowUnit:
     enum:
     - second
@@ -2058,6 +2065,44 @@ paths:
       summary: Change how an app is presented on aio's login pages
       tags:
       - oidc
+  /oidc/users/{sub}/status:
+    get:
+      description: For apps that log in through aio (RFC-002). Reports whether the
+        user (the ID token's `sub`) is an aio admin right now and whether they are
+        blocked; a blocked user is never an admin. Authenticated with the app's OIDC
+        client id and secret (HTTP Basic). Apps call it on every admin request, so
+        the response must not be cached.
+      parameters:
+      - description: aio user id (the ID token's sub)
+        in: path
+        name: sub
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Current status
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserStatus'
+              type: object
+        "401":
+          description: Missing, wrong or revoked client credentials
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+        "404":
+          description: Unknown user
+          schema:
+            $ref: '#/definitions/github_com_all-in-one_internal_http.Response'
+      security:
+      - ClientAuth: []
+      summary: Check whether an app's user is an aio admin
+      tags:
+      - oidc
   /ratelimit/check:
     post:
       consumes:
@@ -3069,6 +3114,8 @@ securityDefinitions:
     in: header
     name: Authorization
     type: apiKey
+  ClientAuth:
+    type: basic
   DirectAuth:
     description: Direct authentication bypass for testing (only works when DirectAuthEnabled
       is true in config). Provide username directly.

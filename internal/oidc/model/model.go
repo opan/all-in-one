@@ -99,3 +99,11 @@ type UpdateClientInput struct {
 	BrandColor *string `json:"brand_color"`
 	Icon       *string `json:"icon"`
 }
+
+// UserStatus is what an app learns about one of its users on each admin
+// request (RFC-002): whether they are an aio admin right now, and whether
+// they are blocked. A blocked user is never reported as an admin.
+type UserStatus struct {
+	Admin   bool `json:"admin"`
+	Blocked bool `json:"blocked"`
+}

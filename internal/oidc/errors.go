@@ -20,6 +20,7 @@ var (
 	// that started it, so a login link sent to someone else is useless.
 	ErrOtherBrowser = errors.New("auth request was started in another browser")
 	ErrUserBlocked  = errors.New("user is blocked")
+	ErrUserNotFound = errors.New("user not found")
 	// ErrDemoAccount: the shared demo account (demo_mode) must not log in to
 	// other apps, where every visitor would share one account and its data.
 	ErrDemoAccount = errors.New("the shared demo account can't log in to other apps")

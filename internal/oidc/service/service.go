@@ -40,6 +40,7 @@ type UserLookup interface {
 type Service struct {
 	store    repository.Storage
 	users    UserLookup
+	admins   AdminChecker
 	sessions SessionStore
 	config   config.Config
 	log      zerolog.Logger
@@ -50,7 +51,7 @@ type Service struct {
 	Handler  *handler.Handler
 }
 
-func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog.Logger, users UserLookup, sessions SessionStore) (*Service, error) {
+func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog.Logger, users UserLookup, admins AdminChecker, sessions SessionStore) (*Service, error) {
 	store, err := repository.NewRepo(db, cfg)
 	if err != nil {
 		return nil, err
@@ -58,6 +59,7 @@ func NewService(ctx context.Context, db *sqlx.DB, cfg config.Config, log zerolog
 	s := &Service{
 		store:    store,
 		users:    users,
+		admins:   admins,
 		sessions: sessions,
 		config:   cfg,
 		log:      log,

@@ -15,6 +15,9 @@ type Service interface {
 	AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error)
 	CompleteAuthRequest(ctx context.Context, id, userID, browserID string) (string, error)
 
+	AuthenticateClient(ctx context.Context, id, secret string) error
+	UserStatus(ctx context.Context, sub string) (model.UserStatus, error)
+
 	CreateClient(ctx context.Context, in model.CreateClientInput, createdBy string) (model.Client, string, error)
 	UpdateClient(ctx context.Context, id string, in model.UpdateClientInput) (model.Client, error)
 	ListClients(ctx context.Context) ([]model.Client, error)
@@ -35,6 +38,12 @@ func NewHandler(service Service, cfg config.Config) *Handler {
 // is logged in, to show which app is asking.
 func (h *Handler) RegisterPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/oidc/auth-requests/{id}", h.GetAuthRequest).Methods(http.MethodGet)
+}
+
+// RegisterAppRoutes: called by apps server-to-server with their client id and
+// secret (HTTP Basic), not with a user session.
+func (h *Handler) RegisterAppRoutes(r *mux.Router) {
+	r.HandleFunc("/oidc/users/{sub}/status", h.GetUserStatus).Methods(http.MethodGet)
 }
 
 // RegisterAuthenticatedRoutes: completing a login requires an aio session.
