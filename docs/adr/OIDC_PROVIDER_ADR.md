@@ -181,7 +181,8 @@ is distroless). `password_hash` stays in cashflow for now, so `AUTH_PROVIDER=loc
 
 ## ADR-O10: Admin status for apps (RFC-002)
 
-**Status:** aio side implemented (`internal/oidc/handler/status.go`, `service/status.go`); apps in progress.
+**Status:** implemented in aio (`internal/oidc/handler/status.go`, `service/status.go`), cashflow and tally
+(`feat/aio-admin-status` in each); homelab still needs `AIO_INTERNAL_URL` on both apps.
 See [RFC-002](../rfc/RFC-002-admin-status-for-apps.md).
 
 **Decision:** aio exposes `GET /api/v1/oidc/users/{sub}/status` → `{admin, blocked}`, authenticated with the
@@ -203,6 +204,13 @@ non-UUID `sub` → 404; any lookup error → 500 (apps treat it as "not admin").
 `Cache-Control: no-store`. Swagger security scheme `ClientAuth` (HTTP Basic). Metric
 `aio.oidc.user_status{client,result}`; `client` is empty for rejected credentials so unverified ids never
 become label values. The route sits on the public subrouter (no JWT, no RBAC middleware).
+
+**Apps (cashflow, tally):** `requireAdmin` returns 404 for non-admins, local-only accounts and with
+`AUTH_PROVIDER=local`, and 503 when aio can't be reached; admin pages are GET-only with `Cache-Control:
+no-store`. The overview shows activity only (cashflow: cashplans, entries, last activity; tally: tallies run,
+last activity from its audit log); money and per-tally detail are on the per-user page. Every admin page view
+is a row in each app's `admin_views` table. The login-time status is stored as `sessions.is_admin_hint` for
+the nav link only.
 
 **Consequence:** the call reuses the OIDC client secret; whether it travels over the cluster network (plain
 HTTP) or the public https URL is a deployment setting, changeable without code. Logging out of aio does not

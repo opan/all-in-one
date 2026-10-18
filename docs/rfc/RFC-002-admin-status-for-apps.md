@@ -1,6 +1,6 @@
 # RFC-002: Telling apps whether a user is an aio admin
 
-- **Status:** Accepted; aio side implemented, cashflow and tally in progress
+- **Status:** Accepted; implemented in aio, cashflow and tally
 - **Author:** opan
 - **Created:** 2026-10-15 · **Updated:** 2026-10-18
 - **Consumers:** cashflow, tally (both log in through aio, RFC-001)

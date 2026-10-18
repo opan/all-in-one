@@ -18,6 +18,10 @@
 - [x] aio: `GET /api/v1/oidc/users/{sub}/status`, metric, swagger, tests, smoke-tested on a real server
       (admin, regular, unknown, non-UUID, wrong/no/unknown credentials, demotion/block/revoke take effect
       on the next call)
-- [ ] cashflow: `AIO_INTERNAL_URL`, status client, `requireAdmin`, nav hint, read-only admin pages, audit log
-- [ ] tally: same as cashflow
+- [x] cashflow (`feat/aio-admin-status`, 01f5d59): `AIO_INTERNAL_URL`, status client, `requireAdmin`, nav hint,
+      `/admin` (activity, no amounts) + `/admin/users/{id}` (cashplans, totals), `admin_views` audit table,
+      metric `cashflow.admin.checks{result}`. End-to-end run against aio: login hint, 404 for non-admins and
+      local mode, live demotion/blocking, 503 when aio is down, audit rows, schema re-apply.
+- [x] tally (`feat/aio-admin-status`, 8e2b522): same, as "Site admin" (en/id); drill-down lists tallies with
+      role, visibility, players, play days, matches; private tallies not linked. Same end-to-end checks.
 - [ ] homelab: set `AIO_INTERNAL_URL` on cashflow and tally deployments
