@@ -1,6 +1,6 @@
 # RFC-002: Telling apps whether a user is an aio admin
 
-- **Status:** Draft
+- **Status:** Accepted; aio side implemented, cashflow and tally in progress
 - **Author:** opan
 - **Created:** 2026-10-15 · **Updated:** 2026-10-18
 - **Consumers:** cashflow, tally (both log in through aio, RFC-001)
@@ -138,4 +138,4 @@ Settled in review:
 
 ## 11. Decision
 
-Pending review.
+Accepted as Option A (2026-10-18). Implementation on branch `docs/rfc-002-admin-status` ([#34](https://github.com/opan/all-in-one/pull/34)); decisions made during the build are in ADR-O10.

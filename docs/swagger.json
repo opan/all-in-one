@@ -2232,6 +2232,64 @@
                 }
             }
         },
+        "/oidc/users/{sub}/status": {
+            "get": {
+                "security": [
+                    {
+                        "ClientAuth": []
+                    }
+                ],
+                "description": "For apps that log in through aio (RFC-002). Reports whether the user (the ID token's `sub`) is an aio admin right now and whether they are blocked; a blocked user is never an admin. Authenticated with the app's OIDC client id and secret (HTTP Basic). Apps call it on every admin request, so the response must not be cached.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oidc"
+                ],
+                "summary": "Check whether an app's user is an aio admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "aio user id (the ID token's sub)",
+                        "name": "sub",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Current status",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.UserStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, wrong or revoked client credentials",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown user",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/ratelimit/check": {
             "post": {
                 "description": "Evaluate one external target against a caller-supplied bucket key. Authenticated by X-API-Key (an app token), not a user session. A rejection is reported as 200 with allowed=false (not 429) so the caller can tell \"your user is limited\" from \"aio limited you\". Fails open on an internal counter error.",
@@ -4771,6 +4829,17 @@
                 }
             }
         },
+        "model.UserStatus": {
+            "type": "object",
+            "properties": {
+                "admin": {
+                    "type": "boolean"
+                },
+                "blocked": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.WindowUnit": {
             "type": "string",
             "enum": [
@@ -4793,6 +4862,9 @@
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
+        },
+        "ClientAuth": {
+            "type": "basic"
         },
         "DirectAuth": {
             "description": "Direct authentication bypass for testing (only works when DirectAuthEnabled is true in config). Provide username directly.",

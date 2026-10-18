@@ -262,6 +262,7 @@ the counters below cover what the HTTP metrics can't say.
 | `aio_oidc_login_failed_total` | Counter | `reason` | Logins aio's login page could not finish |
 | `aio_oidc_logout_total` | Counter | `aio_session_cleared` | RP-initiated logouts received from apps (`internal/oidc/service`) |
 | `aio_oidc_clients_changed_total` | Counter | `action` | Admin changes to the registered apps |
+| `aio_oidc_user_status_total` | Counter | `client`, `result` | Admin status checks apps made for their users (`GET /api/v1/oidc/users/{sub}/status`, RFC-002) |
 
 **Label values**
 
@@ -271,6 +272,8 @@ the counters below cover what the HTTP metrics can't say.
 | `reason` | `login_failed_total` | `expired` (auth request timed out), `client` (unknown/revoked app), `other_browser` (login link opened in a browser that didn't start the login), `blocked` (user blocked), `demo` (shared demo account refused), `internal` |
 | `aio_session_cleared` | `logout_total` | `true` (valid `id_token_hint` for the same user as aio's session: aio's session ended too), `false` (no/invalid hint, hint for another user, no aio session, or logout rejected: aio's session kept) |
 | `action` | `clients_changed_total` | `create`, `update`, `revoke` |
+| `client` | `user_status_total` | the authenticated client id; `""` when the credentials were rejected, so unverified ids never become label values |
+| `result` | `user_status_total` | `admin`, `not_admin` (includes blocked users), `unknown_user`, `unauthorized` (missing, wrong or revoked client credentials), `error` |
 
 **Example queries**
 
@@ -286,6 +289,10 @@ sum by (reason) (rate(aio_oidc_login_failed_total[1h]))
 
 # Logouts that could not end aio's session (apps not sending id_token_hint)
 rate(aio_oidc_logout_total{aio_session_cleared="false"}[1h])
+
+# Admin status checks per app and outcome — apps call this on every admin
+# request; a rise in `unauthorized` means an app's secret is wrong or revoked
+sum by (client, result) (rate(aio_oidc_user_status_total[1h]))
 ```
 
 ---

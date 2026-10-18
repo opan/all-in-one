@@ -12,6 +12,7 @@ type handlerMetrics struct {
 	completed metric.Int64Counter
 	failed    metric.Int64Counter
 	clients   metric.Int64Counter
+	status    metric.Int64Counter
 }
 
 func newHandlerMetrics() *handlerMetrics {
@@ -22,7 +23,9 @@ func newHandlerMetrics() *handlerMetrics {
 		metric.WithDescription("Logins into other apps that aio's login page could not complete"))
 	clients, _ := m.Int64Counter("aio.oidc.clients.changed",
 		metric.WithDescription("Admin changes to the apps allowed to log in through aio"))
-	return &handlerMetrics{completed: completed, failed: failed, clients: clients}
+	status, _ := m.Int64Counter("aio.oidc.user_status",
+		metric.WithDescription("Admin status checks apps made for their users"))
+	return &handlerMetrics{completed: completed, failed: failed, clients: clients, status: status}
 }
 
 func (m *handlerMetrics) loginCompleted(ctx context.Context, clientID string) {
@@ -35,4 +38,10 @@ func (m *handlerMetrics) loginFailed(ctx context.Context, reason string) {
 
 func (m *handlerMetrics) clientChanged(ctx context.Context, action string) {
 	m.clients.Add(ctx, 1, metric.WithAttributes(attribute.String("action", action)))
+}
+
+// userStatus records a status check; client is "" when the caller's
+// credentials were rejected, so unverified ids never become label values.
+func (m *handlerMetrics) userStatus(ctx context.Context, client, result string) {
+	m.status.Add(ctx, 1, metric.WithAttributes(attribute.String("client", client), attribute.String("result", result)))
 }

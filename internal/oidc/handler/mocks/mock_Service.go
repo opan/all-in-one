@@ -79,6 +79,54 @@ func (_c *MockService_AuthRequestInfo_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// AuthenticateClient provides a mock function with given fields: ctx, id, secret
+func (_m *MockService) AuthenticateClient(ctx context.Context, id string, secret string) error {
+	ret := _m.Called(ctx, id, secret)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AuthenticateClient")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, id, secret)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockService_AuthenticateClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AuthenticateClient'
+type MockService_AuthenticateClient_Call struct {
+	*mock.Call
+}
+
+// AuthenticateClient is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - secret string
+func (_e *MockService_Expecter) AuthenticateClient(ctx interface{}, id interface{}, secret interface{}) *MockService_AuthenticateClient_Call {
+	return &MockService_AuthenticateClient_Call{Call: _e.mock.On("AuthenticateClient", ctx, id, secret)}
+}
+
+func (_c *MockService_AuthenticateClient_Call) Run(run func(ctx context.Context, id string, secret string)) *MockService_AuthenticateClient_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_AuthenticateClient_Call) Return(_a0 error) *MockService_AuthenticateClient_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockService_AuthenticateClient_Call) RunAndReturn(run func(context.Context, string, string) error) *MockService_AuthenticateClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CompleteAuthRequest provides a mock function with given fields: ctx, id, userID, browserID
 func (_m *MockService) CompleteAuthRequest(ctx context.Context, id string, userID string, browserID string) (string, error) {
 	ret := _m.Called(ctx, id, userID, browserID)
@@ -362,6 +410,63 @@ func (_c *MockService_UpdateClient_Call) Return(_a0 model.Client, _a1 error) *Mo
 }
 
 func (_c *MockService_UpdateClient_Call) RunAndReturn(run func(context.Context, string, model.UpdateClientInput) (model.Client, error)) *MockService_UpdateClient_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UserStatus provides a mock function with given fields: ctx, sub
+func (_m *MockService) UserStatus(ctx context.Context, sub string) (model.UserStatus, error) {
+	ret := _m.Called(ctx, sub)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UserStatus")
+	}
+
+	var r0 model.UserStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (model.UserStatus, error)); ok {
+		return rf(ctx, sub)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) model.UserStatus); ok {
+		r0 = rf(ctx, sub)
+	} else {
+		r0 = ret.Get(0).(model.UserStatus)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, sub)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_UserStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserStatus'
+type MockService_UserStatus_Call struct {
+	*mock.Call
+}
+
+// UserStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sub string
+func (_e *MockService_Expecter) UserStatus(ctx interface{}, sub interface{}) *MockService_UserStatus_Call {
+	return &MockService_UserStatus_Call{Call: _e.mock.On("UserStatus", ctx, sub)}
+}
+
+func (_c *MockService_UserStatus_Call) Run(run func(ctx context.Context, sub string)) *MockService_UserStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_UserStatus_Call) Return(_a0 model.UserStatus, _a1 error) *MockService_UserStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_UserStatus_Call) RunAndReturn(run func(context.Context, string) (model.UserStatus, error)) *MockService_UserStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

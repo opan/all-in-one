@@ -32,6 +32,8 @@ import (
 // @name x-direct-auth-username
 // @description Direct authentication bypass for testing (only works when DirectAuthEnabled is true in config). Provide username directly.
 
+// @securityDefinitions.basic ClientAuth
+
 func main() {
 	cmd := command.New()
 

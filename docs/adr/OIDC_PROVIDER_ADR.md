@@ -179,9 +179,10 @@ is distroless). `password_hash` stays in cashflow for now, so `AUTH_PROVIDER=loc
 
 ---
 
-## ADR-O10: Admin status for apps (proposed, RFC-002)
+## ADR-O10: Admin status for apps (RFC-002)
 
-**Status:** Proposed; see [RFC-002](../rfc/RFC-002-admin-status-for-apps.md).
+**Status:** aio side implemented (`internal/oidc/handler/status.go`, `service/status.go`); apps in progress.
+See [RFC-002](../rfc/RFC-002-admin-status-for-apps.md).
 
 **Decision:** aio exposes `GET /api/v1/oidc/users/{sub}/status` → `{admin, blocked}`, authenticated with the
 app's OIDC client id and secret (HTTP Basic). `admin` comes from `rbac.Resolver.IsAdmin` and is false for
@@ -196,6 +197,12 @@ a re-login round trip every 15 minutes (a demoted admin keeps access for up to 1
 is ~4 browser redirects); a per-app RBAC feature (Bootstrap grants new non-admin-only features to
 `regular-user`, so every user would become an app admin; admin-only features equal `IsAdmin`); `userinfo`
 (15-minute access tokens, no refresh tokens).
+
+**Implementation:** unknown, wrong or revoked client credentials → 401 with `WWW-Authenticate`; unknown or
+non-UUID `sub` → 404; any lookup error → 500 (apps treat it as "not admin"). Responses carry
+`Cache-Control: no-store`. Swagger security scheme `ClientAuth` (HTTP Basic). Metric
+`aio.oidc.user_status{client,result}`; `client` is empty for rejected credentials so unverified ids never
+become label values. The route sits on the public subrouter (no JWT, no RBAC middleware).
 
 **Consequence:** the call reuses the OIDC client secret; whether it travels over the cluster network (plain
 HTTP) or the public https URL is a deployment setting, changeable without code. Logging out of aio does not

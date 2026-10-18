@@ -44,6 +44,11 @@ func (f fakeUsers) Find(_ context.Context, id uuid.UUID) (authnzModel.User, erro
 	return u, nil
 }
 
+// fakeAdmins reports the listed users as aio admins.
+type fakeAdmins map[uuid.UUID]bool
+
+func (f fakeAdmins) IsAdmin(_ context.Context, id uuid.UUID) (bool, error) { return f[id], nil }
+
 type flowEnv struct {
 	svc      *Service
 	srv      *httptest.Server
@@ -89,7 +94,7 @@ func newFlowEnv(t *testing.T) *flowEnv {
 	user := authnzModel.User{ID: uuid.New(), Username: "budi", Name: "Budi"}
 	users := fakeUsers{user.ID: user}
 	sessions := &fakeSessions{}
-	svc, err := NewService(context.Background(), db, cfg, zerolog.Nop(), users, sessions)
+	svc, err := NewService(context.Background(), db, cfg, zerolog.Nop(), users, fakeAdmins{}, sessions)
 	require.NoError(t, err)
 
 	r := mux.NewRouter()
