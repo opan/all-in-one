@@ -14,11 +14,16 @@
 - Gmail SMTP with an app password (`ALLINONE_EMAIL_SMTP_PASSWORD`).
 - After login, users without a verified email get an "add your email" prompt with "Later" (back after 7 days).
   Email stays optional at signup.
+- (2026-10-21) Users start from the app ("Lupa kata sandi?", "Ubah kata sandi & email" links), but forms stay
+  on aio: standalone pages branded by `client_id`, `return_to` checked against the client's registered URIs.
+- (2026-10-21) Notice on aio's branded pages: account is managed by All-in-one, so the address is
+  aio.opanmustopah.com (host from the issuer); apps say so before leaving; emails name the app.
 
 ## Status
 
 - [x] RFC-003 draft
 - [ ] RFC review by opan
+- [ ] address notice on branded pages (can ship first)
 - [ ] email package + config (SMTP, fake sender for tests)
 - [ ] migration 13 (email_verified_at, email_prompted_at, email_verifications, password_resets,
       sessions.password_change_required)
@@ -29,4 +34,4 @@
 - [ ] add-email prompt after login
 - [ ] metrics (docs/metrics.md), swagger, otel, README, ADR at the end
 - [ ] homelab: app password secret, enable email in configmap
-- [ ] cashflow + tally guide updates
+- [ ] cashflow + tally: in-app links, leaving notice, guide updates

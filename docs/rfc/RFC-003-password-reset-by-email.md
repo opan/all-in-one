@@ -220,13 +220,48 @@ User                         Admin (operator)                              aio
 - In an app login the page is branded and translated like the login page. It's skipped for the shared demo
   account and when `email.enabled` is false.
 
-### 6.7 Apps (cashflow, tally)
+### 6.7 Starting from the app
 
-No code changes are required: the forgot-password link, prompt and forced change all live on aio's pages.
-Small follow-ups:
-- cashflow's guide still says passwords need at least 8 characters; with aio it's 5. Both guides should mention
-  "Lupa kata sandi?" and adding an email in aio.
-- Optional: a "Kata sandi & email" link to aio's settings from each app's menu.
+Users start these flows from cashflow or tally; the forms themselves stay on aio, so passwords are only ever
+typed into aio (RFC-001 chose hosted pages for this reason).
+
+- **App links:**
+  - "Lupa kata sandi?" next to the app's own "Masuk" button, opening aio's forgot-password page.
+  - "Ubah kata sandi & email" in the app's menu for logged-in users, opening aio's settings for password
+    and email.
+- **Branded standalone pages:** these links aren't part of a login, so there is no auth request to take the
+  branding from. They pass `client_id` and `return_to` instead:
+  `https://aio…/forgot-password?client_id=cashflow&return_to=https://kas…/`.
+  - Branding (name, icon, colour) still comes from the registered client, set by an admin, so a crafted link
+    can only pick between registered apps, not restyle the page. Language comes from `ui_locales`, as in
+    logins.
+  - `return_to` must match one of that client's registered redirect or post-logout URIs (same origin);
+    anything else is dropped and the page links to aio's home instead. This prevents open redirects.
+  - After the change the user gets a "Back to Cashflow" button to `return_to`.
+- **Guides:** cashflow's still says passwords need at least 8 characters; with aio it's 5. Both guides explain
+  "Lupa kata sandi?", adding an email, and why these pages are on aio's address (§6.8).
+
+### 6.8 Telling users why the address changes
+
+Logins, password pages and the email prompt open on `aio.opanmustopah.com`, not the app's address. Users should
+expect this, and learn that it is the only other address where their password belongs.
+
+- **On aio's branded pages:** a short notice under the header, above the form (not only in the footer):
+
+  > 🔒 Your Cashflow account is managed by All-in-one, so this page is on **aio.opanmustopah.com**.
+  > Only enter your password on this address.
+
+  > 🔒 Akun Cashflow kamu dikelola oleh All-in-one, jadi halaman ini ada di **aio.opanmustopah.com**.
+  > Masukkan kata sandi hanya di alamat ini.
+
+  The host is taken from `auth.oidc.issuer`, never from the request, so it always shows the real address.
+  The existing footer ("Login secured by All-in-one" and "One account for …") stays.
+- **In the apps, before leaving:** under "Masuk" and next to "Lupa kata sandi?" and "Ubah kata sandi & email":
+  "Kamu akan dibawa ke aio.opanmustopah.com, tempat akun kamu dikelola." The host comes from `AIO_ISSUER`.
+- **In emails:** sent as "All-in-one" and naming the app the user knows: "You asked to reset the password for
+  the account you use in Cashflow. Your account is managed by All-in-one (aio.opanmustopah.com)." When the
+  request didn't come from an app, the email names all registered apps the user has logged in to, or none.
+- The aio-side notice also applies to today's login pages, so it can ship before the email work.
 
 ## 7. Security considerations
 
@@ -247,12 +282,13 @@ Small follow-ups:
 
 ## 8. Rollout
 
-1. aio: email package and config, migration 13, email verification and editable settings, forgot-password
+1. aio: the address notice on branded pages (§6.8), which can ship first.
+2. aio: email package and config, migration 13, email verification and editable settings, forgot-password
    flow and pages, admin reset, prompt, metrics, swagger, tests (fake sender), README section.
-2. Homelab: create a Google app password, add `ALLINONE_EMAIL_SMTP_PASSWORD` to `all-in-one-secrets`, set
+3. Homelab: create a Google app password, add `ALLINONE_EMAIL_SMTP_PASSWORD` to `all-in-one-secrets`, set
    `email.enabled: true` and `auth.support_email` in the configmap.
-3. Tell users (cashflow and tally): add an email in aio so you can reset your password yourself.
-4. cashflow and tally guide updates (§6.7).
+4. Tell users (cashflow and tally): add an email in aio so you can reset your password yourself.
+5. cashflow and tally: the in-app links and leaving notice (§6.7, §6.8) and guide updates.
 
 ## 9. Open questions
 
@@ -265,6 +301,8 @@ Settled with the operator (2026-10-19):
 - Gmail SMTP with an app password.
 - Emails must be verified before they receive temporary passwords.
 - The add-email prompt can be skipped ("Later"); email stays optional at signup.
+- Users start from the app, but password forms stay on aio (2026-10-21).
+- Branded pages say the account is managed by All-in-one and that the address is aio.opanmustopah.com (2026-10-21).
 
 ## 10. Decision
 
