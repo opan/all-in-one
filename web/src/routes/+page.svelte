@@ -14,6 +14,8 @@
 	const GITHUB_URL = 'https://github.com/opan/all-in-one';
 	const ISSUES_URL = 'https://github.com/opan/all-in-one/issues';
 
+	const YEAR = new Date().getFullYear();
+
 	let navOpen = $state(false);
 
 	// Fade + slide elements in as they scroll into view. Honors reduced-motion
@@ -91,7 +93,7 @@
 	<title>All-in-One — a full-stack app you can try right now</title>
 	<meta
 		name="description"
-		content="All-in-One bundles listing, real-time chat and a live rate limiter into one open-source Go + Svelte project. Try it live, or clone the code and make it your own."
+		content="All-in-One bundles listing, real-time chat and short links into one app. Try it live, or clone the code and make it your own."
 	/>
 </svelte:head>
 
@@ -122,7 +124,6 @@
 	<!-- Hero (full-bleed, no borders; screenshot floats on the page) -->
 	<section class="hero">
 		<div class="hero-copy reveal" use:reveal>
-			<div class="kicker">Open Source / Go + Svelte</div>
 			<h1>I built this to solve my problems. See if it solves yours.</h1>
 			<p class="lead">
 				All-in-One is the super-app I'm building to fix my own everyday problems — listing,
@@ -263,14 +264,8 @@
 
 	<!-- Footer (no top border) -->
 	<footer class="footer">
-		<span class="footer-brand">ALL-IN-ONE</span>
-		<span class="footer-note">Built by opan / Open source</span>
-		<div class="tags">
-			<span class="tag">Go</span>
-			<span class="tag">Svelte</span>
-			<span class="tag">TypeScript</span>
-			<span class="tag">SQLite</span>
-		</div>
+		<span>Built by Opan x Claude</span>
+		<span>Copyright {YEAR}</span>
 	</footer>
 </div>
 
@@ -548,9 +543,6 @@
 	}
 	.hero-copy {
 		padding: 60px 44px;
-	}
-	.hero-copy .kicker {
-		margin-bottom: 20px;
 	}
 	.hero h1 {
 		font-weight: 800;
@@ -841,29 +833,11 @@
 		padding: 26px 44px;
 		display: flex;
 		align-items: center;
-		gap: 16px;
+		justify-content: space-between;
+		gap: 8px 16px;
 		flex-wrap: wrap;
-	}
-	.footer-brand {
-		font-weight: 800;
-		font-size: 16px;
-	}
-	.footer-note {
 		font-size: 13px;
 		color: var(--faint);
-	}
-	.tags {
-		margin-left: auto;
-		display: flex;
-		gap: 8px;
-		flex-wrap: wrap;
-	}
-	.tag {
-		border: 1px solid var(--outline);
-		color: var(--text);
-		font-size: 11px;
-		font-weight: 600;
-		padding: 3px 10px;
 	}
 
 	/* Responsive — below ~900px the diagonal collapses to one column */
