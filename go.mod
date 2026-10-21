@@ -2,7 +2,7 @@ module github.com/all-in-one
 
 go 1.26.0
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/XSAM/otelsql v0.42.0
