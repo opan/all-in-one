@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/all-in-one/internal/auth"
@@ -20,6 +22,10 @@ type RegisterUserRequest struct {
 	Password string `json:"password"`
 	Email    string `json:"email"`
 	Name     string `json:"name"`
+	// Locale and ClientID name the app the user signed up from, for the
+	// verification email.
+	Locale   string `json:"locale,omitempty"`
+	ClientID string `json:"client_id,omitempty"`
 }
 
 // GroupRef is a minimal {id,name} reference to a group, embedded in
@@ -38,6 +44,13 @@ type CurrentUserResponse struct {
 	IsAdmin  bool      `json:"is_admin"`
 	Group    *GroupRef `json:"group"`
 	Features []string  `json:"features"`
+
+	EmailVerified bool `json:"email_verified"`
+	// PendingEmail is an address waiting for its verification link.
+	PendingEmail string `json:"pending_email,omitempty"`
+	// PasswordChangeRequired: this session was opened with a temporary
+	// password; the user must choose a new one first.
+	PasswordChangeRequired bool `json:"password_change_required"`
 }
 
 // GetCurrentUser godoc
@@ -85,7 +98,16 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := CurrentUserResponse{User: user, Features: []string{}}
+	response := CurrentUserResponse{
+		User: user, Features: []string{},
+		EmailVerified:          user.HasVerifiedEmail(),
+		PasswordChangeRequired: cu.PasswordChangeRequired,
+	}
+	if h.mailer != nil {
+		if pending, err := h.storage.EmailVerificationRepo().Pending(ctx, uid); err == nil && pending != nil {
+			response.PendingEmail = pending.Email
+		}
+	}
 
 	if h.accessResolver != nil {
 		isAdmin, groupID, groupName, featureKeys, err := h.accessResolver.EffectiveFeatures(ctx, uid)
@@ -175,6 +197,19 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// With email on, an address given at signup only becomes the account's
+	// email once its verification link is opened (RFC-003 §6.2).
+	signupEmail := ""
+	if h.mailer != nil && strings.TrimSpace(req.Email) != "" {
+		addr, ok := normalizeEmail(req.Email)
+		if !ok {
+			h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "failure")))
+			httpHelper.SendError(w, "invalid email address", http.StatusBadRequest)
+			return
+		}
+		signupEmail, req.Email = addr, ""
+	}
+
 	now := time.Now().UTC()
 	user := model.User{
 		ID:           uuid.New(),
@@ -194,6 +229,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	h.metrics.registrationsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "success")))
 	log.Info().Str("username", req.Username).Msg("user successfully registered")
+	if signupEmail != "" {
+		h.background(ctx, func(ctx context.Context) {
+			if err := h.sendVerification(ctx, user, signupEmail, req.Locale, req.ClientID); err != nil {
+				logging.GetLoggerFromContext(ctx).Error().Err(err).Msg("failed to send signup verification email")
+			}
+		})
+	}
 	res := httpHelper.Response{
 		Success: true,
 		Message: "user created successfully",
@@ -297,6 +339,8 @@ func (h *Handler) ResetPasswordUser(w http.ResponseWriter, r *http.Request) {
 		httpHelper.SendError(w, "Failed to invalidate sessions", http.StatusInternalServerError)
 		return
 	}
+
+	h.notifyPasswordChanged(ctx, u, "", "")
 
 	res := httpHelper.Response{
 		Success: true,

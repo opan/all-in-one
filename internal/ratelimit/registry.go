@@ -14,6 +14,7 @@ const (
 	TargetAuthLogin            = "auth.login"
 	TargetAuthSignupIP         = "auth.signup.ip"
 	TargetAuthSignupThrottleIP = "auth.signup.throttle.ip"
+	TargetAuthPasswordForgot   = "auth.password.forgot"
 	TargetListingItemCreate    = "listing.item.create"
 	TargetListingTopicCreate   = "listing.topic.create"
 	TargetChatSessionCreate    = "chat.session.create"
@@ -66,6 +67,15 @@ var Registry = []TargetDef{
 		Scope: model.ScopeIP, Kind: model.KindThrottle,
 		Method: "POST", Path: "/api/v1/sessions",
 		DefaultLimit: 10, DefaultWindowValue: 1, DefaultWindowUnit: model.WindowMinute,
+	},
+	{
+		// Each accepted request may send an email (RFC-003); the per-account
+		// limits in the handler stop one mailbox being flooded, this stops
+		// one client hammering the form.
+		Key: TargetAuthPasswordForgot, Name: "Forgot password", Description: "Forgot-password requests per IP",
+		Scope: model.ScopeIP, Kind: model.KindThrottle,
+		Method: "POST", Path: "/api/v1/auth/password/forgot",
+		DefaultLimit: 5, DefaultWindowValue: 15, DefaultWindowUnit: model.WindowMinute,
 	},
 	// Burst throttle in front of the daily quota below — orderThrottlesFirst
 	// evaluates this first so a flood is shed in-memory before it ever

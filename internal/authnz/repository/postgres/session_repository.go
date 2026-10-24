@@ -68,8 +68,8 @@ func (s *sessionRepository) Create(ctx context.Context, session model.Session, o
 	exec := getExecCtx(s.db, opts...)
 
 	_, err := exec.NamedExecContext(ctx,
-		`INSERT INTO sessions (id, user_id, created_at, user_agent, access_token_expiry, refresh_token_expiry)
-		VALUES (:id, :user_id, :created_at, :user_agent, :access_token_expiry, :refresh_token_expiry)`,
+		`INSERT INTO sessions (id, user_id, created_at, user_agent, access_token_expiry, refresh_token_expiry, password_change_required)
+		VALUES (:id, :user_id, :created_at, :user_agent, :access_token_expiry, :refresh_token_expiry, :password_change_required)`,
 		session)
 	if err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
@@ -120,4 +120,12 @@ func (s *sessionRepository) Get(ctx context.Context, id uuid.UUID) (*model.Sessi
 		return nil, fmt.Errorf("unable to get session by id %s: %w", id, err)
 	}
 	return &session, nil
+}
+
+func (s *sessionRepository) ClearPasswordChangeRequired(ctx context.Context, id uuid.UUID) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE sessions SET password_change_required = FALSE WHERE id = $1`, id.String())
+	if err != nil {
+		return fmt.Errorf("unable to clear password change flag on session %s: %w", id, err)
+	}
+	return nil
 }

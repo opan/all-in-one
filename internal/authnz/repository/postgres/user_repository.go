@@ -25,7 +25,8 @@ func newUserRepository(db *sqlx.DB) *userRepository {
 // into model.User.Email as "" like every other caller already expects,
 // instead of erroring on NULL-into-string.
 const selectColumns = `id, username, COALESCE(email, '') AS email, name, last_login, password_hash,
-	totp_enabled, totp_secret_encrypted, totp_verified_at, group_id, blocked, created_at, updated_at`
+	totp_enabled, totp_secret_encrypted, totp_verified_at, group_id, blocked,
+	email_verified_at, email_prompted_at, created_at, updated_at`
 
 func (u *userRepository) GetAll(ctx context.Context) ([]model.User, error) {
 	log := logging.GetLoggerFromContext(ctx)
@@ -85,9 +86,48 @@ func (u *userRepository) Update(ctx context.Context, id uuid.UUID, user model.Us
 	return err
 }
 
+// UpdateEmail sets an unverified email (an admin edit without "verified").
 func (u *userRepository) UpdateEmail(ctx context.Context, id uuid.UUID, email string) error {
 	now := time.Now().UTC()
-	_, err := u.db.ExecContext(ctx, "UPDATE users SET email = $1, updated_at = $2 WHERE id = $3", email, now, id.String())
+	_, err := u.db.ExecContext(ctx, "UPDATE users SET email = $1, email_verified_at = NULL, updated_at = $2 WHERE id = $3", email, now, id.String())
+	return err
+}
+
+// SetVerifiedEmail stores email as verified. A copy of the same address left
+// unverified on another account is cleared first, since verifying proves who
+// owns it; a verified copy elsewhere makes the update fail on the UNIQUE index.
+func (u *userRepository) SetVerifiedEmail(ctx context.Context, id uuid.UUID, email string, verifiedAt time.Time) error {
+	tx, err := u.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	now := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, `UPDATE users SET email = NULL, updated_at = $1
+		WHERE LOWER(email) = LOWER($2) AND id != $3 AND email_verified_at IS NULL`, now, email, id.String()); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "UPDATE users SET email = $1, email_verified_at = $2, updated_at = $3 WHERE id = $4",
+		email, verifiedAt.UTC(), now, id.String()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (u *userRepository) FindByVerifiedEmail(ctx context.Context, email string) (model.User, error) {
+	var user model.User
+	err := u.db.GetContext(ctx, &user, "SELECT "+selectColumns+" FROM users WHERE LOWER(email) = LOWER($1) AND email_verified_at IS NOT NULL", email)
+	return user, err
+}
+
+func (u *userRepository) SetPasswordHash(ctx context.Context, id uuid.UUID, hash string) error {
+	now := time.Now().UTC()
+	_, err := u.db.ExecContext(ctx, "UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3", hash, now, id.String())
+	return err
+}
+
+func (u *userRepository) SetEmailPrompted(ctx context.Context, id uuid.UUID, at time.Time) error {
+	_, err := u.db.ExecContext(ctx, "UPDATE users SET email_prompted_at = $1 WHERE id = $2", at.UTC(), id.String())
 	return err
 }
 

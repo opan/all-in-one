@@ -215,8 +215,8 @@ func (p *providerStorage) ValidateJWTProfileScopes(_ context.Context, _ string, 
 func (p *providerStorage) Health(context.Context) error { return nil }
 
 // fillUserinfo maps an aio user to OIDC claims: sub always, profile ->
-// preferred_username (+ name when set), email -> email when the user has one.
-// aio does not verify emails, so email_verified is always false.
+// preferred_username (+ name when set), email -> email only once the user has
+// verified it (RFC-003), with email_verified true.
 func (s *Service) fillUserinfo(ctx context.Context, info *oidc.UserInfo, subject string, scopes []string) error {
 	id, err := uuid.Parse(subject)
 	if err != nil {
@@ -234,9 +234,9 @@ func (s *Service) fillUserinfo(ctx context.Context, info *oidc.UserInfo, subject
 			info.PreferredUsername = u.Username
 			info.Name = u.Name
 		case oidc.ScopeEmail:
-			if u.Email != "" {
+			if u.HasVerifiedEmail() {
 				info.Email = u.Email
-				info.EmailVerified = oidc.Bool(false)
+				info.EmailVerified = oidc.Bool(true)
 			}
 		}
 	}

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -44,6 +45,10 @@ func (m *JWTMiddleware) JWTAuth(next http.Handler) http.Handler {
 		}
 
 		userClaims, err := m.validateJWT(ctx, r)
+		if errors.Is(err, errPasswordChangeRequired) {
+			sendError(w, http.StatusForbidden, "password_change_required")
+			return
+		}
 		if err != nil {
 			log.Error().Err(err).Str("username", userClaims.Username).Msg("unauthorized access")
 			sendUnauthorized(w, err.Error())
@@ -141,16 +146,40 @@ func (m *JWTMiddleware) validateJWT(ctx context.Context, r *http.Request) (auth.
 		return auth.UserClaims{}, fmt.Errorf("Unauthorized: invalid session")
 	}
 
-	if _, err := m.sessionRepo.Get(ctx, sessionID); err != nil {
+	session, err := m.sessionRepo.Get(ctx, sessionID)
+	if err != nil {
 		log.Warn().Str("session_id", userClaims.SessionID).Msg("session not found, likely invalidated")
 		return auth.UserClaims{}, fmt.Errorf("Unauthorized: session has been invalidated")
+	}
+	userClaims.PasswordChangeRequired = session.PasswordChangeRequired
+	if session.PasswordChangeRequired && !passwordChangeAllowed(r) {
+		return userClaims, errPasswordChangeRequired
 	}
 
 	return userClaims, nil
 }
 
+// errPasswordChangeRequired: the session was opened with a temporary password
+// and the user hasn't chosen a new one yet (RFC-003 §6.4).
+var errPasswordChangeRequired = errors.New("password change required")
+
+// passwordChangeAllowed lists what a session opened with a temporary password
+// may reach: who am I, set the new password, log out. Everything else,
+// including finishing an app login, waits for the new password.
+func passwordChangeAllowed(r *http.Request) bool {
+	switch r.Method + " " + r.URL.Path {
+	case "GET /api/v1/users/me", "POST /api/v1/users/password/set", "DELETE /api/v1/sessions":
+		return true
+	}
+	return false
+}
+
 func sendUnauthorized(w http.ResponseWriter, message string) {
+	sendError(w, http.StatusUnauthorized, message)
+}
+
+func sendError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
+	w.WriteHeader(status)
 	fmt.Fprintf(w, `{"success":false,"message":null,"data":null,"error":"%s"}`, message)
 }

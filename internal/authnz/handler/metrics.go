@@ -13,6 +13,8 @@ type handlerMetrics struct {
 	adminEmailUpdated  metric.Int64Counter
 	adminUserBlocked   metric.Int64Counter
 	adminUserUnblocked metric.Int64Counter
+	passwordResets     metric.Int64Counter
+	emailVerifications metric.Int64Counter
 }
 
 func newHandlerMetrics() *handlerMetrics {
@@ -40,6 +42,13 @@ func newHandlerMetrics() *handlerMetrics {
 		metric.WithDescription("Number of times an admin unblocked a user"),
 	)
 
+	passwordResets, _ := m.Int64Counter("aio.authnz.password_resets.total",
+		metric.WithDescription("Temporary passwords requested, by source (self, admin) and result"),
+	)
+	emailVerifications, _ := m.Int64Counter("aio.authnz.email_verifications.total",
+		metric.WithDescription("Email verification links sent and opened, by result"),
+	)
+
 	return &handlerMetrics{
 		loginsTotal:        loginsTotal,
 		registrationsTotal: registrationsTotal,
@@ -48,5 +57,7 @@ func newHandlerMetrics() *handlerMetrics {
 		adminEmailUpdated:  adminEmailUpdated,
 		adminUserBlocked:   adminUserBlocked,
 		adminUserUnblocked: adminUserUnblocked,
+		passwordResets:     passwordResets,
+		emailVerifications: emailVerifications,
 	}
 }

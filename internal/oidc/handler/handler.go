@@ -13,6 +13,7 @@ import (
 // service package can satisfy it structurally without an import cycle.
 type Service interface {
 	AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error)
+	AppBranding(ctx context.Context, id, returnTo string) (model.AppBranding, error)
 	CompleteAuthRequest(ctx context.Context, id, userID, browserID string) (string, error)
 
 	AuthenticateClient(ctx context.Context, id, secret string) error
@@ -38,6 +39,7 @@ func NewHandler(service Service, cfg config.Config) *Handler {
 // is logged in, to show which app is asking.
 func (h *Handler) RegisterPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/oidc/auth-requests/{id}", h.GetAuthRequest).Methods(http.MethodGet)
+	r.HandleFunc("/oidc/apps/{id}", h.GetAppBranding).Methods(http.MethodGet)
 }
 
 // RegisterAppRoutes: called by apps server-to-server with their client id and

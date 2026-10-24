@@ -129,6 +129,46 @@ func (s *Service) ActiveClient(ctx context.Context, id string) (model.Client, er
 	return c, nil
 }
 
+// AppName names an active app, for emails ("the account you use in Cashflow").
+func (s *Service) AppName(ctx context.Context, id string) (string, bool) {
+	c, err := s.ActiveClient(ctx, id)
+	if err != nil {
+		return "", false
+	}
+	return c.Name, true
+}
+
+// AppBranding is how aio's pages present an app outside a login (forgot
+// password, settings opened from the app): branding comes from the
+// registered client, never from the link. returnTo is kept only when it is
+// on the same origin as one of the app's registered redirect or post-logout
+// URIs, so the link can't be used to send users elsewhere.
+func (s *Service) AppBranding(ctx context.Context, id, returnTo string) (model.AppBranding, error) {
+	c, err := s.ActiveClient(ctx, id)
+	if err != nil {
+		return model.AppBranding{}, err
+	}
+	b := model.AppBranding{ClientID: c.ID, ClientName: c.Name, Branding: c.Branding}
+	if sameOriginAsAny(returnTo, append(append([]string{}, c.RedirectURIs...), c.PostLogoutRedirectURIs...)) {
+		b.ReturnTo = returnTo
+	}
+	return b, nil
+}
+
+func sameOriginAsAny(raw string, registered []string) bool {
+	u, err := url.Parse(raw)
+	if raw == "" || err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
+		return false
+	}
+	for _, r := range registered {
+		ru, err := url.Parse(r)
+		if err == nil && strings.EqualFold(ru.Scheme, u.Scheme) && strings.EqualFold(ru.Host, u.Host) {
+			return true
+		}
+	}
+	return false
+}
+
 // AuthenticateClient checks a client's secret in constant time.
 func (s *Service) AuthenticateClient(ctx context.Context, id, secret string) error {
 	c, err := s.ActiveClient(ctx, id)

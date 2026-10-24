@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	challengeTTL     = 5 * time.Minute
-	maxAttempts      = 5
+	challengeTTL      = 5 * time.Minute
+	maxAttempts       = 5
 	recoveryCodeCount = 10
 )
 
@@ -331,7 +331,7 @@ func (h *Handler) GetTOTPStatus(w http.ResponseWriter, r *http.Request) {
 	resp := httpHelper.Response{
 		Success: true,
 		Data: model.TOTPStatusResponse{
-			Enabled:                 user.TOTPEnabled,
+			Enabled:                user.TOTPEnabled,
 			RecoveryCodesRemaining: remaining,
 		},
 	}
@@ -441,7 +441,7 @@ func (h *Handler) VerifyTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, user, err := h.validateChallengeToken(ctx, req.ChallengeToken)
+	challenge, user, passwordChangeRequired, err := h.validateChallengeToken(ctx, req.ChallengeToken)
 	if err != nil {
 		log.Warn().Err(err).Msg("invalid challenge token")
 		httpHelper.SendError(w, "Invalid or expired challenge", http.StatusUnauthorized)
@@ -489,7 +489,7 @@ func (h *Handler) VerifyTOTP(w http.ResponseWriter, r *http.Request) {
 		attribute.String("method", "totp"),
 		attribute.String("result", "success"),
 	))
-	h.completeLogin(w, r, user)
+	h.completeLogin(w, r, user, passwordChangeRequired)
 }
 
 // VerifyRecoveryCode handles recovery code verification during login
@@ -503,7 +503,7 @@ func (h *Handler) VerifyRecoveryCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, user, err := h.validateChallengeToken(ctx, req.ChallengeToken)
+	challenge, user, passwordChangeRequired, err := h.validateChallengeToken(ctx, req.ChallengeToken)
 	if err != nil {
 		log.Warn().Err(err).Msg("invalid challenge token")
 		httpHelper.SendError(w, "Invalid or expired challenge", http.StatusUnauthorized)
@@ -561,10 +561,10 @@ func (h *Handler) VerifyRecoveryCode(w http.ResponseWriter, r *http.Request) {
 		attribute.String("method", "recovery_code"),
 		attribute.String("result", "success"),
 	))
-	h.completeLogin(w, r, user)
+	h.completeLogin(w, r, user, passwordChangeRequired)
 }
 
-func (h *Handler) validateChallengeToken(ctx context.Context, tokenStr string) (*model.TOTPChallenge, model.User, error) {
+func (h *Handler) validateChallengeToken(ctx context.Context, tokenStr string) (*model.TOTPChallenge, model.User, bool, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
@@ -572,38 +572,50 @@ func (h *Handler) validateChallengeToken(ctx context.Context, tokenStr string) (
 		return []byte(h.config.Auth.JWTSecret), nil
 	})
 	if err != nil || !token.Valid {
-		return nil, model.User{}, fmt.Errorf("invalid challenge token: %w", err)
+		return nil, model.User{}, false, fmt.Errorf("invalid challenge token: %w", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || claims["type"] != "2fa_challenge" {
-		return nil, model.User{}, fmt.Errorf("invalid token type")
+		return nil, model.User{}, false, fmt.Errorf("invalid token type")
 	}
 
 	challengeID, err := uuid.Parse(claims["sub"].(string))
 	if err != nil {
-		return nil, model.User{}, fmt.Errorf("invalid challenge ID: %w", err)
+		return nil, model.User{}, false, fmt.Errorf("invalid challenge ID: %w", err)
 	}
 
 	challenge, err := h.storage.TOTPRepo().GetChallenge(ctx, challengeID)
 	if err != nil {
-		return nil, model.User{}, fmt.Errorf("challenge not found: %w", err)
+		return nil, model.User{}, false, fmt.Errorf("challenge not found: %w", err)
 	}
 
 	if time.Now().After(challenge.ExpiresAt) {
 		h.storage.TOTPRepo().DeleteChallenge(ctx, challenge.ID)
-		return nil, model.User{}, fmt.Errorf("challenge expired")
+		return nil, model.User{}, false, fmt.Errorf("challenge expired")
 	}
 
 	user, err := h.storage.UserRepo().Find(ctx, challenge.UserID)
 	if err != nil {
-		return nil, model.User{}, fmt.Errorf("user not found: %w", err)
+		return nil, model.User{}, false, fmt.Errorf("user not found: %w", err)
 	}
 
-	return challenge, user, nil
+	pcr, _ := claims["pcr"].(bool)
+	return challenge, user, pcr, nil
 }
 
-func (h *Handler) completeLogin(w http.ResponseWriter, r *http.Request, user model.User) {
+// LoginResponse is the user plus what the login page should do next.
+type LoginResponse struct {
+	model.User
+	// PasswordChangeRequired: the user logged in with a temporary password and
+	// must choose a new one before anything else (RFC-003 §6.4).
+	PasswordChangeRequired bool `json:"password_change_required,omitempty"`
+	// EmailPrompt: ask the user to add an email (RFC-003 §6.6).
+	EmailPrompt bool `json:"email_prompt,omitempty"`
+}
+
+// completeLogin creates the session and sets the auth cookies.
+func (h *Handler) completeLogin(w http.ResponseWriter, r *http.Request, user model.User, passwordChangeRequired bool) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
@@ -620,6 +632,8 @@ func (h *Handler) completeLogin(w http.ResponseWriter, r *http.Request, user mod
 		UserAgent:          r.UserAgent(),
 		AccessTokenExpiry:  int(time.Now().Add(30 * time.Minute).Unix()),
 		RefreshTokenExpiry: int(time.Now().Add(7 * 24 * time.Hour).Unix()),
+
+		PasswordChangeRequired: passwordChangeRequired,
 	}
 
 	trx, err := h.storage.SessionRepo().CreateTrx(ctx)
@@ -673,19 +687,24 @@ func (h *Handler) completeLogin(w http.ResponseWriter, r *http.Request, user mod
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	log.Info().Str("session_id", sid.String()).Msg("session successfully created via 2FA")
+	log.Info().Str("session_id", sid.String()).Bool("password_change_required", passwordChangeRequired).Msg("session successfully created")
 
 	resp := httpHelper.Response{
 		Success: true,
-		Data:    user,
+		Data: LoginResponse{
+			User:                   user,
+			PasswordChangeRequired: passwordChangeRequired,
+			EmailPrompt:            !passwordChangeRequired && h.shouldPromptEmail(ctx, user),
+		},
 	}
 	httpHelper.SendJSON(w, resp, http.StatusCreated)
 }
 
-func (h *Handler) createChallengeToken(challengeID uuid.UUID, expiresAt time.Time) (string, error) {
+func (h *Handler) createChallengeToken(challengeID uuid.UUID, expiresAt time.Time, passwordChangeRequired bool) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":  challengeID.String(),
 		"type": "2fa_challenge",
+		"pcr":  passwordChangeRequired,
 		"exp":  expiresAt.Unix(),
 		"iat":  time.Now().Unix(),
 	}

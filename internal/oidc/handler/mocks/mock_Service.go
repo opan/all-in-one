@@ -22,6 +22,64 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
+// AppBranding provides a mock function with given fields: ctx, id, returnTo
+func (_m *MockService) AppBranding(ctx context.Context, id string, returnTo string) (model.AppBranding, error) {
+	ret := _m.Called(ctx, id, returnTo)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AppBranding")
+	}
+
+	var r0 model.AppBranding
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (model.AppBranding, error)); ok {
+		return rf(ctx, id, returnTo)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) model.AppBranding); ok {
+		r0 = rf(ctx, id, returnTo)
+	} else {
+		r0 = ret.Get(0).(model.AppBranding)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, id, returnTo)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_AppBranding_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AppBranding'
+type MockService_AppBranding_Call struct {
+	*mock.Call
+}
+
+// AppBranding is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - returnTo string
+func (_e *MockService_Expecter) AppBranding(ctx interface{}, id interface{}, returnTo interface{}) *MockService_AppBranding_Call {
+	return &MockService_AppBranding_Call{Call: _e.mock.On("AppBranding", ctx, id, returnTo)}
+}
+
+func (_c *MockService_AppBranding_Call) Run(run func(ctx context.Context, id string, returnTo string)) *MockService_AppBranding_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockService_AppBranding_Call) Return(_a0 model.AppBranding, _a1 error) *MockService_AppBranding_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_AppBranding_Call) RunAndReturn(run func(context.Context, string, string) (model.AppBranding, error)) *MockService_AppBranding_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AuthRequestInfo provides a mock function with given fields: ctx, id
 func (_m *MockService) AuthRequestInfo(ctx context.Context, id string) (model.AuthRequestInfo, error) {
 	ret := _m.Called(ctx, id)

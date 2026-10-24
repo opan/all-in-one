@@ -19,8 +19,17 @@ type User struct {
 	TOTPVerifiedAt      *time.Time `json:"-" db:"totp_verified_at"`
 	GroupID             *uuid.UUID `json:"group_id,omitempty" db:"group_id"`
 	Blocked             bool       `json:"blocked" db:"blocked"`
+	EmailVerifiedAt     *time.Time `json:"email_verified_at,omitempty" db:"email_verified_at"`
+	EmailPromptedAt     *time.Time `json:"-" db:"email_prompted_at"`
 	CreatedAt           *time.Time `json:"created_at,omitempty" db:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at,omitempty" db:"updated_at"`
+}
+
+// HasVerifiedEmail reports whether the user's email has been confirmed, by a
+// verification link or by an admin. Only a verified email receives temporary
+// passwords (RFC-003).
+func (u User) HasVerifiedEmail() bool {
+	return u.Email != "" && u.EmailVerifiedAt != nil
 }
 
 type UserPasswordReset struct {

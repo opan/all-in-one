@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/mail"
 	"strings"
+	"time"
 
 	httpHelper "github.com/all-in-one/internal/http"
 	"github.com/all-in-one/internal/logging"
@@ -19,6 +21,9 @@ import (
 // UpdateUserEmailRequest is the body for PATCH /admin/users/{id}.
 type UpdateUserEmailRequest struct {
 	Email string `json:"email"`
+	// EmailVerified saves the address as verified. Only set it when the user
+	// has written to the admin from that address (RFC-003 §6.5).
+	EmailVerified bool `json:"email_verified"`
 }
 
 // RegisterAdminRoutes wires the admin-only user-management endpoints. Mounted on
@@ -28,6 +33,7 @@ func (h *Handler) RegisterAdminRoutes(router *mux.Router) {
 	router.HandleFunc("/admin/users/{id}", h.UpdateUserEmail).Methods("PATCH")
 	router.HandleFunc("/admin/users/{id}/block", h.BlockUser).Methods("POST")
 	router.HandleFunc("/admin/users/{id}/unblock", h.UnblockUser).Methods("POST")
+	router.HandleFunc("/admin/users/{id}/password-reset", h.AdminSendTempPassword).Methods("POST")
 }
 
 func parseUserIDParam(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
@@ -55,7 +61,7 @@ func isUniqueViolation(err error) bool {
 
 // UpdateUserEmail godoc
 // @Summary      Update a user's email (admin)
-// @Description  Admin-only. Change another user's email address.
+// @Description  Admin-only. Change another user's email address, optionally saving it as verified (only when the user wrote from that address).
 // @Tags         admin-users
 // @Accept       json
 // @Produce      json
@@ -100,7 +106,13 @@ func (h *Handler) UpdateUserEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.storage.UserRepo().UpdateEmail(ctx, id, req.Email); err != nil {
+	update := h.storage.UserRepo().UpdateEmail
+	if req.EmailVerified {
+		update = func(ctx context.Context, id uuid.UUID, email string) error {
+			return h.storage.UserRepo().SetVerifiedEmail(ctx, id, email, time.Now())
+		}
+	}
+	if err := update(ctx, id, req.Email); err != nil {
 		if isUniqueViolation(err) {
 			httpHelper.SendError(w, "email already in use", http.StatusConflict)
 			return
@@ -111,7 +123,7 @@ func (h *Handler) UpdateUserEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.metrics.adminEmailUpdated.Add(ctx, 1)
-	log.Info().Str("user_id", id.String()).Msg("admin updated user email")
+	log.Info().Str("user_id", id.String()).Bool("verified", req.EmailVerified).Msg("admin updated user email")
 	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Message: "email updated"}, http.StatusOK)
 }
 

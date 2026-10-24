@@ -65,6 +65,100 @@ func (_c *MockStorage_Close_Call) RunAndReturn(run func() error) *MockStorage_Cl
 	return _c
 }
 
+// EmailVerificationRepo provides a mock function with no fields
+func (_m *MockStorage) EmailVerificationRepo() repository.EmailVerificationRepository {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for EmailVerificationRepo")
+	}
+
+	var r0 repository.EmailVerificationRepository
+	if rf, ok := ret.Get(0).(func() repository.EmailVerificationRepository); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(repository.EmailVerificationRepository)
+		}
+	}
+
+	return r0
+}
+
+// MockStorage_EmailVerificationRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EmailVerificationRepo'
+type MockStorage_EmailVerificationRepo_Call struct {
+	*mock.Call
+}
+
+// EmailVerificationRepo is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) EmailVerificationRepo() *MockStorage_EmailVerificationRepo_Call {
+	return &MockStorage_EmailVerificationRepo_Call{Call: _e.mock.On("EmailVerificationRepo")}
+}
+
+func (_c *MockStorage_EmailVerificationRepo_Call) Run(run func()) *MockStorage_EmailVerificationRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockStorage_EmailVerificationRepo_Call) Return(_a0 repository.EmailVerificationRepository) *MockStorage_EmailVerificationRepo_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_EmailVerificationRepo_Call) RunAndReturn(run func() repository.EmailVerificationRepository) *MockStorage_EmailVerificationRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PasswordResetRepo provides a mock function with no fields
+func (_m *MockStorage) PasswordResetRepo() repository.PasswordResetRepository {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for PasswordResetRepo")
+	}
+
+	var r0 repository.PasswordResetRepository
+	if rf, ok := ret.Get(0).(func() repository.PasswordResetRepository); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(repository.PasswordResetRepository)
+		}
+	}
+
+	return r0
+}
+
+// MockStorage_PasswordResetRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PasswordResetRepo'
+type MockStorage_PasswordResetRepo_Call struct {
+	*mock.Call
+}
+
+// PasswordResetRepo is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) PasswordResetRepo() *MockStorage_PasswordResetRepo_Call {
+	return &MockStorage_PasswordResetRepo_Call{Call: _e.mock.On("PasswordResetRepo")}
+}
+
+func (_c *MockStorage_PasswordResetRepo_Call) Run(run func()) *MockStorage_PasswordResetRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockStorage_PasswordResetRepo_Call) Return(_a0 repository.PasswordResetRepository) *MockStorage_PasswordResetRepo_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_PasswordResetRepo_Call) RunAndReturn(run func() repository.PasswordResetRepository) *MockStorage_PasswordResetRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SessionRepo provides a mock function with no fields
 func (_m *MockStorage) SessionRepo() repository.SessionRepository {
 	ret := _m.Called()
