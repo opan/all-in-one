@@ -1,8 +1,8 @@
 # RFC-003: Password reset by email
 
-- **Status:** Draft
+- **Status:** Draft; implemented in aio on `feat/password-reset-email` (cashflow and tally links pending)
 - **Author:** opan
-- **Created:** 2026-10-19
+- **Created:** 2026-10-19 · **Updated:** 2026-10-24
 - **Consumers:** cashflow, tally (both log in through aio, RFC-001)
 - **Related:** [RFC-001](RFC-001-central-user-management.md) §6.3 (replaced by this RFC), [OIDC_PROVIDER_ADR](../adr/OIDC_PROVIDER_ADR.md) (ADR-O8 branded pages), Deck "OIDC · Admin-issued password reset codes"
 
@@ -307,3 +307,34 @@ Settled with the operator (2026-10-19):
 ## 10. Decision
 
 Pending review.
+
+## 11. Implementation notes (aio, 2026-10-24)
+
+Where the build differs from or adds to the design above:
+
+- **Forgot password answers first, then works.** The lookup, limits, temporary password and email run after
+  the response, so neither the answer nor its timing says anything about the account (§6.4 said "similar
+  timing"). The admin path and email confirmation send in the request and report send failures (502).
+- **`server.public_url`** is the base for links in emails, defaulting to `auth.oidc.issuer`, so email works
+  without OIDC.
+- **`/account`** is a new branded page (password and email) that apps link to, instead of aio's settings
+  page, so app users never land in aio's dashboard. The login page in front of it is branded too: pages read
+  the app from `?client_id=` on themselves or inside `?next=`.
+- **Standalone branding** is `GET /api/v1/oidc/apps/{id}?return_to=` (public). `return_to` must have the same
+  scheme and host as one of the client's registered redirect or post-logout URIs.
+- **Restricted session**: the JWT middleware allows only `GET /users/me`, `POST /users/password/set` and
+  `DELETE /sessions`, and answers `403 password_change_required` otherwise; the app hand-off page sends such
+  users to `/set-password?next=<hand-off>`. `/users/me` reports `password_change_required`, and aio's own
+  pages redirect on it.
+- **Temporary passwords** are 12 characters from `abcdefghjkmnpqrstuvwxyz23456789`, stored with bcrypt, and
+  only compared when the typed password has that shape. Logging in with the real password voids pending
+  ones. Admin-issued ones record `issued_by`.
+- **Signup with email on**: the address waits in `email_verifications` and becomes the account's email only
+  when confirmed, so nobody can squat an address. Confirming an address clears an unconfirmed copy of it on
+  another account; a confirmed copy elsewhere makes confirmation fail ("can't be used").
+- **`users.email` for existing accounts** stays as it was but counts as unverified until confirmed (by link or
+  by the admin), so admin-set emails from before this change don't receive temporary passwords.
+- **Metrics:** `aio_authnz_password_resets_total{source,result}`, `aio_authnz_email_verifications_total{result}`,
+  `aio_email_sent_total{kind,result}`, and `logins_total{result="temp_password"}` (docs/metrics.md).
+- **Tests:** end-to-end handler tests on SQLite with every migration, plus a browser run against Postgres
+  with a STARTTLS mail catcher (20 checks: both recovery paths, branded pages, return_to checks, admin UI).

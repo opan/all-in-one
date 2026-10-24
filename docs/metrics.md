@@ -55,17 +55,25 @@ rate(aio_listing_items_created_total[5m]) * 60
 | `aio_admin_user_email_updated_total` | Counter | — | Admin changed another user's email (`internal/authnz/handler`) |
 | `aio_admin_user_blocked_total` | Counter | `result` | Admin blocked a user's login |
 | `aio_admin_user_unblocked_total` | Counter | — | Admin unblocked a user's login |
+| `aio_authnz_password_resets_total` | Counter | `source`, `result` | Temporary passwords requested (RFC-003): forgot-password form or admin |
+| `aio_authnz_email_verifications_total` | Counter | `result` | Email confirmation links sent and opened |
+| `aio_email_sent_total` | Counter | `kind`, `result` | Account emails handed to the SMTP server (`internal/email`) |
 
 **Label values**
 
 | Label | Metric | Values |
 |---|---|---|
-| `result` | `logins_total` | `success`, `invalid_credentials`, `user_not_found`, `2fa_required`, `blocked` |
+| `result` | `logins_total` | `success`, `temp_password` (logged in with an emailed temporary password), `invalid_credentials`, `user_not_found`, `2fa_required`, `blocked`, `demo_disabled` |
 | `result` | `registrations_total` | `success`, `failure` |
 | `method` | `2fa_verifications_total` | `totp`, `recovery_code` |
 | `result` | `2fa_verifications_total` | `success`, `failure` |
 | `action` | `2fa_state_changes_total` | `enabled`, `disabled` |
 | `result` | `admin_user_blocked_total` | `success` |
+| `source` | `password_resets_total` | `self` (forgot-password form), `admin` |
+| `result` | `password_resets_total` | `sent`, `skipped` (unknown account, no confirmed email, blocked, demo, or a per-account limit; the reason is logged), `error` |
+| `result` | `email_verifications_total` | `sent`, `verified`, `invalid` (bad or expired link), `taken` (another account confirmed it first), `error` |
+| `kind` | `email_sent_total` | `verify_email`, `temp_password`, `password_changed`, `email_changed` |
+| `result` | `email_sent_total` | `sent`, `error` |
 
 **Example queries**
 
@@ -85,6 +93,13 @@ rate(aio_authnz_logins_total[5m])
 
 # 2FA verification failure rate by method
 rate(aio_authnz_2fa_verifications_total{result="failure"}[5m])
+
+# Email delivery failing (bad Gmail app password, quota reached): alert on any
+sum by (kind) (increase(aio_email_sent_total{result="error"}[1h]))
+
+# Forgot-password requests that sent nothing (no confirmed email is the usual
+# reason; check the logs for "forgot password: no email sent")
+sum by (result) (increase(aio_authnz_password_resets_total{source="self"}[1d]))
 ```
 
 ---
@@ -213,7 +228,7 @@ rate(aio_chat_websocket_messages_received_total[1m])
 
 | Label | Metric | Values |
 |---|---|---|
-| `target` | `rejected_total`, `errors_total`, `config_changed_total`, `check_total` | a code-registered target key: `auth.login`, `auth.signup.ip`, `auth.signup.throttle.ip`, `listing.item.create`, `listing.topic.create`, `chat.session.create`, `chat.message.send`, `shortener.link.create`, `shortener.link.resolve`, `ratelimit.check.ip` (see `internal/ratelimit/registry.go`) **or**, on `check_total`, an operator-created external target key (e.g. `cashflow.entry.create`) |
+| `target` | `rejected_total`, `errors_total`, `config_changed_total`, `check_total` | a code-registered target key: `auth.login`, `auth.password.forgot`, `auth.signup.ip`, `auth.signup.throttle.ip`, `listing.item.create`, `listing.topic.create`, `chat.session.create`, `chat.message.send`, `shortener.link.create`, `shortener.link.resolve`, `ratelimit.check.ip` (see `internal/ratelimit/registry.go`) **or**, on `check_total`, an operator-created external target key (e.g. `cashflow.entry.create`) |
 | `scope` | `rejected_total` | `ip`, `user`, `global` |
 | `kind` | `rejected_total` | `throttle`, `daily_quota` |
 | `action` | `config_changed_total` | `update`, `reset`, `reset-defaults`, `token.create`, `token.revoke`, `external.create`, `external.delete` |
@@ -364,7 +379,10 @@ Total series count at steady state (worst case, all label combinations observed)
 
 | App | Metric | Max series |
 |---|---|---|
-| Authnz | `logins_total` | 5 (`result`) |
+| Authnz | `logins_total` | 7 (`result`) |
+| Authnz | `password_resets_total` | 6 (2 `source` × 3 `result`) |
+| Authnz | `email_verifications_total` | 5 |
+| Email | `email_sent_total` | 8 (4 `kind` × 2 `result`) |
 | Authnz | `registrations_total` | 2 |
 | Authnz | `2fa_verifications_total` | 4 (2 × 2) |
 | Authnz | `2fa_state_changes_total` | 2 |

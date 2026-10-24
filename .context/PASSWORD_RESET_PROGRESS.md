@@ -22,16 +22,21 @@
 ## Status
 
 - [x] RFC-003 draft
-- [ ] RFC review by opan
-- [ ] address notice on branded pages (can ship first)
-- [ ] email package + config (SMTP, fake sender for tests)
-- [ ] migration 13 (email_verified_at, email_prompted_at, email_verifications, password_resets,
-      sessions.password_change_required)
-- [ ] editable email + verification link; admin `email_verified`; ID token `email_verified`
-- [ ] forgot-password endpoint + page (replaces dead `/forgot-password`), branded in app logins
-- [ ] restricted session + "choose a new password" page, returns to `next`
-- [ ] admin "Send temporary password"
-- [ ] add-email prompt after login
-- [ ] metrics (docs/metrics.md), swagger, otel, README, ADR at the end
-- [ ] homelab: app password secret, enable email in configmap
-- [ ] cashflow + tally: in-app links, leaving notice, guide updates
+- [ ] RFC review by opan (PR #36)
+- [x] address notice on branded pages
+- [x] email package + config (Gmail SMTP with STARTTLS, recorder for tests), `server.public_url`
+- [x] migration 13 (tested up/down on SQLite and Postgres)
+- [x] editable email + verification link (settings, `/account`, signup); admin `email_verified`; ID token
+      `email_verified`
+- [x] forgot-password endpoint + page (replaces dead `/forgot-password`), branded in app logins and from
+      direct app links (`GET /api/v1/oidc/apps/{id}`)
+- [x] restricted session + `/set-password`, returns to `next` (incl. the app hand-off)
+- [x] admin "Send temporary password" + verified badge + "save as verified"
+- [x] add-email prompt after login (`/add-email`, snooze 7 days)
+- [x] metrics (docs/metrics.md), swagger, README section; RFC §11 implementation notes
+- [x] tests: handler flow tests on SQLite (10), unit tests; browser e2e on Postgres + Mailpit (20/20)
+- [ ] ADR (docs/adr) once cashflow/tally are done
+- [ ] homelab: Google app password → `all-in-one-secrets.smtp_password`, env mapping, configmap
+      (`email.*`, `auth.support_email`)
+- [ ] cashflow + tally: "Lupa kata sandi?" and "Kata sandi & email" links with the leaving notice, guide
+      updates (cashflow guide still says min 8 characters)
