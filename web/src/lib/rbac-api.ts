@@ -29,6 +29,7 @@ export interface UserAccess {
 	group_name: string | null;
 	is_admin: boolean;
 	blocked: boolean;
+	email_verified: boolean;
 }
 
 export interface FeatureOverride {

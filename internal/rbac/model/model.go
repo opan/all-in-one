@@ -57,6 +57,8 @@ type UserAccessRow struct {
 	GroupName *string    `json:"group_name" db:"group_name"`
 	Blocked   bool       `json:"blocked" db:"blocked"`
 	IsAdmin   bool       `json:"is_admin" db:"-"`
+	// EmailVerified: the email can receive temporary passwords (RFC-003).
+	EmailVerified bool `json:"email_verified" db:"email_verified"`
 }
 
 // FeatureOverrideView is the API-facing (feature-key-based) shape of a

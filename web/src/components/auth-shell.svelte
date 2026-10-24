@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { Lock } from '@lucide/svelte/icons';
 	import ThemeToggle from './theme-toggle.svelte';
-	import { authRequestIdForPage, getAuthRequest, type AuthRequestInfo } from '$lib/oidc-api';
+	import { appForPage, appKeyForPage, type AppPresentation } from '$lib/oidc-api';
 	import { authMessages } from '$lib/oauth-i18n';
 
 	let { children } = $props();
@@ -11,19 +11,25 @@
 	// When an app sent the user here, the page is presented as that app's
 	// login (its name, icon, colour and language) with aio as the quiet
 	// provider, so the hop from the app doesn't look like a different site.
-	const requestId = $derived(authRequestIdForPage($page.url));
-	let app = $state<AuthRequestInfo | null>(null);
+	// The app comes from the login in progress, or from ?client_id= when the
+	// app linked to a page directly (e.g. forgot password).
+	const appKey = $derived(appKeyForPage($page.url));
+	let app = $state<AppPresentation | null>(null);
 	let failed = $state(false);
 
 	$effect(() => {
-		const id = requestId;
+		const key = appKey;
 		app = null;
 		failed = false;
-		if (!id) return;
-		getAuthRequest(id)
-			.then((info) => id === requestId && (app = info))
-			.catch(() => id === requestId && (failed = true));
+		if (!key) return;
+		appForPage($page.url)
+			.then((info) => key === appKey && (app = info))
+			.catch(() => key === appKey && (failed = true));
 	});
+
+	// aio's address, from the server's settings: shown so users expect to
+	// leave the app's address and know where their password belongs.
+	const accountHost = $derived(($page.data.publicConfig?.account_host as string | undefined) || $page.url.host);
 
 	$effect(() => {
 		if (app?.locale) document.documentElement.lang = app.locale;
@@ -44,7 +50,7 @@
 	}
 </script>
 
-{#if requestId && !failed}
+{#if appKey && !failed}
 	<div
 		class="flex min-h-screen flex-col bg-background text-foreground"
 		style:--primary={brand}
@@ -63,6 +69,19 @@
 				</span>
 			{/if}
 		</header>
+
+		{#if app}
+			<p
+				class="mx-4 mt-4 flex max-w-md items-start gap-2 rounded-md border px-3 py-2 text-xs text-muted-foreground sm:mx-auto"
+				data-testid="managed-notice"
+			>
+				<Lock class="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+				<span>
+					{m.managedNotice(app.client_name, accountHost)}
+					<strong class="text-foreground">{m.onlyHere}</strong>
+				</span>
+			</p>
+		{/if}
 
 		<main>
 			{@render children?.()}

@@ -49,6 +49,8 @@
 			window.location.replace(result.url);
 		} else if (result.kind === 'login-required') {
 			await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
+		} else if (result.kind === 'password-change') {
+			await goto(`/set-password?next=${encodeURIComponent(here)}`, { replaceState: true });
 		} else {
 			error = result.message || m.couldNotFinish;
 			// e.g. logged in to aio as the shared demo account: let the user log

@@ -9,6 +9,8 @@
 	import { toast, Toaster } from 'svelte-sonner';
 	import { apiGet, apiPost, apiClient } from '$lib/api';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { updateMyEmail } from '$lib/account-api';
 	import { setMode, resetMode, userPrefersMode } from 'mode-watcher';
 	import { PALETTES, palette, setPalette } from '$lib/stores/theme';
 
@@ -16,6 +18,26 @@
 
 	let username = $state(data.user?.username || '');
 	let email = $state(data.user?.email || '');
+	const emailVerified = $derived(data.user?.email_verified ?? false);
+	let sentTo = $state('');
+	const pendingEmail = $derived(sentTo || data.user?.pending_email || '');
+	let newEmail = $state('');
+	let emailSaving = $state(false);
+	const emailEnabled = $derived($page.data.publicConfig?.email_enabled ?? false);
+
+	async function handleEmailSubmit(event: Event) {
+		event.preventDefault();
+		emailSaving = true;
+		const res = await updateMyEmail(newEmail.trim(), {});
+		emailSaving = false;
+		if (res.ok) {
+			sentTo = res.data?.pending_email ?? newEmail.trim();
+			newEmail = '';
+			toast.success(`Confirmation link sent to ${sentTo}.`);
+		} else {
+			toast.error(res.error ? res.error.charAt(0).toUpperCase() + res.error.slice(1) : 'Could not send the email.');
+		}
+	}
 	let currentPassword = $state('');
 	let password = $state('');
 	let passwordConfirmation = $state('');
@@ -346,6 +368,46 @@
 							</p>
 						</div>
 
+						<form onsubmit={handleEmailSubmit} class="space-y-3" data-testid="email-settings">
+							<Field.Field>
+								<Field.Label for="email">Email</Field.Label>
+								<p class="text-sm">
+									{#if email}
+										<span class="font-medium">{email}</span>
+										<span class="ml-2 rounded px-1.5 py-0.5 text-xs {emailVerified ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}">
+											{emailVerified ? 'Confirmed' : 'Not confirmed'}
+										</span>
+									{:else}
+										<span class="text-muted-foreground">No email yet.</span>
+									{/if}
+								</p>
+								{#if pendingEmail}
+									<Field.Description>Waiting for you to open the link sent to {pendingEmail}.</Field.Description>
+								{/if}
+								{#if emailEnabled}
+									<div class="flex max-w-xl gap-2">
+										<Input
+											id="email"
+											type="email"
+											placeholder={email ? 'New email address' : 'Email address'}
+											bind:value={newEmail}
+											disabled={emailSaving}
+										/>
+										<Button type="submit" variant="outline" disabled={emailSaving || !newEmail.trim()}>
+											{emailSaving ? 'Sending…' : 'Send confirmation link'}
+										</Button>
+									</div>
+									<Field.Description>
+										A confirmed email lets you reset your password yourself if you forget it.
+									</Field.Description>
+								{:else}
+									<Field.Description>Ask the admin to change your email.</Field.Description>
+								{/if}
+							</Field.Field>
+						</form>
+
+						<Separator />
+
 						<form onsubmit={handleAccountSubmit} class="space-y-6">
 							<Field.Field>
 								<Field.Label for="username">Username</Field.Label>
@@ -362,17 +424,6 @@
 							</Field.Description>
 						</Field.Field>
 
-						<Field.Field>
-							<Field.Label for="email">Email</Field.Label>
-							<Input
-								id="email"
-								type="email"
-								placeholder="Email address"
-								bind:value={email}
-								disabled
-								class="max-w-xl"
-							/>
-							</Field.Field>
 
 							<Field.Field>
 								<Field.Label for="current_password">Current Password</Field.Label>

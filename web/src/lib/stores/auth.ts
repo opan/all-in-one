@@ -1,4 +1,6 @@
 import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
 import { apiGet } from '$lib/api';
 
 // Mirrors internal/authnz/handler.CurrentUserResponse JSON tags
@@ -10,6 +12,11 @@ export interface AuthUser {
 	is_admin: boolean;
 	group: { id: string; name: string } | null;
 	features: string[];
+	email_verified: boolean;
+	pending_email?: string;
+	// The session was opened with a temporary password (RFC-003); everything
+	// else is refused until the user chooses a new one.
+	password_change_required: boolean;
 }
 
 export const auth = writable<AuthUser | null>(null);
@@ -27,6 +34,10 @@ export async function loadAuth(): Promise<AuthUser | null> {
 		const result = await response.json();
 		const user = (result.data ?? null) as AuthUser | null;
 		auth.set(user);
+		if (user?.password_change_required && browser) {
+			const here = window.location.pathname + window.location.search;
+			await goto(`/set-password?next=${encodeURIComponent(here)}`, { replaceState: true });
+		}
 		return user;
 	} catch (error) {
 		console.error('Failed to load current user:', error);

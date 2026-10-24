@@ -19,6 +19,8 @@ export interface AuthRequestInfo {
 export type CompleteResult =
 	| { kind: 'redirect'; url: string }
 	| { kind: 'login-required' }
+	// The session was opened with a temporary password (RFC-003).
+	| { kind: 'password-change' }
 	| { kind: 'error'; message: string };
 
 const BASE = '/api/v1/oidc/auth-requests';
@@ -69,6 +71,10 @@ export async function completeAuthRequest(id: string, locale?: string): Promise<
 		headers: locale ? { 'Accept-Language': locale } : {}
 	});
 	if (res.status === 401) return { kind: 'login-required' };
+	if (res.status === 403) {
+		const body = await res.clone().json().catch(() => null);
+		if (body?.error === 'password_change_required') return { kind: 'password-change' };
+	}
 	if (!res.ok) return { kind: 'error', message: await errorMessage(res, '') };
 	return { kind: 'redirect', url: (await res.json()).data.redirect_url as string };
 }
@@ -85,4 +91,95 @@ export function authRequestIdFromNext(next: string | null): string | null {
 export function authRequestIdForPage(url: URL): string | null {
 	if (url.pathname.startsWith('/oauth/login')) return url.searchParams.get('authRequestID');
 	return authRequestIdFromNext(safeNext(url.searchParams.get('next')));
+}
+
+// AppPresentation is what aio's pages need to present themselves as an app:
+// from an auth request during a login, or from the registered client when
+// the app links to a page directly (forgot password, account settings).
+export interface AppPresentation {
+	client_id: string;
+	client_name: string;
+	brand_color: string;
+	icon: string;
+	// "en" | "id" | ""
+	locale: string;
+	// Where to send the user back to in the app; checked by aio against the
+	// app's registered addresses. Only for direct links.
+	return_to?: string;
+}
+
+const apps = new Map<string, Promise<AppPresentation>>();
+
+// getAppBranding loads a registered app for a page the app linked to:
+// /forgot-password?client_id=cashflow&return_to=…&ui_locales=id
+export function getAppBranding(clientId: string, returnTo: string, locale: string): Promise<AppPresentation> {
+	const key = `${clientId}\n${returnTo}\n${locale}`;
+	let p = apps.get(key);
+	if (!p) {
+		const q = new URLSearchParams({ return_to: returnTo });
+		p = fetch(`/api/v1/oidc/apps/${encodeURIComponent(clientId)}?${q}`, { credentials: 'include' }).then(
+			async (res) => {
+				if (!res.ok) throw new Error('unknown app');
+				const data = (await res.json()).data;
+				return { ...data, locale } as AppPresentation;
+			}
+		);
+		p.catch(() => apps.delete(key));
+		apps.set(key, p);
+	}
+	return p;
+}
+
+// supportedLocale keeps the first of ui_locales that aio's pages are written in.
+function supportedLocale(uiLocales: string | null): string {
+	for (const tag of (uiLocales ?? '').split(/\s+/)) {
+		const lang = tag.toLowerCase().split('-')[0];
+		if (lang === 'en' || lang === 'id') return lang;
+	}
+	return '';
+}
+
+// directAppParams finds a direct link's ?client_id= (and return_to,
+// ui_locales) on the page itself or inside its ?next= (e.g. the login page
+// in front of /account?client_id=cashflow).
+function directAppParams(url: URL): URLSearchParams | null {
+	if (url.searchParams.get('client_id')) return url.searchParams;
+	const next = safeNext(url.searchParams.get('next'));
+	if (!next) return null;
+	const inner = new URL(next, 'http://next.invalid').searchParams;
+	return inner.get('client_id') ? inner : null;
+}
+
+// appKeyForPage identifies the app a page belongs to, or null for aio's own
+// pages; it changes whenever the app does.
+export function appKeyForPage(url: URL): string | null {
+	const requestId = authRequestIdForPage(url);
+	if (requestId) return `request:${requestId}`;
+	const direct = directAppParams(url);
+	return direct ? `app:${direct.toString()}` : null;
+}
+
+// appForPage finds the app a page belongs to, if any: the auth request of a
+// login in progress (directly or inside ?next=), else a direct link's
+// ?client_id=.
+export async function appForPage(url: URL): Promise<AppPresentation | null> {
+	const requestId = authRequestIdForPage(url);
+	if (requestId) return getAuthRequest(requestId);
+	const direct = directAppParams(url);
+	if (!direct) return null;
+	return getAppBranding(
+		direct.get('client_id') ?? '',
+		direct.get('return_to') ?? '',
+		supportedLocale(direct.get('ui_locales'))
+	);
+}
+
+// appQuery carries a direct link's app parameters on to the next page.
+export function appQuery(url: URL): string {
+	const q = new URLSearchParams();
+	for (const key of ['client_id', 'return_to', 'ui_locales']) {
+		const v = url.searchParams.get(key);
+		if (v) q.set(key, v);
+	}
+	return q.toString();
 }

@@ -77,6 +77,68 @@ export interface AuthMessages {
 	couldNotFinish: string;
 	useAnotherAccount: string;
 	goBack: string;
+	// account address notice (RFC-003 §6.8)
+	managedNotice: (app: string, host: string) => string;
+	onlyHere: string;
+	// forgot password
+	forgotLink: string;
+	forgotTitle: string;
+	forgotSubtitle: string;
+	usernameOrEmail: string;
+	usernameOrEmailPlaceholder: string;
+	sendTempPassword: string;
+	sending: string;
+	forgotSent: string;
+	forgotSentDetail: string;
+	noEmailTitle: string;
+	noEmailText: (support: string) => string;
+	noEmailNoSupport: string;
+	emailAdmin: string;
+	mailtoSubject: string;
+	mailtoBody: (username: string) => string;
+	emailResetUnavailable: string;
+	backTo: (app: string) => string;
+	somethingWrong: string;
+	// choose a new password
+	setPasswordTitle: string;
+	setPasswordSubtitle: string;
+	newPassword: string;
+	saveAndContinue: string;
+	saving: string;
+	setPasswordFailed: string;
+	// add email
+	addEmailTitle: string;
+	addEmailSubtitle: string;
+	emailPlaceholder: string;
+	sendConfirmationLink: string;
+	later: string;
+	confirmationSent: (email: string) => string;
+	continueButton: string;
+	invalidEmail: string;
+	emailCantBeUsed: string;
+	tooManyEmails: string;
+	emailNotSent: string;
+	// verify email
+	verifyTitle: string;
+	verifyingEmail: string;
+	emailConfirmed: (email: string) => string;
+	verifyFailed: string;
+	goToAccount: string;
+	// account page (/account, linked from apps)
+	accountTitle: string;
+	accountSubtitle: (app: string) => string;
+	emailSection: string;
+	emailVerified: string;
+	emailNotVerified: string;
+	noEmailYet: string;
+	emailPendingNote: (email: string) => string;
+	changeEmail: string;
+	passwordSection: string;
+	currentPassword: string;
+	changePassword: string;
+	passwordChanged: string;
+	wrongCurrentPassword: string;
+	emailUnavailableHere: string;
 }
 
 const en: AuthMessages = {
@@ -144,7 +206,66 @@ const en: AuthMessages = {
 	invalidLink: 'This login link is not valid.',
 	couldNotFinish: 'Could not finish logging in.',
 	useAnotherAccount: 'Use another account',
-	goBack: 'Go back'
+	goBack: 'Go back',
+	managedNotice: (app, host) => `Your ${app} account is managed by All-in-one, so this page is on ${host}.`,
+	onlyHere: 'Only enter your password on this address.',
+	forgotLink: 'Forgot password?',
+	forgotTitle: 'Forgot your password?',
+	forgotSubtitle: "We'll email you a temporary password. Your current password keeps working until you choose a new one.",
+	usernameOrEmail: 'Username or email',
+	usernameOrEmailPlaceholder: 'Your username or email',
+	sendTempPassword: 'Send temporary password',
+	sending: 'Sending…',
+	forgotSent: 'Check your email',
+	forgotSentDetail:
+		"If this account has a confirmed email, a temporary password is on its way. It works for 30 minutes. Nothing arrived? Check spam, or see below.",
+	noEmailTitle: 'No email on your account?',
+	noEmailText: (support) =>
+		`Email the admin at ${support} from the address you want to use, with your username. The admin will check it's you and send a temporary password to that address.`,
+	noEmailNoSupport: 'Contact the admin; they will check it is you and help you reset your password.',
+	emailAdmin: 'Email the admin',
+	mailtoSubject: 'Forgot my password',
+	mailtoBody: (username) =>
+		`Hi, I forgot my password.\n\nUsername: ${username}\n\nPlease send a temporary password to this email address.`,
+	emailResetUnavailable: "Password reset by email isn't available yet.",
+	backTo: (app) => `Back to ${app}`,
+	somethingWrong: 'Something went wrong. Please try again.',
+	setPasswordTitle: 'Choose a new password',
+	setPasswordSubtitle: 'You logged in with a temporary password. Choose a new one to continue.',
+	newPassword: 'New password',
+	saveAndContinue: 'Save and continue',
+	saving: 'Saving…',
+	setPasswordFailed: 'Could not save your password. Please try again.',
+	addEmailTitle: 'Add your email',
+	addEmailSubtitle: 'So you can reset your password yourself if you ever forget it.',
+	emailPlaceholder: 'you@example.com',
+	sendConfirmationLink: 'Send confirmation link',
+	later: 'Later',
+	confirmationSent: (email) => `We sent a link to ${email}. Open it within 24 hours to confirm your email.`,
+	continueButton: 'Continue',
+	invalidEmail: 'Enter a valid email address.',
+	emailCantBeUsed: "This email can't be used.",
+	tooManyEmails: 'Too many confirmation emails today. Try again tomorrow.',
+	emailNotSent: "The email couldn't be sent. Try again later.",
+	verifyTitle: 'Confirm your email',
+	verifyingEmail: 'Confirming…',
+	emailConfirmed: (email) => `${email} is confirmed. You can now reset your password yourself if you forget it.`,
+	verifyFailed: 'This link is invalid or has expired. Add your email again from your account settings.',
+	goToAccount: 'Go to my account',
+	accountTitle: 'Password & email',
+	accountSubtitle: (app) => `For the account you use in ${app}.`,
+	emailSection: 'Email',
+	emailVerified: 'Confirmed',
+	emailNotVerified: 'Not confirmed',
+	noEmailYet: 'No email yet. Add one so you can reset your password yourself.',
+	emailPendingNote: (email) => `Waiting for you to open the link sent to ${email}.`,
+	changeEmail: 'Send confirmation link',
+	passwordSection: 'Password',
+	currentPassword: 'Current password',
+	changePassword: 'Change password',
+	passwordChanged: 'Password changed.',
+	wrongCurrentPassword: 'Your current password is wrong.',
+	emailUnavailableHere: 'Changing your email is not available yet; ask the admin.'
 };
 
 const id: AuthMessages = {
@@ -212,7 +333,67 @@ const id: AuthMessages = {
 	invalidLink: 'Tautan masuk ini tidak valid.',
 	couldNotFinish: 'Gagal menyelesaikan proses masuk.',
 	useAnotherAccount: 'Pakai akun lain',
-	goBack: 'Kembali'
+	goBack: 'Kembali',
+	managedNotice: (app, host) => `Akun ${app} kamu dikelola oleh All-in-one, jadi halaman ini ada di ${host}.`,
+	onlyHere: 'Masukkan kata sandi hanya di alamat ini.',
+	forgotLink: 'Lupa kata sandi?',
+	forgotTitle: 'Lupa kata sandi?',
+	forgotSubtitle:
+		'Kami kirim kata sandi sementara ke email kamu. Kata sandi lama tetap bisa dipakai sampai kamu membuat yang baru.',
+	usernameOrEmail: 'Nama pengguna atau email',
+	usernameOrEmailPlaceholder: 'Nama pengguna atau email kamu',
+	sendTempPassword: 'Kirim kata sandi sementara',
+	sending: 'Mengirim…',
+	forgotSent: 'Cek email kamu',
+	forgotSentDetail:
+		'Jika akun ini punya email yang sudah dikonfirmasi, kata sandi sementara sedang dikirim. Berlaku 30 menit. Tidak masuk? Cek folder spam, atau lihat di bawah.',
+	noEmailTitle: 'Akunmu belum punya email?',
+	noEmailText: (support) =>
+		`Kirim email ke admin di ${support} dari alamat yang ingin kamu pakai, sertakan nama pengguna kamu. Admin akan memastikan itu memang kamu, lalu mengirim kata sandi sementara ke alamat itu.`,
+	noEmailNoSupport: 'Hubungi admin; admin akan memastikan itu memang kamu dan membantu mengatur ulang kata sandi.',
+	emailAdmin: 'Kirim email ke admin',
+	mailtoSubject: 'Lupa kata sandi',
+	mailtoBody: (username) =>
+		`Halo, saya lupa kata sandi.\n\nNama pengguna: ${username}\n\nMohon kirim kata sandi sementara ke alamat email ini.`,
+	emailResetUnavailable: 'Atur ulang kata sandi lewat email belum tersedia.',
+	backTo: (app) => `Kembali ke ${app}`,
+	somethingWrong: 'Terjadi kesalahan. Coba lagi.',
+	setPasswordTitle: 'Buat kata sandi baru',
+	setPasswordSubtitle: 'Kamu masuk dengan kata sandi sementara. Buat kata sandi baru untuk melanjutkan.',
+	newPassword: 'Kata sandi baru',
+	saveAndContinue: 'Simpan dan lanjutkan',
+	saving: 'Menyimpan…',
+	setPasswordFailed: 'Gagal menyimpan kata sandi. Coba lagi.',
+	addEmailTitle: 'Tambahkan email kamu',
+	addEmailSubtitle: 'Supaya kamu bisa mengatur ulang kata sandi sendiri jika suatu saat lupa.',
+	emailPlaceholder: 'kamu@contoh.com',
+	sendConfirmationLink: 'Kirim tautan konfirmasi',
+	later: 'Nanti saja',
+	confirmationSent: (email) => `Kami mengirim tautan ke ${email}. Buka dalam 24 jam untuk mengonfirmasi email kamu.`,
+	continueButton: 'Lanjutkan',
+	invalidEmail: 'Masukkan alamat email yang valid.',
+	emailCantBeUsed: 'Email ini tidak bisa dipakai.',
+	tooManyEmails: 'Terlalu banyak email konfirmasi hari ini. Coba lagi besok.',
+	emailNotSent: 'Email gagal dikirim. Coba lagi nanti.',
+	verifyTitle: 'Konfirmasi email',
+	verifyingEmail: 'Mengonfirmasi…',
+	emailConfirmed: (email) => `${email} sudah dikonfirmasi. Sekarang kamu bisa mengatur ulang kata sandi sendiri jika lupa.`,
+	verifyFailed: 'Tautan ini tidak valid atau sudah kedaluwarsa. Tambahkan email lagi dari pengaturan akun.',
+	goToAccount: 'Ke akun saya',
+	accountTitle: 'Kata sandi & email',
+	accountSubtitle: (app) => `Untuk akun yang kamu pakai di ${app}.`,
+	emailSection: 'Email',
+	emailVerified: 'Terkonfirmasi',
+	emailNotVerified: 'Belum dikonfirmasi',
+	noEmailYet: 'Belum ada email. Tambahkan supaya kamu bisa mengatur ulang kata sandi sendiri.',
+	emailPendingNote: (email) => `Menunggu kamu membuka tautan yang dikirim ke ${email}.`,
+	changeEmail: 'Kirim tautan konfirmasi',
+	passwordSection: 'Kata sandi',
+	currentPassword: 'Kata sandi saat ini',
+	changePassword: 'Ganti kata sandi',
+	passwordChanged: 'Kata sandi sudah diganti.',
+	wrongCurrentPassword: 'Kata sandi saat ini salah.',
+	emailUnavailableHere: 'Mengganti email belum tersedia; hubungi admin.'
 };
 
 const catalogs: Record<Locale, AuthMessages> = { en, id };

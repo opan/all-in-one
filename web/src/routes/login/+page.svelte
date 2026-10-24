@@ -7,8 +7,9 @@
 	import { page } from '$app/stores';
 	import type { DemoMode } from '$lib/config';
 	import { safeNext } from '$lib/safe-next';
-	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '$lib/oidc-api';
+	import { appForPage, appKeyForPage, authRequestIdFromNext, type AppPresentation } from '$lib/oidc-api';
 	import { authMessages } from '$lib/oauth-i18n';
+	import { afterLoginPath } from '$lib/account-api';
 
 	// Demo-account flag from the root layout load (GET /api/v1/config).
 	const demo = $derived(($page.data.demoMode ?? { enabled: false }) as DemoMode);
@@ -16,23 +17,30 @@
 	// Where to go after logging in: a same-site path from ?next= (e.g. the
 	// OIDC hand-off at /oauth/login), otherwise the dashboard.
 	const next = $derived(safeNext($page.url.searchParams.get('next')));
-	const afterLogin = () => goto(next ?? '/home', { replaceState: true });
+	// After a temporary password, the user chooses a new one first; users
+	// without a confirmed email are asked to add one (RFC-003).
+	const afterLogin = (result: { password_change_required?: boolean; email_prompt?: boolean } | null) =>
+		goto(afterLoginPath(result, next), { replaceState: true });
+	const forgotHref = $derived(next ? `/forgot-password?next=${encodeURIComponent(next)}` : '/forgot-password');
 
 	// When an app sent the user here, this is that app's login: its name and
 	// language, without aio-only extras. Wait for the app's details before
 	// showing the form so its language doesn't flash in after English.
+	// The app is a login in progress (appRequestId) or, for pages an app links
+	// to directly (e.g. /account?client_id=…), the app named in ?next=.
 	const appRequestId = $derived(authRequestIdFromNext(next));
-	let app = $state<AuthRequestInfo | null>(null);
+	const appKey = $derived(appKeyForPage($page.url));
+	let app = $state<AppPresentation | null>(null);
 	let appLookupDone = $state(false);
 	$effect(() => {
-		const id = appRequestId;
+		const key = appKey;
 		app = null;
-		appLookupDone = !id;
-		if (id)
-			getAuthRequest(id)
-				.then((info) => (app = info))
+		appLookupDone = !key;
+		if (key)
+			appForPage($page.url)
+				.then((info) => key === appKey && (app = info))
 				.catch(() => {})
-				.finally(() => (appLookupDone = true));
+				.finally(() => key === appKey && (appLookupDone = true));
 	});
 	const m = $derived(authMessages(app?.locale));
 
@@ -102,7 +110,7 @@
 					challengeToken = data.data.challenge_token;
 					show2FAStep = true;
 				} else {
-					await afterLogin();
+					await afterLogin(data.data);
 				}
 			} else {
 				error = loginError(response.status, data.error);
@@ -140,7 +148,7 @@
 			const data = await response.json();
 
 			if (response.ok && data.success) {
-				await afterLogin();
+				await afterLogin(data.data);
 			} else if (response.status === 429) {
 				error = m.tooManyCodeAttempts;
 				reset2FA();
@@ -174,7 +182,7 @@
 </svelte:head>
 
 {#if appLookupDone}
-<div class="flex items-start justify-center px-4 {appRequestId ? 'pt-10 sm:pt-16' : 'pt-[33vh]'}">
+<div class="flex items-start justify-center px-4 {appKey ? 'pt-10 sm:pt-16' : 'pt-[33vh]'}">
 	<Card.Root class="w-full max-w-md">
 		<Card.Header>
 			<div class="flex justify-between items-start">
@@ -271,11 +279,9 @@
 					<div class="space-y-2">
 						<div class="flex justify-between items-center">
 							<Label for="password">{m.password}</Label>
-							{#if !app}
-								<a href="/forgot-password" class="text-sm text-muted-foreground hover:underline">
-									Forgot your password?
-								</a>
-							{/if}
+							<a href={forgotHref} class="text-sm text-muted-foreground hover:underline">
+								{m.forgotLink}
+							</a>
 						</div>
 						<Input
 							id="password"

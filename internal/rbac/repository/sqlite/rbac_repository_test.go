@@ -46,7 +46,8 @@ func newTestDB(t *testing.T) *sqlx.DB {
 			username TEXT NOT NULL UNIQUE,
 			email TEXT NOT NULL UNIQUE,
 			group_id TEXT REFERENCES groups(id) ON DELETE SET NULL,
-			blocked INTEGER NOT NULL DEFAULT 0
+			blocked INTEGER NOT NULL DEFAULT 0,
+			email_verified_at TIMESTAMP
 		);
 
 		CREATE TABLE group_features (
