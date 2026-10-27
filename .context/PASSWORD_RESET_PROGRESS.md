@@ -38,5 +38,6 @@
 - [ ] ADR (docs/adr) once cashflow/tally are done
 - [ ] homelab: Google app password → `all-in-one-secrets.smtp_password`, env mapping, configmap
       (`email.*`, `auth.support_email`)
-- [ ] cashflow + tally: "Lupa kata sandi?" and "Kata sandi & email" links with the leaving notice, guide
-      updates (cashflow guide still says min 8 characters)
+- [x] cashflow + tally: "Lupa kata sandi?" (landing) and `/akun` → "Ubah kata sandi & email" with the
+      leaving notice, guide updates (cashflow: 5 characters). PRs opan/cashflow#6, opan/tally#4 (2026-10-27),
+      tested against a local aio from this branch; merge after this is deployed
