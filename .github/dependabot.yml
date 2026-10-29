@@ -1,0 +1,23 @@
+# Weekly pull requests to keep Go modules, the web app's npm packages, the
+# Docker base images, and the GitHub Actions current (security fixes land
+# through these too).
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      go-modules: { patterns: ['*'] }
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    groups:
+      npm: { patterns: ['*'] }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ['*'] }
