@@ -47,6 +47,11 @@
       return data;
     },
     columns,
+    // Without page controls, show every row: pages of 10 with no way to
+    // reach page 2 would hide the rest.
+    get manualPagination() {
+      return !showPagination;
+    },
     onColumnVisibilityChange: (updater) => {
       columnVisibility = functionalUpdate(updater, columnVisibility);
     },

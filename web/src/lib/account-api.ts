@@ -2,6 +2,8 @@
 // login page: apiClient redirects to /login on a 401, which would drop the
 // ?next= these pages carry through an app login.
 
+import { redirect } from '@sveltejs/kit';
+
 export interface ApiResult<T = unknown> {
 	ok: boolean;
 	status: number;
@@ -81,11 +83,21 @@ export function afterLoginPath(
 
 // signedInPath is where /login and /signup send a visitor who already has an
 // aio session: the dashboard, or choosing a new password after a temporary
-// one. null when not signed in, so the page shows its form. /users/me also
-// answers for a session that must change its password first.
+// one. null when not signed in. /users/me also answers for a session that
+// must change its password first.
 export async function signedInPath(): Promise<string | null> {
 	let me = await getMe();
 	if (me.status === 401 && (await call('POST', '/api/v1/sessions/refresh')).ok) me = await getMe();
 	if (!me.ok) return null;
 	return afterLoginPath({ password_change_required: me.data?.password_change_required }, null);
+}
+
+// redirectIfSignedIn is the load guard of /login and /signup: a signed-in
+// visitor goes on instead of seeing the form. Not with ?next=: an app login
+// arrives from /oauth/login, which checks the session itself and sends
+// "login required" back here, so redirecting could loop.
+export async function redirectIfSignedIn(url: URL): Promise<void> {
+	if (url.searchParams.get('next')) return;
+	const path = await signedInPath();
+	if (path) throw redirect(307, path);
 }

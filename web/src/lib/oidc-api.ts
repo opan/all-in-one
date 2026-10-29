@@ -3,6 +3,7 @@
 // 401, which would drop the ?next= target this flow depends on.
 
 import { safeNext } from '#lib/safe-next.js';
+import type { ReadonlyURL, ReadonlyURLSearchParams } from '$app/state';
 
 export interface AuthRequestInfo {
 	id: string;
@@ -86,17 +87,9 @@ export function authRequestIdFromNext(next: string | null): string | null {
 	return new URLSearchParams(next.slice('/oauth/login?'.length)).get('authRequestID');
 }
 
-// PageURL is the part of a page URL these helpers read. SvelteKit's page.url
-// is readonly, so they take this rather than a mutable URL.
-type QueryParams = Pick<URLSearchParams, 'get' | 'toString'>;
-export interface PageURL {
-	readonly pathname: string;
-	readonly searchParams: QueryParams;
-}
-
 // authRequestIdForPage finds the app login a page belongs to: the hand-off
 // page carries it directly, login and signup carry it inside ?next=.
-export function authRequestIdForPage(url: PageURL): string | null {
+export function authRequestIdForPage(url: ReadonlyURL): string | null {
 	if (url.pathname.startsWith('/oauth/login')) return url.searchParams.get('authRequestID');
 	return authRequestIdFromNext(safeNext(url.searchParams.get('next')));
 }
@@ -150,7 +143,7 @@ function supportedLocale(uiLocales: string | null): string {
 // directAppParams finds a direct link's ?client_id= (and return_to,
 // ui_locales) on the page itself or inside its ?next= (e.g. the login page
 // in front of /account?client_id=cashflow).
-function directAppParams(url: PageURL): QueryParams | null {
+function directAppParams(url: ReadonlyURL): ReadonlyURLSearchParams | null {
 	if (url.searchParams.get('client_id')) return url.searchParams;
 	const next = safeNext(url.searchParams.get('next'));
 	if (!next) return null;
@@ -160,7 +153,7 @@ function directAppParams(url: PageURL): QueryParams | null {
 
 // appKeyForPage identifies the app a page belongs to, or null for aio's own
 // pages; it changes whenever the app does.
-export function appKeyForPage(url: PageURL): string | null {
+export function appKeyForPage(url: ReadonlyURL): string | null {
 	const requestId = authRequestIdForPage(url);
 	if (requestId) return `request:${requestId}`;
 	const direct = directAppParams(url);
@@ -170,7 +163,7 @@ export function appKeyForPage(url: PageURL): string | null {
 // appForPage finds the app a page belongs to, if any: the auth request of a
 // login in progress (directly or inside ?next=), else a direct link's
 // ?client_id=.
-export async function appForPage(url: PageURL): Promise<AppPresentation | null> {
+export async function appForPage(url: ReadonlyURL): Promise<AppPresentation | null> {
 	const requestId = authRequestIdForPage(url);
 	if (requestId) return getAuthRequest(requestId);
 	const direct = directAppParams(url);
@@ -183,7 +176,7 @@ export async function appForPage(url: PageURL): Promise<AppPresentation | null> 
 }
 
 // appQuery carries a direct link's app parameters on to the next page.
-export function appQuery(url: PageURL): string {
+export function appQuery(url: ReadonlyURL): string {
 	const q = new URLSearchParams();
 	for (const key of ['client_id', 'return_to', 'ui_locales']) {
 		const v = url.searchParams.get(key);

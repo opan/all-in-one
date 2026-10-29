@@ -6,7 +6,7 @@ All-in-one is a multi-functional apps. Originally built for learning purpose but
 
 - Full-stack web application.
 - **Backend:** Go (1.26+), REST API, stored in the project root.
-- **Frontend:** Svelte 5+ with TypeScript 5.9+, source under `web/`.
+- **Frontend:** Svelte 5 and SvelteKit 3 with TypeScript 6, source under `web/`.
 
 
 ## General instructions
@@ -118,8 +118,11 @@ Support authentications:
 
 ### Frontend (Svelte + TypeScript) Guidelines
 - **Svelte:** 5+
-- **TypeScript:** 5.9+
-- **Vite** 7+
+- **SvelteKit:** 3 (options in `web/vite.config.ts`; there is no `svelte.config.js`)
+- **TypeScript:** 6 (SvelteKit 3 doesn't support 7 yet)
+- **Vite** 8+
+- Import shared code as `#lib/...` with the file extension (e.g. `#lib/api.js`); SvelteKit 3 removed `$lib`.
+- Read page state from `$app/state` (`page.url`, `page.data`); `$app/stores` is gone.
 - **node:**: 22.19+
 - **npm:** 10+
 

@@ -117,7 +117,8 @@ Support authentications:
 - **SvelteKit:** 3 (options in `web/vite.config.ts`; there is no `svelte.config.js`)
 - **TypeScript:** 6 (SvelteKit 3 doesn't support 7 yet)
 - **Vite** 8+
-- Import shared code as `#lib/...` with the file extension (e.g. `#lib/api.js`)
+- Import shared code as `#lib/...` with the file extension (e.g. `#lib/api.js`); SvelteKit 3 removed `$lib`.
+- Read page state from `$app/state` (`page.url`, `page.data`); `$app/stores` is gone.
 - **node:** 26 (LTS)
 - **npm:** 10+
 

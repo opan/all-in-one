@@ -8,7 +8,7 @@
 	import { page } from '$app/state';
 	import { safeNext } from '#lib/safe-next.js';
 	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '#lib/oidc-api.js';
-	import { afterLoginPath, signedInPath } from '#lib/account-api.js';
+	import { afterLoginPath } from '#lib/account-api.js';
 	import { authMessages } from '#lib/oauth-i18n.js';
 	import { passwordTooShort } from '#lib/password.js';
 
@@ -23,26 +23,13 @@
 		const id = appRequestId;
 		app = null;
 		appLookupDone = !id;
-
-		if (id) getAuthRequest(id).then((info) => app = info).catch(() => {}).finally(() => appLookupDone = true);
+		if (id)
+			getAuthRequest(id)
+				.then((info) => (app = info))
+				.catch(() => {})
+				.finally(() => (appLookupDone = true));
 	});
 	const m = $derived(authMessages(app?.locale));
-
-	// Already signed in: go on instead of showing the form. Not with ?next=:
-	// an app login arrives from /oauth/login, which checks the session itself
-	// and sends "login required" back here, so redirecting could loop.
-	let sessionChecked = $state(false);
-	$effect(() => {
-		if (next) {
-			sessionChecked = true;
-			return;
-		}
-		signedInPath().then((path) => {
-			if (path) goto(path, { replace: true });
-			else sessionChecked = true;
-		});
-	});
-
 	const translated = $derived(!!app?.locale && app.locale !== 'en');
 
 	let username = $state('');
@@ -97,7 +84,7 @@
 							? m.invalidEmail
 							: m.usernamePasswordRequired;
 				} else {
-					error = !translated && data.error || m.signupFailed;
+					error = (!translated && data.error) || m.signupFailed;
 				}
 				return;
 			}
@@ -126,83 +113,83 @@
 	{#if app}<title>{m.signupTitleApp(app.client_name)}</title>{/if}
 </svelte:head>
 
-{#if appLookupDone && sessionChecked}
+{#if appLookupDone}
 <div class="flex items-start justify-center px-4 {appRequestId ? 'pt-10 sm:pt-16' : 'pt-[33vh]'}">
-		<Card.Root class="w-full max-w-md">
-			<Card.Header>
-				<div class="flex justify-between items-start">
-					<div>
-						<Card.Title class="text-2xl">{app ? m.signupTitleApp(app.client_name) : m.signupTitle}</Card.Title>
-						<Card.Description class="mt-2">
+	<Card.Root class="w-full max-w-md">
+		<Card.Header>
+			<div class="flex justify-between items-start">
+				<div>
+					<Card.Title class="text-2xl">{app ? m.signupTitleApp(app.client_name) : m.signupTitle}</Card.Title>
+					<Card.Description class="mt-2">
 						{app ? m.signupSubtitleApp(app.client_name) : m.signupSubtitle}
-						</Card.Description>
-					</div>
-					{#if !app}
-					<Button variant="ghost" class="text-sm" onclick={() => goto(loginHref)}>{m.logIn}</Button>
-					{/if}
+					</Card.Description>
 				</div>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				{#if error}
+				{#if !app}
+					<Button variant="ghost" class="text-sm" onclick={() => goto(loginHref)}>{m.logIn}</Button>
+				{/if}
+			</div>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			{#if error}
 				<div class="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md dark:bg-red-950 dark:border-red-800 dark:text-red-400">
 					{error}
 				</div>
-				{/if}
+			{/if}
 
-				<form onsubmit={handleRegister} class="space-y-4">
-					<div class="space-y-2">
-						<Label for="username">{m.username}</Label>
-						<Input
-							id="username"
-							type="text"
-							placeholder={m.chooseUsername}
-							bind:value={username}
-							disabled={loading}
-							required
-						/>
-					</div>
-					<div class="space-y-2">
+			<form onsubmit={handleRegister} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="username">{m.username}</Label>
+					<Input
+						id="username"
+						type="text"
+						placeholder={m.chooseUsername}
+						bind:value={username}
+						disabled={loading}
+						required
+					/>
+				</div>
+				<div class="space-y-2">
 					<Label for="email">{m.email} <span class="text-muted-foreground">{m.optional}</span></Label>
-						<Input
-							id="email"
-							type="email"
-							placeholder="you@example.com"
-							bind:value={email}
-							disabled={loading}
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="password">{m.password}</Label>
-						<Input
-							id="password"
-							type="password"
-							bind:value={password}
-							disabled={loading}
-							required
-							placeholder={m.choosePassword}
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="confirm-password">{m.confirmPassword}</Label>
-						<Input
-							id="confirm-password"
-							type="password"
-							bind:value={confirmPassword}
-							disabled={loading}
-							required
-							placeholder={m.reenterPassword}
-						/>
-					</div>
+					<Input
+						id="email"
+						type="email"
+						placeholder="you@example.com"
+						bind:value={email}
+						disabled={loading}
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="password">{m.password}</Label>
+					<Input
+						id="password"
+						type="password"
+						bind:value={password}
+						disabled={loading}
+						required
+						placeholder={m.choosePassword}
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="confirm-password">{m.confirmPassword}</Label>
+					<Input
+						id="confirm-password"
+						type="password"
+						bind:value={confirmPassword}
+						disabled={loading}
+						required
+						placeholder={m.reenterPassword}
+					/>
+				</div>
 				<Button type="submit" class="w-full" disabled={loading}>
 					{loading ? m.creatingAccount : m.signUpButton}
 				</Button>
-				</form>
+			</form>
 
-				<p class="text-sm text-center text-muted-foreground">
-					{m.haveAccount} 
+			<p class="text-sm text-center text-muted-foreground">
+				{m.haveAccount}
 				<a href={loginHref} class="underline hover:text-foreground">{m.logIn}</a>
-				</p>
-			</Card.Content>
-		</Card.Root>
-	</div>
+			</p>
+		</Card.Content>
+	</Card.Root>
+</div>
 {/if}
