@@ -116,7 +116,7 @@ Support authentications:
 - **Svelte:** 5+
 - **TypeScript:** 5.9+
 - **Vite** 7+
-- **node:**: 22.19+
+- **node:** 26 (LTS)
 - **npm:** 10+
 
 #### Project structure
