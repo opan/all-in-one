@@ -69,6 +69,16 @@ type Branding struct {
 	Icon       string `json:"icon" db:"icon"`
 }
 
+// AppBranding presents an app on aio's pages outside a login. ReturnTo is
+// the validated address to send the user back to, "" when none was given or
+// it didn't belong to the app.
+type AppBranding struct {
+	ClientID   string `json:"client_id"`
+	ClientName string `json:"client_name"`
+	Branding
+	ReturnTo string `json:"return_to"`
+}
+
 // AuthRequestInfo is what aio's login page needs to render an auth request:
 // which app is asking, how to present it, and whether it asked for the
 // signup form. Locale is the app's ui_locales choice that aio supports

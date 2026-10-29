@@ -71,7 +71,8 @@ func (r *userGroupRepository) CountByGroup(ctx context.Context, groupID uuid.UUI
 func (r *userGroupRepository) ListUsersWithGroup(ctx context.Context) ([]model.UserAccessRow, error) {
 	var rows []model.UserAccessRow
 	err := r.db.SelectContext(ctx, &rows, `
-		SELECT users.id AS user_id, users.username, COALESCE(users.email, '') AS email, users.group_id, users.blocked, groups.name AS group_name
+		SELECT users.id AS user_id, users.username, COALESCE(users.email, '') AS email, users.group_id, users.blocked, groups.name AS group_name,
+			(users.email IS NOT NULL AND users.email_verified_at IS NOT NULL) AS email_verified
 		FROM users
 		LEFT JOIN groups ON groups.id = users.group_id
 		ORDER BY users.username`)

@@ -819,7 +819,7 @@ const docTemplate = `{
                         "DirectAuth": []
                     }
                 ],
-                "description": "Admin-only. Change another user's email address.",
+                "description": "Admin-only. Change another user's email address, optionally saving it as verified (only when the user wrote from that address).",
                 "consumes": [
                     "application/json"
                 ],
@@ -929,6 +929,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/users/{id}/password-reset": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Admin-only. Emails a temporary password to the user's verified email; the admin never sees it. Confirm the user's identity first (RFC-003 §6.5).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-users"
+                ],
+                "summary": "Email a user a temporary password (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Email language",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.AdminPasswordResetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Temporary password sent",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "User has no verified email, or is blocked",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "The email could not be sent",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Email is not set up on this server",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users/{id}/unblock": {
             "post": {
                 "security": [
@@ -969,6 +1039,98 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/email/verify": {
+            "post": {
+                "description": "Opens the link from a verification email. Works without being logged in.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Confirm an email address",
+                "parameters": [
+                    {
+                        "description": "Token from the link",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.VerifyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email confirmed",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired link",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "This email can't be used",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/forgot": {
+            "post": {
+                "description": "Sends a temporary password to the account's verified email. Always answers the same way, whether or not the account exists or has a verified email. The current password keeps working until a new one is set.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Email a temporary password",
+                "parameters": [
+                    {
+                        "description": "Username or email",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Request accepted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing username or email",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Email is not set up on this server",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -1855,6 +2017,59 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/oidc/apps/{id}": {
+            "get": {
+                "description": "Name, colour and icon of a registered app, for aio's forgot-password and account pages opened from that app. return_to is echoed back only when it is on the same origin as one of the app's registered redirect URIs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oidc"
+                ],
+                "summary": "How to present an app on aio's pages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Where to send the user back to in the app",
+                        "name": "return_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The app",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.AppBranding"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown or revoked app",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -2967,7 +3182,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.User"
+                                            "$ref": "#/definitions/handler.LoginResponse"
                                         }
                                     }
                                 }
@@ -3758,6 +3973,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/me/email": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Sends a verification link to the address. It replaces the current email only once the link is opened.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Add or change your email",
+                "parameters": [
+                    {
+                        "description": "New email",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateMyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification link sent",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid email, or already your email",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Not available for the demo account",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "This email can't be used",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many verification emails today",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "502": {
+                        "description": "The email could not be sent",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Email is not set up on this server",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me/email-prompt/snooze": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Hides the \"add your email\" prompt shown after login for 7 days.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Ask again later about adding an email",
+                "responses": {
+                    "200": {
+                        "description": "Prompt snoozed",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/users/me/password": {
             "put": {
                 "security": [
@@ -3809,6 +4126,70 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/password/set": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": [],
+                        "DirectAuth": []
+                    }
+                ],
+                "description": "Only for a session created with a temporary password. Sets the new password, ends the user's other sessions and lifts the session's restriction.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Choose a new password after logging in with a temporary one",
+                "parameters": [
+                    {
+                        "description": "New password",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password set",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.SetPasswordResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Password too short or too long",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "This session has no password change pending",
                         "schema": {
                             "$ref": "#/definitions/github_com_all-in-one_internal_http.Response"
                         }
@@ -3895,6 +4276,14 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.AdminPasswordResetRequest": {
+            "type": "object",
+            "properties": {
+                "locale": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.AssignUserGroupRequest": {
             "type": "object",
             "properties": {
@@ -3932,6 +4321,12 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "email_verified": {
+                    "type": "boolean"
+                },
+                "email_verified_at": {
+                    "type": "string"
+                },
                 "features": {
                     "type": "array",
                     "items": {
@@ -3956,6 +4351,14 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "password_change_required": {
+                    "description": "PasswordChangeRequired: this session was opened with a temporary\npassword; the user must choose a new one first.",
+                    "type": "boolean"
+                },
+                "pending_email": {
+                    "description": "PendingEmail is an address waiting for its verification link.",
+                    "type": "string"
+                },
                 "totp_enabled": {
                     "type": "boolean"
                 },
@@ -3963,6 +4366,21 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ForgotPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "locale": {
+                    "type": "string"
+                },
+                "login": {
+                    "description": "Login is a username or a verified email address.",
                     "type": "string"
                 }
             }
@@ -3978,10 +4396,63 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_prompt": {
+                    "description": "EmailPrompt: ask the user to add an email (RFC-003 §6.6).",
+                    "type": "boolean"
+                },
+                "email_verified_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_login": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password_change_required": {
+                    "description": "PasswordChangeRequired: the user logged in with a temporary password and\nmust choose a new one before anything else (RFC-003 §6.4).",
+                    "type": "boolean"
+                },
+                "totp_enabled": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.RegisterUserRequest": {
             "type": "object",
             "properties": {
+                "client_id": {
+                    "type": "string"
+                },
                 "email": {
+                    "type": "string"
+                },
+                "locale": {
+                    "description": "Locale and ClientID name the app the user signed up from, for the\nverification email.",
                     "type": "string"
                 },
                 "name": {
@@ -4003,6 +4474,28 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "handler.SetPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "locale": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.SetPasswordResponse": {
+            "type": "object",
+            "properties": {
+                "email_prompt": {
+                    "type": "boolean"
                 }
             }
         },
@@ -4028,10 +4521,36 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.UpdateMyEmailRequest": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "locale": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.UpdateUserEmailRequest": {
             "type": "object",
             "properties": {
                 "email": {
+                    "type": "string"
+                },
+                "email_verified": {
+                    "description": "EmailVerified saves the address as verified. Only set it when the user\nhas written to the admin from that address (RFC-003 §6.5).",
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.VerifyEmailRequest": {
+            "type": "object",
+            "properties": {
+                "token": {
                     "type": "string"
                 }
             }
@@ -4152,6 +4671,27 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token_prefix": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AppBranding": {
+            "type": "object",
+            "properties": {
+                "brand_color": {
+                    "description": "\"#rrggbb\"",
+                    "type": "string"
+                },
+                "client_id": {
+                    "type": "string"
+                },
+                "client_name": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "return_to": {
                     "type": "string"
                 }
             }
@@ -4760,41 +5300,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.User": {
-            "type": "object",
-            "properties": {
-                "blocked": {
-                    "type": "boolean"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "group_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_login": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "totp_enabled": {
-                    "type": "boolean"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
         "model.UserAccessRow": {
             "type": "object",
             "properties": {
@@ -4803,6 +5308,10 @@ const docTemplate = `{
                 },
                 "email": {
                     "type": "string"
+                },
+                "email_verified": {
+                    "description": "EmailVerified: the email can receive temporary passwords (RFC-003).",
+                    "type": "boolean"
                 },
                 "group_id": {
                     "type": "string"

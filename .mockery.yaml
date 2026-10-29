@@ -34,6 +34,18 @@ packages:
           filename: "mock_{{.InterfaceName}}.go"
           mockname: "Mock{{.InterfaceName}}"
           outpkg: mocks
+      PasswordResetRepository:
+        config:
+          dir: "internal/authnz/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
+      EmailVerificationRepository:
+        config:
+          dir: "internal/authnz/handler/mocks"
+          filename: "mock_{{.InterfaceName}}.go"
+          mockname: "Mock{{.InterfaceName}}"
+          outpkg: mocks
   github.com/all-in-one/internal/listing/repository:
     interfaces:
       ItemRepository:

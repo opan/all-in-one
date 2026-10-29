@@ -12,6 +12,7 @@ A multi-functional full-stack web application built for learning purposes.
 - **Authentication** — JWT-based auth (username/password) with session management
 - **Two-Factor Authentication (2FA)** — Opt-in TOTP-based 2FA (Google Authenticator, Authy, etc.)
 - **Login for other apps (OpenID Connect)** — Other first-party apps (e.g. cashflow) log users in with their aio account; off by default, see [below](#login-for-other-apps-openid-connect)
+- **Password reset by email** — Users with a confirmed email get a temporary password from "Forgot password?"; users without one go through the admin. Off by default, see [below](#password-reset-by-email)
 - **Observability** — OpenTelemetry traces (Jaeger) and metrics (Prometheus) via OTel Collector
 
 ## Project Structure
@@ -111,6 +112,7 @@ server:
   port: 8080
   swagger_enabled: false          # Set to true locally to enable /swagger/index.html
   allowed_origins: []             # CORS allowed origins. Defaults to ["*"] when empty
+  public_url: ""                  # aio's address as users see it, for links in emails. Defaults to auth.oidc.issuer
 
 storage:
   type: "sqlite"          # "sqlite" or "postgres" (postgres is stubbed)
@@ -134,6 +136,16 @@ auth:
     auth_request_ttl: 10m         # How long a user has to finish aio's login page after an app sends them
     access_token_lifetime: 15m    # Access tokens (userinfo endpoint)
     id_token_lifetime: 5m         # ID tokens (apps read them once, at login)
+  support_email: ""               # Shown to users without an email so they can ask the admin for a reset
+
+email:
+  enabled: false                  # Send account email (confirmation links, temporary passwords)
+  from: ""                        # e.g. "All-in-one <you@gmail.com>"
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587                     # STARTTLS; 465 for implicit TLS. Never sends in plaintext
+    username: ""                  # e.g. you@gmail.com
+    # password: set ALLINONE_EMAIL_SMTP_PASSWORD (a Google app password)
 
 shortener:
   code_length: 7                  # Length of generated short codes
@@ -173,6 +185,12 @@ telemetry:
 | `ALLINONE_AUTH_SECURE_COOKIE` | `true` in production with HTTPS |
 | `ALLINONE_AUTH_OIDC_ENABLED` | `true` to serve aio as an OpenID Connect provider (default: `false`) |
 | `ALLINONE_AUTH_OIDC_ISSUER` | aio's public base URL, required when OIDC is enabled |
+| `ALLINONE_AUTH_SUPPORT_EMAIL` | Address shown to users who have no email on their account |
+| `ALLINONE_SERVER_PUBLIC_URL` | aio's public base URL for links in emails (default: the OIDC issuer) |
+| `ALLINONE_EMAIL_ENABLED` | `true` to send account email (default: `false`) |
+| `ALLINONE_EMAIL_FROM` | Sender, e.g. `All-in-one <you@gmail.com>` |
+| `ALLINONE_EMAIL_SMTP_HOST` / `_PORT` | SMTP server (default: `smtp.gmail.com` / `587`) |
+| `ALLINONE_EMAIL_SMTP_USERNAME` / `_PASSWORD` | SMTP login; for Gmail, your address and an app password |
 | `ALLINONE_SERVER_PORT` | HTTP server port (default: `8080`) |
 | `ALLINONE_SERVER_SWAGGER_ENABLED` | `true` to enable Swagger UI (default: `false`) |
 | `ALLINONE_STORAGE_TYPE` | `sqlite` (default) |
@@ -404,6 +422,84 @@ kubectl -n app delete job all-in-one-users-import
 | App gets `access_denied` after login | aio's callback ran in a browser without the cookie from the start of the login, or without the session of the user who logged in (e.g. the link was opened in another browser) |
 | Logout form does nothing in the app | The app's Content-Security-Policy `form-action` must allow aio's origin |
 
+## Password reset by email
+
+Users recover their account by email ([RFC-003](docs/rfc/RFC-003-password-reset-by-email.md)). It is **off by default**; with it off, the forgot-password page only tells users to contact the admin.
+
+- **Users with a confirmed email** click "Forgot password?" and get a temporary password by email. It works once, for 30 minutes. Logging in with it makes them choose a new password before anything else, then they continue to where they were going (back to cashflow, for an app login).
+- **Users without one** email the admin (`auth.support_email`) from the address they want to use. The admin checks it's them (see below), saves that address as verified in **Admin › Users › Edit email**, and picks **Send temporary password**. aio emails it; the admin never sees it.
+- **Adding an email:** users add or change it in Settings (or `/account` from an app). It only counts once they open the confirmation link. After login, users without a confirmed email are asked to add one, with a "Later" button that brings it back after 7 days. Email stays optional at signup.
+
+### Turning it on
+
+1. Create a Google **app password**: Google Account › Security › 2-Step Verification (must be on) › App passwords. It's 16 letters; Gmail allows about 500 emails a day.
+2. Add it to the Kubernetes secret, keeping the other keys:
+
+   ```bash
+   kubectl -n app patch secret all-in-one-secrets --type merge \
+     -p '{"stringData":{"smtp_password":"abcd efgh ijkl mnop"}}'
+   ```
+
+   and map it in the deployment:
+
+   ```yaml
+   - name: ALLINONE_EMAIL_SMTP_PASSWORD
+     valueFrom:
+       secretKeyRef:
+         name: all-in-one-secrets
+         key: smtp_password
+   ```
+3. In the configmap:
+
+   ```yaml
+   auth:
+     support_email: "you@gmail.com"
+   email:
+     enabled: true
+     from: "All-in-one <you@gmail.com>"
+     smtp:
+       username: "you@gmail.com"
+   ```
+
+   Links in emails point to `auth.oidc.issuer`; set `server.public_url` if aio's address differs or OIDC is off.
+4. Restart aio. The log says `email: enabled`. Add your own email in Settings to test: the confirmation email should arrive within seconds.
+
+### Checking it's really them (admin path)
+
+Anyone can write "I'm budi, I forgot my password". Before saving an address as verified:
+
+- The request must come **from the address being added**; reply to it rather than to an address they give you.
+- Ask something only the owner knows from the app's data, using the app's read-only admin pages: in cashflow, their last transaction (rough amount, date or description) or a cashplan's name; in tally, their last match or some players.
+
+### Linking from an app
+
+The forms stay on aio, so passwords only ever go to aio. Apps link to:
+
+| Page | Link |
+|---|---|
+| Forgot password | `https://aio…/forgot-password?client_id=cashflow&return_to=https://kas…/&ui_locales=id` |
+| Password & email (logged in) | `https://aio…/account?client_id=cashflow&return_to=https://kas…/&ui_locales=id` |
+
+The pages show the app's name, icon, colour and language (from the registered client, never the link) and a notice that the account is managed by All-in-one, so the address is aio's. `return_to` is used only when it's on the same origin as one of the app's registered redirect URIs.
+
+### What keeps it safe
+
+- Asking for a reset never disables the current password, so nobody can lock someone out with the form.
+- Only confirmed emails get temporary passwords. The form answers the same way whether or not the account exists, at most one email per 5 minutes and 5 a day per account, plus the `auth.password.forgot` rate limit per IP.
+- 5 wrong temporary passwords void it. A session opened with one can only reach "choose a new password", "who am I" and logout. 2FA still applies.
+- Setting the new password ends the user's other aio sessions and emails a "your password was changed" notice. Changing a confirmed email notifies the old address.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| aio won't start: `email.from must be an email address` | `email.from` missing or malformed |
+| aio won't start: `server.public_url (or auth.oidc.issuer)` | Email is on but aio doesn't know its public address |
+| `aio_email_sent_total{result="error"}` rising; logs say `smtp auth` | Wrong app password, or 2-Step Verification turned off |
+| Logs say `does not offer STARTTLS` | The SMTP server or port doesn't support TLS; use 587 or 465 |
+| User says no email arrived | Check spam; `forgot password: no email sent` in the logs gives the reason (no confirmed email, cooldown, daily limit) |
+| "Send temporary password" is greyed out | The user has no verified email yet, or is blocked |
+
 ## API Documentation (Swagger)
 
 Swagger UI is disabled by default and not exposed in production. Enable it locally:
@@ -504,6 +600,7 @@ docker compose down
 - [ ] If using SQLite, set the Kubernetes deployment strategy to `Recreate` (see note below)
 - [ ] If enabling telemetry, set `ALLINONE_TELEMETRY_OTLP_ENDPOINT` and lower `ALLINONE_TELEMETRY_SAMPLE_RATIO` to `0.1`
 - [ ] If enabling OIDC, set `ALLINONE_AUTH_OIDC_ISSUER` to aio's public `https://` URL and run a single replica (see [Running it](#running-it))
+- [ ] If enabling password reset by email, keep the SMTP password in the secret (`ALLINONE_EMAIL_SMTP_PASSWORD`), set `auth.support_email`, and test with your own address (see [Turning it on](#turning-it-on-1))
 
 ### SQLite and Kubernetes Deployment Strategy
 

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -37,7 +36,7 @@ func (h *Handler) demoLoginBlocked(username string) bool {
 // @Accept       json
 // @Produce      json
 // @Param        credentials  body      model.LoginRequest                  true  "Login credentials"
-// @Success      201          {object}  httpHelper.Response{data=model.User}  "Session created successfully"
+// @Success      201          {object}  httpHelper.Response{data=LoginResponse}  "Session created successfully"
 // @Failure      400          {object}  httpHelper.Response                   "Invalid request payload"
 // @Failure      404          {object}  httpHelper.Response                   "Username or password not found"
 // @Failure      500          {object}  httpHelper.Response                   "Internal server error"
@@ -80,8 +79,11 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A temporary password (RFC-003) works alongside the real one until used;
+	// logging in with it restricts the session until a new password is set.
 	ok, err := auth.CheckPassword(rl.Password, u.PasswordHash)
-	if err != nil || !ok {
+	usedTemp := !ok && h.tryTempPassword(ctx, u, rl.Password)
+	if !ok && !usedTemp {
 		log.Debug().Err(err).Str("username", rl.Username).Bool("password_match", ok).Msg("password check failed")
 		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "invalid_credentials")))
 		httpHelper.SendError(w, "invalid username or password", http.StatusUnauthorized)
@@ -98,95 +100,26 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Remembering the real password makes any pending temporary one moot.
+	if ok {
+		if err := h.storage.PasswordResetRepo().VoidActive(ctx, u.ID); err != nil {
+			log.Error().Err(err).Msg("failed to void temporary passwords after login")
+		}
+	}
+
 	// If user has 2FA enabled, create a challenge instead of a session
 	if u.TOTPEnabled {
 		h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "2fa_required")))
-		h.handle2FAChallenge(w, r, u)
+		h.handle2FAChallenge(w, r, u, usedTemp)
 		return
 	}
 
-	sid, err := uuid.NewUUID()
-	if err != nil {
-		httpHelper.SendError(w, fmt.Sprintf("failed to generate session id: %v", err), http.StatusInternalServerError)
-		return
+	result := "success"
+	if usedTemp {
+		result = "temp_password"
 	}
-
-	s := model.Session{
-		ID:        sid,
-		UserID:    u.ID,
-		CreatedAt: time.Now(),
-		UserAgent: r.UserAgent(),
-		// 30 minutes
-		AccessTokenExpiry: int((time.Now().Add(30 * time.Minute)).Unix()),
-		// 7 days
-		RefreshTokenExpiry: int((time.Now().Add(7 * 24 * time.Hour)).Unix()),
-	}
-
-	trx, err := h.storage.SessionRepo().CreateTrx(ctx)
-	if err != nil {
-		httpHelper.SendError(w, fmt.Sprintf("failed to create transaction: %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer trx.Rollback()
-
-	err = h.storage.SessionRepo().Create(ctx, s, trx)
-	if err != nil {
-		httpHelper.SendError(w, fmt.Sprintf("failed to create user session: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	at, err := h.createAccessToken(sid, u)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to create access token")
-		httpHelper.SendError(w, fmt.Sprintf("failed to create access token: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	rt, err := h.createRefreshToken(sid)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to create refresh token")
-		httpHelper.SendError(w, fmt.Sprintf("failed to create refresh token: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	err = trx.Commit()
-	if err != nil {
-		httpHelper.SendError(w, fmt.Sprintf("failed to commit session to db: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Set access token cookie (short expiry)
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    at,
-		HttpOnly: true,
-		Secure:   h.config.Auth.SecureCookie, // Set to true in production with HTTPS
-		Path:     "/",
-		MaxAge:   1800, // 30 minutes
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	// Set refresh token cookie (longer expiry)
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    rt,
-		HttpOnly: true,
-		Secure:   h.config.Auth.SecureCookie, // Set to true in production with HTTPS
-		Path:     "/",                        // Available to all endpoints for refresh detection
-		MaxAge:   604800,                     // 7 days
-		SameSite: http.SameSiteLaxMode,       // Lax mode for better compatibility while maintaining security
-	})
-
-	log.Info().Str("session_id", sid.String()).Msg("session successfully created")
-
-	h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "success")))
-
-	response := httpHelper.Response{
-		Success: true,
-		Data:    u,
-	}
-
-	httpHelper.SendJSON(w, response, http.StatusCreated)
+	h.metrics.loginsTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("result", result)))
+	h.completeLogin(w, r, u, usedTemp)
 }
 
 // DeleteSession godoc
@@ -449,7 +382,9 @@ func (h *Handler) VerifySession(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, res, http.StatusOK)
 }
 
-func (h *Handler) handle2FAChallenge(w http.ResponseWriter, r *http.Request, user model.User) {
+// passwordChangeRequired is carried in the challenge token, so a login with
+// a temporary password stays restricted after the 2FA step.
+func (h *Handler) handle2FAChallenge(w http.ResponseWriter, r *http.Request, user model.User, passwordChangeRequired bool) {
 	ctx := r.Context()
 	log := logging.GetLoggerFromContext(ctx)
 
@@ -472,7 +407,7 @@ func (h *Handler) handle2FAChallenge(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	challengeToken, err := h.createChallengeToken(challenge.ID, expiresAt)
+	challengeToken, err := h.createChallengeToken(challenge.ID, expiresAt, passwordChangeRequired)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create challenge token")
 		httpHelper.SendError(w, "Failed to initiate 2FA", http.StatusInternalServerError)

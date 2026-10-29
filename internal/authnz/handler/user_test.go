@@ -28,6 +28,16 @@ type MockStorage struct {
 	userRepo    repository.UserRepository
 	sessionRepo repository.SessionRepository
 	totpRepo    repository.TOTPRepository
+	resetRepo   repository.PasswordResetRepository
+	emailRepo   repository.EmailVerificationRepository
+}
+
+func (m *MockStorage) PasswordResetRepo() repository.PasswordResetRepository {
+	return m.resetRepo
+}
+
+func (m *MockStorage) EmailVerificationRepo() repository.EmailVerificationRepository {
+	return m.emailRepo
 }
 
 func (m *MockStorage) UserRepo() repository.UserRepository {

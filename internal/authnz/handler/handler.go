@@ -5,6 +5,7 @@ import (
 
 	"github.com/all-in-one/internal/authnz/repository"
 	"github.com/all-in-one/internal/config"
+	"github.com/all-in-one/internal/email"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -25,6 +26,11 @@ type Handler struct {
 	metrics *handlerMetrics
 
 	accessResolver AccessResolver
+
+	mailer *email.Mailer
+	apps   AppDirectory
+	// async runs background work; tests swap it for a synchronous call.
+	async func(func())
 }
 
 func NewHandler(storage repository.Storage, config config.Config) *Handler {
@@ -32,6 +38,7 @@ func NewHandler(storage repository.Storage, config config.Config) *Handler {
 		storage: storage,
 		config:  config,
 		metrics: newHandlerMetrics(),
+		async:   func(f func()) { go f() },
 	}
 }
 
@@ -53,6 +60,9 @@ func (h *Handler) RegisterPublicRoutes(router *mux.Router) {
 	router.HandleFunc("/sessions/verify", h.VerifySession).Methods("GET")
 	router.HandleFunc("/sessions/2fa/verify", h.VerifyTOTP).Methods("POST")
 	router.HandleFunc("/sessions/2fa/recovery", h.VerifyRecoveryCode).Methods("POST")
+	// Rate-limited per IP by the auth.password.forgot target.
+	router.HandleFunc("/auth/password/forgot", h.ForgotPassword).Methods("POST")
+	router.HandleFunc("/auth/email/verify", h.VerifyEmail).Methods("POST")
 }
 
 func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
@@ -63,6 +73,9 @@ func (h *Handler) RegisterAuthenticatedRoutes(router *mux.Router) {
 	router.HandleFunc("/users/2fa", h.DisableTOTP).Methods("DELETE")
 	router.HandleFunc("/users/2fa/status", h.GetTOTPStatus).Methods("GET")
 	router.HandleFunc("/users/2fa/recovery-codes/regenerate", h.RegenerateRecoveryCodes).Methods("POST")
+	router.HandleFunc("/users/password/set", h.SetPassword).Methods("POST")
+	router.HandleFunc("/users/me/email", h.UpdateMyEmail).Methods("PUT")
+	router.HandleFunc("/users/me/email-prompt/snooze", h.SnoozeEmailPrompt).Methods("POST")
 
 	router.HandleFunc("/sessions", h.DeleteSession).Methods("DELETE")
 }

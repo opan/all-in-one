@@ -13,6 +13,11 @@
 		initPalette();
 	});
 
+	// Account pages shown before (or instead of) the app: password recovery,
+	// email confirmation, and password & email for users coming from an app
+	// (RFC-003).
+	const ACCOUNT_RECOVERY_PAGES = ['/forgot-password', '/set-password', '/add-email', '/verify-email', '/account'];
+
 	// Check if current route should use the bare layout (no app sidebar/shell).
 	// This covers the auth pages (including the OIDC hand-off at /oauth) and
 	// the public landing page at "/".
@@ -20,7 +25,8 @@
 		$page.url.pathname === '/' ||
 			$page.url.pathname.startsWith('/login') ||
 			$page.url.pathname.startsWith('/signup') ||
-			$page.url.pathname.startsWith('/oauth')
+			$page.url.pathname.startsWith('/oauth') ||
+			ACCOUNT_RECOVERY_PAGES.some((p) => $page.url.pathname.startsWith(p))
 	);
 
 	// Build breadcrumbs from page data breadcrumb metadata

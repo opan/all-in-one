@@ -34,6 +34,25 @@ func (h *Handler) GetAuthRequest(w http.ResponseWriter, r *http.Request) {
 	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Data: info}, http.StatusOK)
 }
 
+// GetAppBranding godoc
+// @Summary      How to present an app on aio's pages
+// @Description  Name, colour and icon of a registered app, for aio's forgot-password and account pages opened from that app. return_to is echoed back only when it is on the same origin as one of the app's registered redirect URIs.
+// @Tags         oidc
+// @Produce      json
+// @Param        id         path   string  true   "Client id"
+// @Param        return_to  query  string  false  "Where to send the user back to in the app"
+// @Success      200  {object}  httpHelper.Response{data=model.AppBranding}  "The app"
+// @Failure      404  {object}  httpHelper.Response  "Unknown or revoked app"
+// @Router       /oidc/apps/{id} [get]
+func (h *Handler) GetAppBranding(w http.ResponseWriter, r *http.Request) {
+	b, err := h.service.AppBranding(r.Context(), mux.Vars(r)["id"], r.URL.Query().Get("return_to"))
+	if err != nil {
+		httpHelper.SendError(w, "unknown app", http.StatusNotFound)
+		return
+	}
+	httpHelper.SendJSON(w, httpHelper.Response{Success: true, Data: b}, http.StatusOK)
+}
+
 // CompleteAuthRequest godoc
 // @Summary      Finish a pending app login
 // @Description  Attaches the logged-in aio user to the auth request and returns the URL the browser must visit next; aio then redirects back to the app with an authorization code.

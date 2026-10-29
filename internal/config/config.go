@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net/mail"
 	"net/url"
 	"strings"
 	"time"
@@ -22,6 +23,25 @@ type Config struct {
 	RateLimit RateLimitConfig `mapstructure:"ratelimit"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 	DemoMode  DemoModeConfig  `mapstructure:"demo_mode"`
+	Email     EmailConfig     `mapstructure:"email"`
+}
+
+// EmailConfig is how aio sends account email: verification links and
+// temporary passwords (docs/rfc/RFC-003-password-reset-by-email.md). Off by
+// default; with it off, password recovery goes through the admin only.
+type EmailConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+	// From is the sender, e.g. "All-in-one <someone@gmail.com>".
+	From string     `mapstructure:"from"`
+	SMTP SMTPConfig `mapstructure:"smtp"`
+}
+
+// SMTPConfig uses STARTTLS on port 587, or implicit TLS on port 465.
+type SMTPConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
 // DemoModeConfig gates the shared demo account. When Enabled, the landing and
@@ -63,6 +83,9 @@ type ServerConfig struct {
 	Port           string   `mapstructure:"port"`
 	AllowedOrigins []string `mapstructure:"allowed_origins"`
 	SwaggerEnabled bool     `mapstructure:"swagger_enabled"`
+	// PublicURL is aio's base URL as users see it, used in links sent by
+	// email. Defaults to auth.oidc.issuer.
+	PublicURL string `mapstructure:"public_url"`
 }
 
 type StorageConfig struct {
@@ -108,6 +131,9 @@ type Auth struct {
 	SecureCookie      bool       `mapstructure:"secure_cookie"`
 	TOTPEncryptionKey string     `mapstructure:"totp_encryption_key"`
 	OIDC              OIDCConfig `mapstructure:"oidc"`
+	// SupportEmail is shown to users who have no email on their account, so
+	// they can ask the admin to reset their password.
+	SupportEmail string `mapstructure:"support_email"`
 }
 
 // OIDCConfig configures aio as an OpenID Connect provider for other apps
@@ -228,6 +254,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("auth.oidc.id_token_lifetime", 5*time.Minute)
 	viper.SetDefault("demo_mode.enabled", false)
 	viper.SetDefault("demo_mode.username", "demo")
+	viper.SetDefault("email.enabled", false)
+	viper.SetDefault("email.smtp.host", "smtp.gmail.com")
+	viper.SetDefault("email.smtp.port", 587)
 
 	// Enable environment variable support
 	// Viper maps nested keys to env vars by replacing dots with underscores and
@@ -276,6 +305,14 @@ func Load() (*Config, error) {
 	viper.BindEnv("demo_mode.enabled", "ALLINONE_DEMO_MODE_ENABLED")
 	viper.BindEnv("demo_mode.username", "ALLINONE_DEMO_MODE_USERNAME")
 	viper.BindEnv("demo_mode.password", "ALLINONE_DEMO_MODE_PASSWORD")
+	viper.BindEnv("server.public_url", "ALLINONE_SERVER_PUBLIC_URL")
+	viper.BindEnv("auth.support_email", "ALLINONE_AUTH_SUPPORT_EMAIL")
+	viper.BindEnv("email.enabled", "ALLINONE_EMAIL_ENABLED")
+	viper.BindEnv("email.from", "ALLINONE_EMAIL_FROM")
+	viper.BindEnv("email.smtp.host", "ALLINONE_EMAIL_SMTP_HOST")
+	viper.BindEnv("email.smtp.port", "ALLINONE_EMAIL_SMTP_PORT")
+	viper.BindEnv("email.smtp.username", "ALLINONE_EMAIL_SMTP_USERNAME")
+	viper.BindEnv("email.smtp.password", "ALLINONE_EMAIL_SMTP_PASSWORD")
 
 	// Try to read config file (it's okay if it doesn't exist)
 	if err := viper.ReadInConfig(); err != nil {
@@ -310,6 +347,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	if err := config.validateEmail(); err != nil {
+		return nil, err
+	}
+
 	return &config, nil
 }
 
@@ -323,6 +364,37 @@ func (c OIDCConfig) validate() error {
 	}
 	if u.Path != "" && u.Path != "/" {
 		return fmt.Errorf("auth.oidc.issuer must not contain a path (discovery is served at the root)")
+	}
+	return nil
+}
+
+// PublicBaseURL is the base for links aio puts in emails, without a trailing
+// slash: server.public_url, else the OIDC issuer.
+func (c Config) PublicBaseURL() string {
+	if c.Server.PublicURL != "" {
+		return strings.TrimRight(c.Server.PublicURL, "/")
+	}
+	return strings.TrimRight(c.Auth.OIDC.Issuer, "/")
+}
+
+func (c Config) validateEmail() error {
+	if c.Auth.SupportEmail != "" {
+		if _, err := mail.ParseAddress(c.Auth.SupportEmail); err != nil {
+			return fmt.Errorf("auth.support_email is not a valid email address")
+		}
+	}
+	if !c.Email.Enabled {
+		return nil
+	}
+	if _, err := mail.ParseAddress(c.Email.From); err != nil {
+		return fmt.Errorf("email.from must be an email address (e.g. \"All-in-one <me@example.com>\") when email.enabled is true")
+	}
+	if c.Email.SMTP.Host == "" || c.Email.SMTP.Port <= 0 {
+		return fmt.Errorf("email.smtp.host and email.smtp.port are required when email.enabled is true")
+	}
+	u, err := url.Parse(c.PublicBaseURL())
+	if c.PublicBaseURL() == "" || err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+		return fmt.Errorf("server.public_url (or auth.oidc.issuer) must be an absolute http(s) URL when email.enabled is true; email links point to it")
 	}
 	return nil
 }

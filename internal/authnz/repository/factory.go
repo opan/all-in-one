@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/all-in-one/internal/authnz/repository/postgres"
+	"github.com/all-in-one/internal/authnz/repository/recoverystore"
 	"github.com/all-in-one/internal/authnz/repository/sqlite"
 	"github.com/all-in-one/internal/config"
 	"github.com/jmoiron/sqlx"
@@ -19,6 +20,8 @@ func NewRepo(db *sqlx.DB, config config.Config) (Storage, error) {
 			userRepo:    s.UserRepo(),
 			sessionRepo: s.SessionRepo(),
 			totpRepo:    s.TOTPRepo(),
+			resetRepo:   recoverystore.NewPasswordResets(db),
+			emailRepo:   recoverystore.NewEmailVerifications(db),
 		}, nil
 	case "postgres":
 		s := postgres.NewStorage(db, config)
@@ -26,6 +29,8 @@ func NewRepo(db *sqlx.DB, config config.Config) (Storage, error) {
 			userRepo:    s.UserRepo(),
 			sessionRepo: s.SessionRepo(),
 			totpRepo:    s.TOTPRepo(),
+			resetRepo:   recoverystore.NewPasswordResets(db),
+			emailRepo:   recoverystore.NewEmailVerifications(db),
 		}, nil
 	default:
 		panic("unsupported storage type: " + config.Storage.Type)

@@ -6,9 +6,10 @@ import (
 	context "context"
 
 	model "github.com/all-in-one/internal/authnz/model"
+	query "github.com/all-in-one/internal/query"
 	mock "github.com/stretchr/testify/mock"
 
-	query "github.com/all-in-one/internal/query"
+	time "time"
 
 	uuid "github.com/google/uuid"
 )
@@ -202,6 +203,63 @@ func (_c *MockUserRepository_FindByUsername_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// FindByVerifiedEmail provides a mock function with given fields: ctx, email
+func (_m *MockUserRepository) FindByVerifiedEmail(ctx context.Context, email string) (model.User, error) {
+	ret := _m.Called(ctx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindByVerifiedEmail")
+	}
+
+	var r0 model.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (model.User, error)); ok {
+		return rf(ctx, email)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) model.User); ok {
+		r0 = rf(ctx, email)
+	} else {
+		r0 = ret.Get(0).(model.User)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockUserRepository_FindByVerifiedEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindByVerifiedEmail'
+type MockUserRepository_FindByVerifiedEmail_Call struct {
+	*mock.Call
+}
+
+// FindByVerifiedEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - email string
+func (_e *MockUserRepository_Expecter) FindByVerifiedEmail(ctx interface{}, email interface{}) *MockUserRepository_FindByVerifiedEmail_Call {
+	return &MockUserRepository_FindByVerifiedEmail_Call{Call: _e.mock.On("FindByVerifiedEmail", ctx, email)}
+}
+
+func (_c *MockUserRepository_FindByVerifiedEmail_Call) Run(run func(ctx context.Context, email string)) *MockUserRepository_FindByVerifiedEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_FindByVerifiedEmail_Call) Return(_a0 model.User, _a1 error) *MockUserRepository_FindByVerifiedEmail_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockUserRepository_FindByVerifiedEmail_Call) RunAndReturn(run func(context.Context, string) (model.User, error)) *MockUserRepository_FindByVerifiedEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAll provides a mock function with given fields: ctx
 func (_m *MockUserRepository) GetAll(ctx context.Context) ([]model.User, error) {
 	ret := _m.Called(ctx)
@@ -304,6 +362,151 @@ func (_c *MockUserRepository_SetBlocked_Call) Return(_a0 error) *MockUserReposit
 }
 
 func (_c *MockUserRepository_SetBlocked_Call) RunAndReturn(run func(context.Context, uuid.UUID, bool) error) *MockUserRepository_SetBlocked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetEmailPrompted provides a mock function with given fields: ctx, id, at
+func (_m *MockUserRepository) SetEmailPrompted(ctx context.Context, id uuid.UUID, at time.Time) error {
+	ret := _m.Called(ctx, id, at)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetEmailPrompted")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) error); ok {
+		r0 = rf(ctx, id, at)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockUserRepository_SetEmailPrompted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEmailPrompted'
+type MockUserRepository_SetEmailPrompted_Call struct {
+	*mock.Call
+}
+
+// SetEmailPrompted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - at time.Time
+func (_e *MockUserRepository_Expecter) SetEmailPrompted(ctx interface{}, id interface{}, at interface{}) *MockUserRepository_SetEmailPrompted_Call {
+	return &MockUserRepository_SetEmailPrompted_Call{Call: _e.mock.On("SetEmailPrompted", ctx, id, at)}
+}
+
+func (_c *MockUserRepository_SetEmailPrompted_Call) Run(run func(ctx context.Context, id uuid.UUID, at time.Time)) *MockUserRepository_SetEmailPrompted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetEmailPrompted_Call) Return(_a0 error) *MockUserRepository_SetEmailPrompted_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockUserRepository_SetEmailPrompted_Call) RunAndReturn(run func(context.Context, uuid.UUID, time.Time) error) *MockUserRepository_SetEmailPrompted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetPasswordHash provides a mock function with given fields: ctx, id, hash
+func (_m *MockUserRepository) SetPasswordHash(ctx context.Context, id uuid.UUID, hash string) error {
+	ret := _m.Called(ctx, id, hash)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetPasswordHash")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = rf(ctx, id, hash)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockUserRepository_SetPasswordHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPasswordHash'
+type MockUserRepository_SetPasswordHash_Call struct {
+	*mock.Call
+}
+
+// SetPasswordHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - hash string
+func (_e *MockUserRepository_Expecter) SetPasswordHash(ctx interface{}, id interface{}, hash interface{}) *MockUserRepository_SetPasswordHash_Call {
+	return &MockUserRepository_SetPasswordHash_Call{Call: _e.mock.On("SetPasswordHash", ctx, id, hash)}
+}
+
+func (_c *MockUserRepository_SetPasswordHash_Call) Run(run func(ctx context.Context, id uuid.UUID, hash string)) *MockUserRepository_SetPasswordHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetPasswordHash_Call) Return(_a0 error) *MockUserRepository_SetPasswordHash_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockUserRepository_SetPasswordHash_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) error) *MockUserRepository_SetPasswordHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetVerifiedEmail provides a mock function with given fields: ctx, id, email, verifiedAt
+func (_m *MockUserRepository) SetVerifiedEmail(ctx context.Context, id uuid.UUID, email string, verifiedAt time.Time) error {
+	ret := _m.Called(ctx, id, email, verifiedAt)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetVerifiedEmail")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, time.Time) error); ok {
+		r0 = rf(ctx, id, email, verifiedAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockUserRepository_SetVerifiedEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetVerifiedEmail'
+type MockUserRepository_SetVerifiedEmail_Call struct {
+	*mock.Call
+}
+
+// SetVerifiedEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - email string
+//   - verifiedAt time.Time
+func (_e *MockUserRepository_Expecter) SetVerifiedEmail(ctx interface{}, id interface{}, email interface{}, verifiedAt interface{}) *MockUserRepository_SetVerifiedEmail_Call {
+	return &MockUserRepository_SetVerifiedEmail_Call{Call: _e.mock.On("SetVerifiedEmail", ctx, id, email, verifiedAt)}
+}
+
+func (_c *MockUserRepository_SetVerifiedEmail_Call) Run(run func(ctx context.Context, id uuid.UUID, email string, verifiedAt time.Time)) *MockUserRepository_SetVerifiedEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string), args[3].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SetVerifiedEmail_Call) Return(_a0 error) *MockUserRepository_SetVerifiedEmail_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockUserRepository_SetVerifiedEmail_Call) RunAndReturn(run func(context.Context, uuid.UUID, string, time.Time) error) *MockUserRepository_SetVerifiedEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }

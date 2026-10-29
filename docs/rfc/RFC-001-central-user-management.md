@@ -148,6 +148,10 @@ cashflow ends up with no register or login handler of its own, only `/auth/login
 
 ### 6.3 Password change and reset
 
+> **Replaced (2026-10-19):** the forgot-password design below (admin codes over WhatsApp) is replaced by
+> [RFC-003](RFC-003-password-reset-by-email.md): temporary passwords by email, with the admin path for users
+> who have no email yet.
+
 **Change password** (user knows the current one) happens on aio's account page, using the existing endpoint. cashflow just links to it ("Ubah password").
 
 **Forgot password.** Users may never set an email, so the only recovery path is the admin. The admin verifies the user's identity, then issues a **one-time reset code** that the user redeems on aio's reset page to set their own new password. The admin never learns the password.

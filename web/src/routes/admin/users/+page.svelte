@@ -21,7 +21,7 @@
 		type Group,
 		type Feature
 	} from '$lib/rbac-api';
-	import { updateUserEmail, blockUser, unblockUser } from '$lib/admin-api';
+	import { updateUserEmail, blockUser, unblockUser, sendTempPassword } from '$lib/admin-api';
 
 	const UNASSIGNED = '__unassigned__';
 
@@ -46,7 +46,13 @@
 	let emailDialogOpen = $state(false);
 	let emailUser = $state<UserAccess | null>(null);
 	let emailValue = $state('');
+	let emailVerifiedValue = $state(false);
 	let savingEmail = $state(false);
+
+	// Send-temporary-password confirmation (RFC-003 §6.5)
+	let resetDialogOpen = $state(false);
+	let resetUserTarget = $state<UserAccess | null>(null);
+	let sendingReset = $state(false);
 
 	// Block confirmation
 	let blockDialogOpen = $state(false);
@@ -117,6 +123,7 @@
 	function openEmailDialog(user: UserAccess) {
 		emailUser = user;
 		emailValue = user.email;
+		emailVerifiedValue = user.email_verified;
 		emailDialogOpen = true;
 	}
 
@@ -124,7 +131,7 @@
 		if (!emailUser) return;
 		savingEmail = true;
 		try {
-			await updateUserEmail(emailUser.user_id, emailValue.trim());
+			await updateUserEmail(emailUser.user_id, emailValue.trim(), emailVerifiedValue);
 			toast.success('Email updated');
 			emailDialogOpen = false;
 			await load();
@@ -132,6 +139,25 @@
 			toast.error(err instanceof Error ? err.message : 'Failed to update email');
 		} finally {
 			savingEmail = false;
+		}
+	}
+
+	function openResetDialog(user: UserAccess) {
+		resetUserTarget = user;
+		resetDialogOpen = true;
+	}
+
+	async function confirmReset() {
+		if (!resetUserTarget) return;
+		sendingReset = true;
+		try {
+			toast.success(await sendTempPassword(resetUserTarget.user_id));
+			resetDialogOpen = false;
+			resetUserTarget = null;
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to send temporary password');
+		} finally {
+			sendingReset = false;
 		}
 	}
 
@@ -180,7 +206,7 @@
 	<div class="space-y-2">
 		<h1 class="text-3xl font-bold tracking-tight">Users</h1>
 		<p class="text-muted-foreground">
-			Manage users: edit email, block or unblock login, assign a group, and set per-user overrides.
+			Manage users: edit email, send a temporary password, block or unblock login, assign a group, and set per-user overrides.
 		</p>
 	</div>
 
@@ -208,6 +234,16 @@
 				{#if row.original.blocked}
 					<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-200">
 						Blocked
+					</span>
+				{/if}
+				{#if row.original.email}
+					<span
+						class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {row.original.email_verified
+							? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+							: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}"
+						title={row.original.email}
+					>
+						{row.original.email_verified ? 'Email verified' : 'Email not verified'}
 					</span>
 				{/if}
 			</div>
@@ -245,6 +281,12 @@
 						<DropdownMenu.Item onclick={() => openEmailDialog(row.original)}>
 							Edit email
 						</DropdownMenu.Item>
+						<DropdownMenu.Item
+							disabled={!row.original.email_verified || row.original.blocked}
+							onclick={() => openResetDialog(row.original)}
+						>
+							Send temporary password
+						</DropdownMenu.Item>
 						{#if !row.original.is_admin}
 							<DropdownMenu.Separator />
 							{#if row.original.blocked}
@@ -278,6 +320,17 @@
 			<Label for="edit-email">Email</Label>
 			<Input id="edit-email" type="email" bind:value={emailValue} />
 		</div>
+		<label class="flex items-start gap-2 text-sm">
+			<input type="checkbox" class="mt-1" bind:checked={emailVerifiedValue} />
+			<span>
+				<span class="font-medium">Save as verified</span>
+				<span class="block text-muted-foreground">
+					Only when the user wrote to you from this address and answered a question only they know
+					(e.g. their last cashflow transaction or tally match). Verified emails can receive temporary
+					passwords.
+				</span>
+			</span>
+		</label>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (emailDialogOpen = false)} disabled={savingEmail}>
 				Cancel
@@ -288,6 +341,25 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Send temporary password -->
+<AlertDialog.Root bind:open={resetDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Send a temporary password to {resetUserTarget?.username}?</AlertDialog.Title>
+			<AlertDialog.Description>
+				It goes to {resetUserTarget?.email} and works once, for 30 minutes; you won't see it. Their current
+				password keeps working until they choose a new one. Make sure the request really came from them.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel disabled={sendingReset}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action onclick={confirmReset} disabled={sendingReset}>
+				{sendingReset ? 'Sending...' : 'Send'}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
 
 <!-- Overrides dialog -->
 <Dialog.Root bind:open={overridesDialogOpen}>

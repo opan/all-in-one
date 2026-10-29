@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/all-in-one/internal/config"
@@ -152,10 +153,25 @@ func (h *HTTP) PublicConfig(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Data: map[string]any{
 			"demo_mode": demo,
+			// Password recovery (RFC-003): whether aio can email temporary
+			// passwords, and who to write to without an email on the account.
+			"email_enabled": h.config.Email.Enabled,
+			"support_email": h.config.Auth.SupportEmail,
+			// aio's address as users see it, named on app login pages
+			// ("your account is managed by All-in-one, at …").
+			"account_host": accountHost(h.config.PublicBaseURL()),
 		},
 	}
 
 	SendJSON(w, response, http.StatusOK)
+}
+
+func accountHost(base string) string {
+	u, err := url.Parse(base)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 // SendJSON sends a JSON response

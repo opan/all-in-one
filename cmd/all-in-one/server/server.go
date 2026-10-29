@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	chatSvc "github.com/all-in-one/internal/chat/service"
 	"github.com/all-in-one/internal/config"
 	dashboardSvc "github.com/all-in-one/internal/dashboard/service"
+	"github.com/all-in-one/internal/email"
 	httpHelper "github.com/all-in-one/internal/http"
 	listingSvc "github.com/all-in-one/internal/listing/service"
 	"github.com/all-in-one/internal/logging"
@@ -118,6 +120,21 @@ func (s *server) Start() error {
 	}
 	asvc.Handler.SetAccessResolver(rsvc.Resolver)
 
+	// Account email (RFC-003): verification links and temporary passwords.
+	if s.config.Email.Enabled {
+		sender, err := email.NewSMTPSender(s.config.Email)
+		if err != nil {
+			s.log.Error().Err(err).Msg("Failed to set up email")
+			return err
+		}
+		host := ""
+		if u, err := url.Parse(s.config.PublicBaseURL()); err == nil {
+			host = u.Host
+		}
+		asvc.Handler.SetMailer(email.NewMailer(sender, host))
+		s.log.Info().Str("smtp_host", s.config.Email.SMTP.Host).Msg("email: enabled")
+	}
+
 	rlsvc, err := ratelimitSvc.NewService(ctx, db, s.config, s.log)
 	if err != nil {
 		s.log.Error().Err(err).Msg("Failed to create ratelimit service")
@@ -159,6 +176,7 @@ func (s *server) Start() error {
 			return err
 		}
 		s.log.Info().Str("issuer", s.config.Auth.OIDC.Issuer).Msg("oidc: provider enabled")
+		asvc.Handler.SetAppDirectory(osvc)
 	}
 
 	// Initialize HTTP helper

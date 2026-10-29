@@ -50,9 +50,13 @@ func TestCreateSession_Success(t *testing.T) {
 	mockSessionRepo.On("CreateTrx", mock.Anything).Return(mockTrx, nil)
 	mockSessionRepo.On("Create", mock.Anything, mock.AnythingOfType("model.Session"), mock.Anything).Return(nil)
 
+	mockResetRepo := mocks.NewMockPasswordResetRepository(t)
+	mockResetRepo.On("VoidActive", mock.Anything, expectedUser.ID).Return(nil)
+
 	storage := &MockStorage{
 		userRepo:    mockUserRepo,
 		sessionRepo: mockSessionRepo,
+		resetRepo:   mockResetRepo,
 	}
 
 	Handler := NewHandler(storage, config.Config{})
@@ -204,17 +208,19 @@ func TestCreateSession_DemoModeGuardRail(t *testing.T) {
 
 			mockUserRepo := mocks.NewMockUserRepository(t)
 			mockSessionRepo := mocks.NewMockSessionRepository(t)
+			mockResetRepo := mocks.NewMockPasswordResetRepository(t)
 
 			// A blocked login returns before touching the DB, so no repo calls
 			// are expected. The non-blocked cases run the full success path.
 			if !tt.wantBlocked {
+				mockResetRepo.On("VoidActive", mock.Anything, mock.Anything).Return(nil)
 				mockUserRepo.On("FindByUsername", mock.Anything, tt.loginAs).
 					Return(model.User{ID: uuid.New(), Username: tt.loginAs, PasswordHash: pwd}, nil)
 				mockSessionRepo.On("CreateTrx", mock.Anything).Return(&MockTransaction{}, nil)
 				mockSessionRepo.On("Create", mock.Anything, mock.AnythingOfType("model.Session"), mock.Anything).Return(nil)
 			}
 
-			storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mockSessionRepo}
+			storage := &MockStorage{userRepo: mockUserRepo, sessionRepo: mockSessionRepo, resetRepo: mockResetRepo}
 			handler := NewHandler(storage, config.Config{
 				Auth:     config.Auth{JWTSecret: "test-secret-key"},
 				DemoMode: tt.demo,

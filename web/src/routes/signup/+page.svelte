@@ -8,6 +8,7 @@
 	import { page } from '$app/stores';
 	import { safeNext } from '$lib/safe-next';
 	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '$lib/oidc-api';
+	import { afterLoginPath } from '$lib/account-api';
 	import { authMessages } from '$lib/oauth-i18n';
 	import { passwordTooShort } from '$lib/password';
 
@@ -64,6 +65,9 @@
 				username,
 				password,
 				email,
+				// The confirmation email names the app and uses its language.
+				locale: app?.locale || undefined,
+				client_id: app?.client_id || undefined,
 			});
 
 			const data = await response.json();
@@ -74,7 +78,11 @@
 				} else if (response.status === 429) {
 					error = m.tooManySignups;
 				} else if (response.status === 400 && translated) {
-					error = data.error?.includes('at least') ? m.passwordTooShort : m.usernamePasswordRequired;
+					error = data.error?.includes('at least')
+						? m.passwordTooShort
+						: data.error?.includes('email')
+							? m.invalidEmail
+							: m.usernamePasswordRequired;
 				} else {
 					error = (!translated && data.error) || m.signupFailed;
 				}
@@ -87,7 +95,7 @@
 			const loginData = await loginResponse.json();
 
 			if (loginResponse.ok && loginData.success && !loginData.data?.requires_2fa) {
-				await goto(next ?? '/home', { replaceState: true });
+				await goto(afterLoginPath(loginData.data, next), { replaceState: true });
 			} else {
 				// Account exists even if auto-login didn't pan out — let them log in manually.
 				await goto(loginHref);

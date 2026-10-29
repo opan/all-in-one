@@ -20,6 +20,8 @@ type UserClaims struct {
 	Email     string `json:"email"`
 	Username  string `json:"username"`
 	UserID    string `json:"user_id"`
+	// PasswordChangeRequired is copied from the session by the JWT middleware.
+	PasswordChangeRequired bool `json:"-"`
 }
 
 // Rules for new passwords (signup and password change). bcrypt refuses input
