@@ -1,4 +1,4 @@
-import { apiLoad } from '$lib/api';
+import { apiLoad } from '#lib/api.js';
 
 // Mirrors internal/dashboard/model/summary.go JSON tags. A section is present
 // only when the authenticated user can access that feature (server-side RBAC

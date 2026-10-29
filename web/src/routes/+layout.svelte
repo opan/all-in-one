@@ -2,10 +2,10 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { ModeWatcher } from 'mode-watcher';
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '#lib/assets/favicon.svg';
 	import AppLayout from "../components/app-layout.svelte";
-	import { page } from '$app/stores';
-	import { initPalette } from '$lib/stores/theme';
+	import { page } from '$app/state';
+	import { initPalette } from '#lib/stores/theme.js';
 
 	let { children, data } = $props();
 
@@ -21,20 +21,12 @@
 	// Check if current route should use the bare layout (no app sidebar/shell).
 	// This covers the auth pages (including the OIDC hand-off at /oauth) and
 	// the public landing page at "/".
-	const isBarePage = $derived(
-		$page.url.pathname === '/' ||
-			$page.url.pathname.startsWith('/login') ||
-			$page.url.pathname.startsWith('/signup') ||
-			$page.url.pathname.startsWith('/oauth') ||
-			ACCOUNT_RECOVERY_PAGES.some((p) => $page.url.pathname.startsWith(p))
-	);
+	const isBarePage = $derived(page.url.pathname === '/' || page.url.pathname.startsWith('/login') || page.url.pathname.startsWith('/signup') || page.url.pathname.startsWith('/oauth') || ACCOUNT_RECOVERY_PAGES.some((p) => page.url.pathname.startsWith(p)));
 
 	// Build breadcrumbs from page data breadcrumb metadata
 	const breadcrumbs = $derived(() => {
-		const pageData = $page.data;
-		const crumbs: Array<{ label: string; href?: string }> = [
-			{ label: 'All-in-one', href: '/home' }
-		];
+		const pageData = page.data;
+		const crumbs: Array<{ label: string; href?: string }> = [{ label: 'All-in-one', href: '/home' }];
 
 		// Collect breadcrumbs from the page data hierarchy
 		// SvelteKit provides parent data through the load function chain

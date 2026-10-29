@@ -1,5 +1,5 @@
-import { apiClient, apiPatch, apiDelete } from '$lib/api';
-import type { ShortLink } from '$lib/shortener-api';
+import { apiClient, apiPatch, apiDelete } from '#lib/api.js';
+import type { ShortLink } from '#lib/shortener-api.js';
 
 // Admin shortener moderation calls (/api/v1/admin/shortener/*). Unlike
 // shortener-api.ts, these are owner-agnostic — list-all across every user.

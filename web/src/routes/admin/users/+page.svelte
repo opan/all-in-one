@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import DataTable from '../../../components/data-table.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { toast, Toaster } from 'svelte-sonner';
-	import type { ColumnDef } from '@tanstack/table-core';
+	import type { DataTableColumn } from '#lib/data-table.js';
 	import {
 		listUsers,
 		listGroups,
@@ -20,8 +20,8 @@
 		type UserAccess,
 		type Group,
 		type Feature
-	} from '$lib/rbac-api';
-	import { updateUserEmail, blockUser, unblockUser, sendTempPassword } from '$lib/admin-api';
+	} from '#lib/rbac-api.js';
+	import { updateUserEmail, blockUser, unblockUser, sendTempPassword } from '#lib/admin-api.js';
 
 	const UNASSIGNED = '__unassigned__';
 
@@ -192,7 +192,7 @@
 		}
 	}
 
-	const columns: ColumnDef<UserAccess>[] = [
+	const columns: DataTableColumn<UserAccess>[] = [
 		// id "name"/"actions" so DataTable renders the custom snippets below.
 		{ accessorKey: 'username', id: 'name', header: 'Username', cell: (info) => info.getValue() },
 		{ accessorKey: 'email', header: 'Email', cell: (info) => info.getValue() },
@@ -256,8 +256,10 @@
 					onValueChange={(v) => handleGroupChange(row.original, v)}
 					disabled={reassigningUserId === row.original.user_id}
 				>
-					<Select.Trigger class="w-40">
-						{row.original.group_name ?? 'regular-user (default)'}
+					<Select.Trigger class="w-52">
+						<!-- min-w-0 lets the label shrink and truncate, so long group names
+						     don't push the chevron out of the trigger. -->
+						<span class="min-w-0 truncate">{row.original.group_name ?? 'regular-user (default)'}</span>
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value={UNASSIGNED} label="regular-user (default)">

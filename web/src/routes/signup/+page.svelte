@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
 	import { goto } from '$app/navigation';
-	import { apiPost } from '$lib/api';
-	import { page } from '$app/stores';
-	import { safeNext } from '$lib/safe-next';
-	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '$lib/oidc-api';
-	import { afterLoginPath } from '$lib/account-api';
-	import { authMessages } from '$lib/oauth-i18n';
-	import { passwordTooShort } from '$lib/password';
+	import { apiPost } from '#lib/api.js';
+	import { page } from '$app/state';
+	import { safeNext } from '#lib/safe-next.js';
+	import { authRequestIdFromNext, getAuthRequest, type AuthRequestInfo } from '#lib/oidc-api.js';
+	import { afterLoginPath } from '#lib/account-api.js';
+	import { authMessages } from '#lib/oauth-i18n.js';
+	import { passwordTooShort } from '#lib/password.js';
 
 	// Same ?next= handling as the login page (see routes/login/+page.svelte).
-	const next = $derived(safeNext($page.url.searchParams.get('next')));
+	const next = $derived(safeNext(page.url.searchParams.get('next')));
 	const loginHref = $derived(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
 	// As on the login page: an app's signup shows its name and language.
 	const appRequestId = $derived(authRequestIdFromNext(next));
@@ -95,7 +95,7 @@
 			const loginData = await loginResponse.json();
 
 			if (loginResponse.ok && loginData.success && !loginData.data?.requires_2fa) {
-				await goto(afterLoginPath(loginData.data, next), { replaceState: true });
+				await goto(afterLoginPath(loginData.data, next), { replace: true });
 			} else {
 				// Account exists even if auto-login didn't pan out — let them log in manually.
 				await goto(loginHref);

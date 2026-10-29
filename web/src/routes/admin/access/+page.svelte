@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Tabs from '$lib/components/ui/tabs';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
 	import GroupsTab from '../../../components/access-management/GroupsTab.svelte';
 	import FeaturesTab from '../../../components/access-management/FeaturesTab.svelte';
 

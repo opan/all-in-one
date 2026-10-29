@@ -1,13 +1,13 @@
 <script lang="ts">
 	import DataTable from '../data-table.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
 	import { toast } from 'svelte-sonner';
-	import type { ColumnDef } from '@tanstack/table-core';
+	import type { DataTableColumn } from '#lib/data-table.js';
 	import {
 		listGroups,
 		listFeatures,
@@ -17,7 +17,7 @@
 		setGroupFeatures,
 		type Group,
 		type Feature
-	} from '$lib/rbac-api';
+	} from '#lib/rbac-api.js';
 
 	interface Props {
 		active: boolean;
@@ -137,7 +137,7 @@
 		}
 	}
 
-	const columns: ColumnDef<Group>[] = [
+	const columns: DataTableColumn<Group>[] = [
 		{ accessorKey: 'name', header: 'Name', cell: (info) => info.getValue() },
 		{
 			accessorKey: 'description',

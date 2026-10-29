@@ -1,23 +1,16 @@
-<script lang="ts" generics="TData">
-  import { createSvelteTable } from "$lib/components/ui/data-table/data-table.svelte";
-  import { FlexRender } from "$lib/components/ui/data-table";
-  import * as Table from "$lib/components/ui/table/index";
-  import { Button } from "$lib/components/ui/button/index";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
-  import { Input } from "$lib/components/ui/input/index";
+<script lang="ts" generics="TData extends RowData">
+  import { createTable, FlexRender, functionalUpdate, type RowData } from "@tanstack/svelte-table";
+  import { dataTableFeatures, type DataTableColumn, type DataTableRow } from "#lib/data-table.js";
+  import * as Table from "#lib/components/ui/table/index.js";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+  import { Input } from "#lib/components/ui/input/index.js";
   import type { Snippet } from "svelte";
-  import { 
-    getCoreRowModel, 
-    getFilteredRowModel,
-    getPaginationRowModel,
-    type ColumnDef,
-    type Row
-  } from "@tanstack/table-core";
   import { ChevronDown, RotateCw } from "@lucide/svelte";
 
   interface Props {
     data: TData[];
-    columns: ColumnDef<TData>[];
+    columns: DataTableColumn<TData>[];
     filterPlaceholder?: string;
     showFilter?: boolean;
     showColumnVisibility?: boolean;
@@ -28,8 +21,8 @@
       variant?: "default" | "outline" | "destructive" | "secondary" | "ghost" | "link";
       onclick: () => void;
     }[];
-    actionsColumn?: Snippet<[{ row: Row<TData> }]>;
-    nameColumn?: Snippet<[{ row: Row<TData> }]>;
+    actionsColumn?: Snippet<[{ row: DataTableRow<TData> }]>;
+    nameColumn?: Snippet<[{ row: DataTableRow<TData> }]>;
   }
 
   let {
@@ -48,27 +41,22 @@
   let filtering = $state('');
   let columnVisibility = $state<Record<string, boolean>>({});
 
-  const table = createSvelteTable({
+  const table = createTable({
+    features: dataTableFeatures,
     get data() {
       return data;
     },
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    // Without page controls, show every row: pages of 10 with no way to
+    // reach page 2 would hide the rest.
+    get manualPagination() {
+      return !showPagination;
+    },
     onColumnVisibilityChange: (updater) => {
-      if (typeof updater === 'function') {
-        columnVisibility = updater(columnVisibility);
-      } else {
-        columnVisibility = updater;
-      }
+      columnVisibility = functionalUpdate(updater, columnVisibility);
     },
     onGlobalFilterChange: (updater) => {
-      if (typeof updater === 'function') {
-        filtering = updater(filtering);
-      } else {
-        filtering = updater;
-      }
+      filtering = functionalUpdate(updater, filtering);
     },
     state: {
       get globalFilter() {
@@ -142,10 +130,7 @@
             {#each headerGroup.headers as header}
               <Table.Head>
                 {#if !header.isPlaceholder}
-                  <FlexRender
-                    content={header.column.columnDef.header}
-                    context={header.getContext()}
-                  />
+                  <FlexRender {header} />
                 {/if}
               </Table.Head>
             {/each}
@@ -163,10 +148,7 @@
                   {:else if cell.column.id === 'name' && nameColumn}
                     {@render nameColumn({ row })}
                   {:else}
-                    <FlexRender
-                      content={cell.column.columnDef.cell}
-                      context={cell.getContext()}
-                    />
+                    <FlexRender {cell} />
                   {/if}
                 </Table.Cell>
               {/each}

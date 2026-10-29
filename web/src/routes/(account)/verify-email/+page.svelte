@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { verifyEmail } from '$lib/account-api';
-	import { authMessages } from '$lib/oauth-i18n';
+	import { page } from '$app/state';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { verifyEmail } from '#lib/account-api.js';
+	import { authMessages } from '#lib/oauth-i18n.js';
 
 	// Opened from the confirmation email (RFC-003 §6.2); works without being
 	// logged in. The page follows the browser's language (en or id).
@@ -15,7 +15,7 @@
 	let confirmedEmail = $state('');
 
 	onMount(async () => {
-		const token = $page.url.searchParams.get('token');
+		const token = page.url.searchParams.get('token');
 		// Drop the token from the address bar and history once read.
 		history.replaceState(history.state, '', '/verify-email');
 		if (!token) {

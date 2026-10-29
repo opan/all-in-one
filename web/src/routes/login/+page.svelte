@@ -1,26 +1,26 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import type { DemoMode } from '$lib/config';
-	import { safeNext } from '$lib/safe-next';
-	import { appForPage, appKeyForPage, authRequestIdFromNext, type AppPresentation } from '$lib/oidc-api';
-	import { authMessages } from '$lib/oauth-i18n';
-	import { afterLoginPath } from '$lib/account-api';
+	import { page } from '$app/state';
+	import type { DemoMode } from '#lib/config.js';
+	import { safeNext } from '#lib/safe-next.js';
+	import { appForPage, appKeyForPage, authRequestIdFromNext, type AppPresentation } from '#lib/oidc-api.js';
+	import { authMessages } from '#lib/oauth-i18n.js';
+	import { afterLoginPath } from '#lib/account-api.js';
 
 	// Demo-account flag from the root layout load (GET /api/v1/config).
-	const demo = $derived(($page.data.demoMode ?? { enabled: false }) as DemoMode);
+	const demo = $derived((page.data.demoMode ?? { enabled: false }) as DemoMode);
 
 	// Where to go after logging in: a same-site path from ?next= (e.g. the
 	// OIDC hand-off at /oauth/login), otherwise the dashboard.
-	const next = $derived(safeNext($page.url.searchParams.get('next')));
+	const next = $derived(safeNext(page.url.searchParams.get('next')));
 	// After a temporary password, the user chooses a new one first; users
 	// without a confirmed email are asked to add one (RFC-003).
 	const afterLogin = (result: { password_change_required?: boolean; email_prompt?: boolean } | null) =>
-		goto(afterLoginPath(result, next), { replaceState: true });
+		goto(afterLoginPath(result, next), { replace: true });
 	const forgotHref = $derived(next ? `/forgot-password?next=${encodeURIComponent(next)}` : '/forgot-password');
 
 	// When an app sent the user here, this is that app's login: its name and
@@ -29,7 +29,7 @@
 	// The app is a login in progress (appRequestId) or, for pages an app links
 	// to directly (e.g. /account?client_id=…), the app named in ?next=.
 	const appRequestId = $derived(authRequestIdFromNext(next));
-	const appKey = $derived(appKeyForPage($page.url));
+	const appKey = $derived(appKeyForPage(page.url));
 	let app = $state<AppPresentation | null>(null);
 	let appLookupDone = $state(false);
 	$effect(() => {
@@ -37,7 +37,7 @@
 		app = null;
 		appLookupDone = !key;
 		if (key)
-			appForPage($page.url)
+			appForPage(page.url)
 				.then((info) => key === appKey && (app = info))
 				.catch(() => {})
 				.finally(() => key === appKey && (appLookupDone = true));

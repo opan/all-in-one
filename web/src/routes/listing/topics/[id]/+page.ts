@@ -1,5 +1,5 @@
 // SvelteKit load function to fetch topic details and items from backend API
-import { apiLoad, throwApiError } from "$lib/api";
+import { apiLoad, throwApiError } from "#lib/api.js";
 
 export const load = async ({ params, fetch, parent }) => {
 	const topicId = params.id;

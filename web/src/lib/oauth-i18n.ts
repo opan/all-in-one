@@ -2,7 +2,7 @@
 // wording; other languages are used only when an app sends users here and
 // asks for one with ui_locales (see AuthRequestInfo.locale).
 
-import { MIN_PASSWORD_LENGTH } from '$lib/password';
+import { MIN_PASSWORD_LENGTH } from '#lib/password.js';
 
 export type Locale = 'en' | 'id';
 

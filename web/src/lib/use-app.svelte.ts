@@ -1,10 +1,11 @@
-import { appForPage, type AppPresentation } from '$lib/oidc-api';
-import { authMessages, type AuthMessages } from '$lib/oauth-i18n';
+import type { ReadonlyURL } from '$app/state';
+import { appForPage, type AppPresentation } from '#lib/oidc-api.js';
+import { authMessages, type AuthMessages } from '#lib/oauth-i18n.js';
 
 // pageApp resolves the app a page belongs to (see appForPage) and the copy
 // in its language. ready turns true once the lookup is done, so a page can
 // wait instead of flashing English before the app's language.
-export function pageApp(url: URL) {
+export function pageApp(url: ReadonlyURL) {
 	const state = $state<{ app: AppPresentation | null; ready: boolean }>({ app: null, ready: false });
 	appForPage(url)
 		.then((app) => (state.app = app))

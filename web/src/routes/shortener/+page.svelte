@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button/index';
-  import { Input } from '$lib/components/ui/input/index';
-  import { Label } from '$lib/components/ui/label/index';
-  import { Switch } from '$lib/components/ui/switch/index';
-  import * as Dialog from '$lib/components/ui/dialog/index';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog/index';
-  import * as Table from '$lib/components/ui/table/index';
+  import { Button } from '#lib/components/ui/button/index.js';
+  import { Input } from '#lib/components/ui/input/index.js';
+  import { Label } from '#lib/components/ui/label/index.js';
+  import { Switch } from '#lib/components/ui/switch/index.js';
+  import * as Dialog from '#lib/components/ui/dialog/index.js';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+  import * as Table from '#lib/components/ui/table/index.js';
   import {
     Link2,
     Copy,
@@ -22,7 +22,7 @@
     deleteShortLink,
     listShortLinks,
     shortURL,
-  } from '$lib/shortener-api';
+  } from '#lib/shortener-api.js';
 
   interface Props {
     data: { links: ShortLink[]; total: number };
