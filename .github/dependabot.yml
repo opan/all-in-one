@@ -8,11 +8,16 @@ updates:
     schedule: { interval: weekly }
     groups:
       go-modules: { patterns: ['*'] }
+  # Minor and patch only: major upgrades (SvelteKit, Vite, TypeScript, ...)
+  # need migrations and are done by hand.
   - package-ecosystem: npm
     directory: /web
     schedule: { interval: weekly }
     groups:
-      npm: { patterns: ['*'] }
+      npm: { patterns: ['*'], update-types: [minor, patch] }
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
