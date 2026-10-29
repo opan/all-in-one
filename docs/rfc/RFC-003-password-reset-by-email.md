@@ -24,7 +24,7 @@ Email becomes the way to recover an account:
 - **Users are nudged to add an email:** after login, users without a verified email are asked to add one,
   with a "Later" button. Email stays optional at signup.
 
-Email is sent through Gmail SMTP. Nothing changes until `email.enabled` is turned on.
+Email is sent through Brevo's SMTP relay from `noreply@mail.opanmustopah.com`. Nothing changes until `email.enabled` is turned on.
 
 ## 2. Motivation
 
@@ -84,12 +84,12 @@ self-service path once a user has an email, and a reason for users to add one.
 ```yaml
 email:
   enabled: false
-  from: "All-in-one <opan.neutron@gmail.com>"
+  from: "All-in-one by Opan <noreply@mail.opanmustopah.com>"
   smtp:
-    host: "smtp.gmail.com"
+    host: "smtp-relay.brevo.com"
     port: 587            # STARTTLS
-    username: "opan.neutron@gmail.com"
-    # password: env ALLINONE_EMAIL_SMTP_PASSWORD (a Google app password, from the k8s secret)
+    username: "<Brevo SMTP login>"
+    # password: env ALLINONE_EMAIL_SMTP_PASSWORD (a Brevo SMTP key, from the k8s secret)
 auth:
   support_email: "opan.neutron@gmail.com"   # shown to users who have no email on their account
 ```
@@ -98,8 +98,9 @@ auth:
   10 s timeout) and a recording fake for tests. Plain-text plus simple HTML body, from templates in `en` and `id`.
 - Sending happens in the request but failures never change the user-facing answer (§6.4). A failure is
   logged and counted (`aio_email_sent_total{kind, result}`).
-- Gmail allows about 500 messages a day and needs an app password (2-Step Verification on the account).
-  Enough for these apps; a transactional provider can replace it later through the same settings.
+- Brevo's free plan allows 300 messages a day, enough for these apps. `mail.opanmustopah.com` is
+  authenticated in Brevo (DKIM, DMARC). Click and open tracking stay off, so links in emails are not
+  rewritten. Any SMTP provider (Gmail with an app password included) works through the same settings.
 - With `email.enabled: false`, the forgot-password page only shows the "contact the admin" path, and adding
   an email in settings is unavailable.
 
@@ -277,28 +278,29 @@ expect this, and learn that it is the only other address where their password be
   to have written from it; this is a manual check, documented in the runbook.
 - **App sessions** started before a reset stay valid until they expire or the user logs out; ending them
   needs back-channel logout (RFC-001 follow-up). aio's own sessions are revoked on the change.
-- **Sender account:** the Gmail app password can send mail as the operator; it lives only in the Kubernetes
-  secret and is never logged.
+- **Sender account:** the Brevo SMTP key can send mail as `mail.opanmustopah.com`; it lives only in the
+  Kubernetes secret and is never logged.
 
 ## 8. Rollout
 
 1. aio: the address notice on branded pages (§6.8), which can ship first.
 2. aio: email package and config, migration 13, email verification and editable settings, forgot-password
    flow and pages, admin reset, prompt, metrics, swagger, tests (fake sender), README section.
-3. Homelab: create a Google app password, add `ALLINONE_EMAIL_SMTP_PASSWORD` to `all-in-one-secrets`, set
-   `email.enabled: true` and `auth.support_email` in the configmap.
+3. Homelab: add the Brevo SMTP key to `all-in-one-secrets` (`smtp_password`, mapped to
+   `ALLINONE_EMAIL_SMTP_PASSWORD`), set `email.*` and `auth.support_email` in the configmap.
 4. Tell users (cashflow and tally): add an email in aio so you can reset your password yourself.
 5. cashflow and tally: the in-app links and leaving notice (§6.7, §6.8) and guide updates.
 
 ## 9. Open questions
 
-- **Sender address:** Gmail sends from the operator's personal address. Move to a domain address
-  (e.g. `no-reply@opanmustopah.com`) through a transactional provider later?
+- **Replies:** `mail.opanmustopah.com` has no MX record, so replies to aio's emails bounce. Add an optional
+  `email.reply_to` (e.g. the support address)?
 - **Lost 2FA device:** out of scope here; needs its own admin action with stricter identity checks.
 
 Settled with the operator (2026-10-19):
 - Email instead of WhatsApp; temporary passwords instead of codes or links.
-- Gmail SMTP with an app password.
+- Gmail SMTP with an app password. Replaced by Brevo from `All-in-one by Opan <noreply@mail.opanmustopah.com>`
+  (2026-10-29).
 - Emails must be verified before they receive temporary passwords.
 - The add-email prompt can be skipped ("Later"); email stays optional at signup.
 - Users start from the app, but password forms stay on aio (2026-10-21).

@@ -11,7 +11,8 @@
 - Users without email: they email the admin from the address to add; admin asks an app challenge question
   (cashflow: last transaction; tally: last match or players), marks the email verified, clicks
   "Send temporary password". The admin never sees it.
-- Gmail SMTP with an app password (`ALLINONE_EMAIL_SMTP_PASSWORD`).
+- SMTP via Brevo (2026-10-29, was Gmail): `All-in-one by Opan <noreply@mail.opanmustopah.com>`, key in
+  `ALLINONE_EMAIL_SMTP_PASSWORD`. Tracking off. No MX, so replies bounce (`email.reply_to` deferred).
 - After login, users without a verified email get an "add your email" prompt with "Later" (back after 7 days).
   Email stays optional at signup.
 - (2026-10-21) Users start from the app ("Lupa kata sandi?", "Ubah kata sandi & email" links), but forms stay
@@ -24,7 +25,7 @@
 - [x] RFC-003 draft
 - [ ] RFC review by opan (PR #36)
 - [x] address notice on branded pages
-- [x] email package + config (Gmail SMTP with STARTTLS, recorder for tests), `server.public_url`
+- [x] email package + config (SMTP with STARTTLS, recorder for tests), `server.public_url`
 - [x] migration 13 (tested up/down on SQLite and Postgres)
 - [x] editable email + verification link (settings, `/account`, signup); admin `email_verified`; ID token
       `email_verified`
@@ -36,8 +37,11 @@
 - [x] metrics (docs/metrics.md), swagger, README section; RFC §11 implementation notes
 - [x] tests: handler flow tests on SQLite (10), unit tests; browser e2e on Postgres + Mailpit (20/20)
 - [ ] ADR (docs/adr) once cashflow/tally are done
-- [ ] homelab: Google app password → `all-in-one-secrets.smtp_password`, env mapping, configmap
-      (`email.*`, `auth.support_email`)
+- [x] homelab: configmap `email.*` (Brevo) + env `ALLINONE_EMAIL_SMTP_PASSWORD` from
+      `all-in-one-secrets.smtp_password` (optional), homelab b073e6b (2026-10-29)
+- [ ] opan: add the SMTP key to the secret; pick `auth.support_email`; turn off Brevo tracking
+- [ ] after deploy: send a test reset email; later DMARC `p=quarantine`
+- [ ] maybe: `email.reply_to` (no MX on mail.opanmustopah.com)
 - [x] cashflow + tally: "Lupa kata sandi?" (landing) and `/akun` → "Ubah kata sandi & email" with the
       leaving notice, guide updates (cashflow: 5 characters). PRs opan/cashflow#6, opan/tally#4 (2026-10-27),
       tested against a local aio from this branch; merge after this is deployed
