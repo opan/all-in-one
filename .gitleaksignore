@@ -1,3 +1,7 @@
 # Made-up test key (0123456789abcdef repeated) in a commit on the OIDC branch;
 # the file now builds it with strings.Repeat.
 6e95209474d3bf0ef6c180a3c7db36bfb8efe0cb:internal/oidc/service/keys_test.go:generic-api-key:20
+
+# The temporary-password alphabet (RFC-003), not a secret; the line also
+# carries gitleaks:allow so squashed commits stay clean.
+8a4199a8449b4a1663d055795b66348c8cfa773e:internal/auth/recovery.go:generic-api-key:14

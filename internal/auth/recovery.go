@@ -11,7 +11,7 @@ import (
 
 // tempPasswordAlphabet has no look-alikes (0/o, 1/l/i) and only lower case,
 // so a temporary password read from an email is hard to mistype.
-const tempPasswordAlphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+const tempPasswordAlphabet = "abcdefghjkmnpqrstuvwxyz23456789" // gitleaks:allow (not a secret)
 
 const TempPasswordLength = 12
 
