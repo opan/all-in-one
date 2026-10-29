@@ -11,6 +11,7 @@
 
 	const APP_URL = '/home';
 	const LOGIN_URL = '/login';
+	const SIGNUP_URL = '/signup';
 	const GITHUB_URL = 'https://github.com/opan/all-in-one';
 	const ISSUES_URL = 'https://github.com/opan/all-in-one/issues';
 
@@ -106,10 +107,16 @@
 			<a href="#features" onclick={() => (navOpen = false)}>Listing</a>
 			<a href="#features" onclick={() => (navOpen = false)}>Chat</a>
 			<a href={GITHUB_URL} target="_blank" rel="noreferrer" onclick={() => (navOpen = false)}>GitHub</a>
+			<!-- The nav buttons are hidden on small screens; the menu carries them there. -->
+			<div class="nav-menu-auth">
+				<a class="btn btn-outline btn-sm" href={LOGIN_URL}>Sign in</a>
+				<a class="btn btn-solid btn-sm" href={SIGNUP_URL}>Sign up</a>
+			</div>
 		</nav>
 		<div class="nav-actions">
 			<ThemeToggle />
-			<a class="btn btn-solid btn-sm nav-cta" href={LOGIN_URL}>Try it here</a>
+			<a class="btn btn-outline btn-sm nav-cta" href={LOGIN_URL}>Sign in</a>
+			<a class="btn btn-solid btn-sm nav-cta" href={SIGNUP_URL}>Sign up</a>
 			<button
 				class="nav-toggle"
 				aria-label="Toggle menu"
@@ -499,6 +506,16 @@
 		align-items: center;
 		gap: 8px;
 	}
+	.nav-links .nav-menu-auth {
+		display: none;
+	}
+	.nav-links .nav-menu-auth a {
+		font-weight: 800;
+		color: var(--text);
+	}
+	.nav-links .nav-menu-auth .btn-solid {
+		color: #ffffff;
+	}
 
 	.nav-toggle {
 		display: none;
@@ -867,6 +884,11 @@
 		}
 		.nav-cta {
 			display: none;
+		}
+		.nav-links .nav-menu-auth {
+			display: flex;
+			gap: 10px;
+			margin-top: 10px;
 		}
 
 		.hero {
