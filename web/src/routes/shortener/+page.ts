@@ -1,4 +1,4 @@
-import { loadShortLinks } from '$lib/shortener-api';
+import { loadShortLinks } from '#lib/shortener-api.js';
 
 export const load = async ({ fetch }) => {
 	const page = await loadShortLinks(fetch);

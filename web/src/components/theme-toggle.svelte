@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button/index";
+  import { Button } from "#lib/components/ui/button/index.js";
   import { onMount } from "svelte";
 
   let theme = $state<string | null>(null);

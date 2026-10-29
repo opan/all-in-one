@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
-  import { Button } from "$lib/components/ui/button/index";
-  import { Input } from "$lib/components/ui/input/index";
-  import { Switch } from "$lib/components/ui/switch/index";
-  import * as Card from "$lib/components/ui/card/index";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import { Input } from "#lib/components/ui/input/index.js";
+  import { Switch } from "#lib/components/ui/switch/index.js";
+  import * as Card from "#lib/components/ui/card/index.js";
   import { Search, Send, Users, MoreVertical, Plus, Bell } from "@lucide/svelte/icons";
-  import { Separator } from "$lib/components/ui/separator/index";
+  import { Separator } from "#lib/components/ui/separator/index.js";
   import {
     getSessions,
     getMessages,
@@ -15,11 +15,11 @@
     type ChatSession as ApiChatSession,
     type ChatMessage as ApiChatMessage,
     type ChatInvite,
-  } from "$lib/chat-api";
-  import { ChatWebSocketClient } from "$lib/websocket-client";
-  import { WebSocketState } from "$lib/websocket-types";
-  import type { MessagePayload, TypingPayload, InvitePayload } from "$lib/websocket-types";
-  import NewChatDialog from "$components/NewChatDialog.svelte";
+  } from "#lib/chat-api.js";
+  import { ChatWebSocketClient } from "#lib/websocket-client.js";
+  import { WebSocketState } from "#lib/websocket-types.js";
+  import type { MessagePayload, TypingPayload, InvitePayload } from "#lib/websocket-types.js";
+  import NewChatDialog from "../../components/NewChatDialog.svelte";
 
   // State
   let chatSessions = $state<ApiChatSession[]>([]);

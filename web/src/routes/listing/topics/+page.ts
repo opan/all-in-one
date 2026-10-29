@@ -1,5 +1,5 @@
 // SvelteKit load function to fetch topics data from backend API
-import { apiLoad, throwApiError } from "$lib/api";
+import { apiLoad, throwApiError } from "#lib/api.js";
 
 export const load = async ({ fetch }) => {
 	const res = await apiLoad(fetch, "/api/v1/topics");

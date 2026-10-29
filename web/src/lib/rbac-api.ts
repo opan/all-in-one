@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '#lib/api.js';
 
 // Mirrors internal/rbac/model/model.go JSON tags
 export interface Feature {

@@ -1,6 +1,6 @@
 // Disable SSR globally — the Go backend provides the API; the frontend is
 // a pure client-side SPA served as static files via adapter-static.
-import { fetchPublicConfig } from '$lib/config';
+import { fetchPublicConfig } from '#lib/config.js';
 
 export const ssr = false;
 

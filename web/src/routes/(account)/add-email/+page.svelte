@@ -1,21 +1,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { safeNext } from '$lib/safe-next';
-	import { getMe, snoozeEmailPrompt, updateMyEmail } from '$lib/account-api';
-	import { pageApp } from '$lib/use-app.svelte';
+	import { page } from '$app/state';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { safeNext } from '#lib/safe-next.js';
+	import { getMe, snoozeEmailPrompt, updateMyEmail } from '#lib/account-api.js';
+	import { pageApp } from '#lib/use-app.svelte.js';
 
 	// Shown after login to users without a confirmed email (RFC-003 §6.6).
 	// Skippable: "Later" asks again in 7 days.
-	const page$ = pageApp($page.url);
-	const m = $derived(page$.m);
-	const next = safeNext($page.url.searchParams.get('next')) ?? '/home';
+	const page$ = pageApp(page.url);
 
+	const m = $derived(page$.m);
+	const next = safeNext(page.url.searchParams.get('next')) ?? '/home';
 	let checked = $state(false);
 	let email = $state('');
 	let sentTo = $state('');
@@ -25,18 +25,18 @@
 	onMount(async () => {
 		const me = await getMe();
 		if (me.status === 401) {
-			await goto(`/login?next=${encodeURIComponent(next)}`, { replaceState: true });
+			await goto(`/login?next=${encodeURIComponent(next)}`, { replace: true });
 			return;
 		}
 		if (me.data?.email_verified) {
-			await goto(next, { replaceState: true });
+			await goto(next, { replace: true });
 			return;
 		}
 		email = me.data?.pending_email || me.data?.email || '';
 		checked = true;
 	});
 
-	const continueOn = () => goto(next, { replaceState: true });
+	const continueOn = () => goto(next, { replace: true });
 
 	async function later() {
 		loading = true;

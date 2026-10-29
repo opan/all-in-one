@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Table from '$lib/components/ui/table';
-	import { listFeatures, type Feature } from '$lib/rbac-api';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import { listFeatures, type Feature } from '#lib/rbac-api.js';
 
 	interface Props {
 		active: boolean;

@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { MIN_PASSWORD_LENGTH, passwordTooShort } from '$lib/password';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Separator } from '$lib/components/ui/separator';
-	import * as Field from '$lib/components/ui/field';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import { MIN_PASSWORD_LENGTH, passwordTooShort } from '#lib/password.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import SettingsNav from "../../components/settings-nav.svelte";
 	import { toast, Toaster } from 'svelte-sonner';
-	import { apiGet, apiPost, apiClient } from '$lib/api';
+	import { apiGet, apiPost, apiClient } from '#lib/api.js';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { updateMyEmail } from '$lib/account-api';
+	import { page } from '$app/state';
+	import { updateMyEmail } from '#lib/account-api.js';
 	import { setMode, resetMode, userPrefersMode } from 'mode-watcher';
-	import { PALETTES, palette, setPalette } from '$lib/stores/theme';
+	import { PALETTES, palette, setPalette } from '#lib/stores/theme.js';
 
 	let { data } = $props();
 
@@ -23,7 +23,7 @@
 	const pendingEmail = $derived(sentTo || data.user?.pending_email || '');
 	let newEmail = $state('');
 	let emailSaving = $state(false);
-	const emailEnabled = $derived($page.data.publicConfig?.email_enabled ?? false);
+	const emailEnabled = $derived(page.data.publicConfig?.email_enabled ?? false);
 
 	async function handleEmailSubmit(event: Event) {
 		event.preventDefault();
@@ -416,13 +416,13 @@
 									type="text"
 									placeholder="Enter your username"
 									bind:value={username}
-								disabled
-								class="max-w-xl"
-							/>
+									disabled
+									class="max-w-xl"
+								/>
 							<Field.Description>
 								This is your public display name.
 							</Field.Description>
-						</Field.Field>
+							</Field.Field>
 
 
 							<Field.Field>
@@ -615,13 +615,12 @@
 				<Button
 					variant="outline"
 					class="w-full"
-					onclick={() => downloadRecoveryCodes(setupData!.recovery_codes)}
-				>
-					Download as Text File
-				</Button>
-				<p class="text-xs text-destructive text-center font-medium">
-					These codes will not be shown again.
-				</p>
+					onclick={() => downloadRecoveryCodes((setupData!).recovery_codes)}
+				>Download as Text File</Button>
+
+				<p
+					class="text-xs text-destructive text-center font-medium"
+				>These codes will not be shown again.</p>
 			</div>
 			<Dialog.Footer>
 				<Button onclick={handleSetupComplete}>I Have Saved These Codes</Button>

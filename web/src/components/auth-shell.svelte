@@ -1,10 +1,10 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Lock } from '@lucide/svelte/icons';
 	import ThemeToggle from './theme-toggle.svelte';
-	import { appForPage, appKeyForPage, type AppPresentation } from '$lib/oidc-api';
-	import { authMessages } from '$lib/oauth-i18n';
+	import { appForPage, appKeyForPage, type AppPresentation } from '#lib/oidc-api.js';
+	import { authMessages } from '#lib/oauth-i18n.js';
 
 	let { children } = $props();
 
@@ -13,7 +13,7 @@
 	// provider, so the hop from the app doesn't look like a different site.
 	// The app comes from the login in progress, or from ?client_id= when the
 	// app linked to a page directly (e.g. forgot password).
-	const appKey = $derived(appKeyForPage($page.url));
+	const appKey = $derived(appKeyForPage(page.url));
 	let app = $state<AppPresentation | null>(null);
 	let failed = $state(false);
 
@@ -22,14 +22,13 @@
 		app = null;
 		failed = false;
 		if (!key) return;
-		appForPage($page.url)
-			.then((info) => key === appKey && (app = info))
-			.catch(() => key === appKey && (failed = true));
+
+		appForPage(page.url).then((info) => key === appKey && (app = info)).catch(() => key === appKey && (failed = true));
 	});
 
 	// aio's address, from the server's settings: shown so users expect to
 	// leave the app's address and know where their password belongs.
-	const accountHost = $derived(($page.data.publicConfig?.account_host as string | undefined) || $page.url.host);
+	const accountHost = $derived(page.data.publicConfig?.account_host as string | undefined || page.url.host);
 
 	$effect(() => {
 		if (app?.locale) document.documentElement.lang = app.locale;

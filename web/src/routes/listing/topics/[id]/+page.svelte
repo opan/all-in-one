@@ -1,18 +1,18 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import EditTopicModal from "../../../../components/edit-topic-modal.svelte";
-  import { Button } from "$lib/components/ui/button/index";
-  import * as Card from "$lib/components/ui/card/index";
-  import * as Dialog from "$lib/components/ui/dialog/index";
-  import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
-  import { Input } from "$lib/components/ui/input/index";
-  import { Label } from "$lib/components/ui/label/index";
-  import { Textarea } from "$lib/components/ui/textarea/index";
-  import { Checkbox } from "$lib/components/ui/checkbox/index";
-  import * as Select from "$lib/components/ui/select/index";
-  import { Separator } from "$lib/components/ui/separator/index";
-  import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
-  import type { Topic, Item, FormSchema } from "$lib/types/json-forms";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import * as Card from "#lib/components/ui/card/index.js";
+  import * as Dialog from "#lib/components/ui/dialog/index.js";
+  import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+  import { Input } from "#lib/components/ui/input/index.js";
+  import { Label } from "#lib/components/ui/label/index.js";
+  import { Textarea } from "#lib/components/ui/textarea/index.js";
+  import { Checkbox } from "#lib/components/ui/checkbox/index.js";
+  import * as Select from "#lib/components/ui/select/index.js";
+  import { Separator } from "#lib/components/ui/separator/index.js";
+  import { apiClient, apiPut, apiPost, apiDelete } from "#lib/api.js";
+  import type { Topic, Item, FormSchema } from "#lib/types/json-forms.js";
 
   interface Props {
     data: {

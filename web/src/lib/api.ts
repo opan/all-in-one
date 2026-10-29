@@ -1,5 +1,5 @@
 import { goto } from "$app/navigation";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { error, redirect } from "@sveltejs/kit";
 
 /**
@@ -41,7 +41,7 @@ export async function apiClient(
 			}
 
 			// If refresh fails, redirect to login
-			await goto("/login", { replaceState: true });
+			await goto("/login", { replace: true });
 			throw new Error("Session expired - redirecting to login");
 		}
 
@@ -188,7 +188,7 @@ export async function isLoggedIn(): Promise<boolean> {
 
 			// If refresh fails, redirect to login page
 			if (browser) {
-				await goto("/login", { replaceState: true });
+				await goto("/login", { replace: true });
 			}
 			return false;
 		}

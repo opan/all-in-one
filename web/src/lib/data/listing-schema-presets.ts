@@ -1,4 +1,4 @@
-import type { FormSchema } from "$lib/types/json-forms";
+import type { FormSchema } from "#lib/types/json-forms.js";
 
 // A curated JSONForms schema a user can apply as a starting point when
 // authoring a topic's form_schema. Reuses the existing FormSchema type so every

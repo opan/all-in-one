@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ThemeToggle from '../components/theme-toggle.svelte';
 
-	import type { DemoMode } from '$lib/config';
+	import type { DemoMode } from '#lib/config.js';
 
 	let { data }: { data: { demoMode: DemoMode } } = $props();
 

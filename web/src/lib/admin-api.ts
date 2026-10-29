@@ -1,4 +1,4 @@
-import { apiPatch, apiPost } from '$lib/api';
+import { apiPatch, apiPost } from '#lib/api.js';
 
 // Admin user-management calls (authnz domain, /api/v1/admin/*). Access/RBAC
 // calls live separately in rbac-api.ts.

@@ -1,4 +1,4 @@
-import { apiClient, apiLoad, apiPost, apiDelete, throwApiError } from '$lib/api';
+import { apiClient, apiLoad, apiPost, apiDelete, throwApiError } from '#lib/api.js';
 
 // Mirrors internal/shortener/model/shortlink.go JSON tags
 export interface ShortLink {

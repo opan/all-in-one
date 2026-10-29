@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { safeNext } from '$lib/safe-next';
-	import { passwordTooShort } from '$lib/password';
-	import { afterLoginPath, getMe, setPassword } from '$lib/account-api';
-	import { pageApp } from '$lib/use-app.svelte';
+	import { page } from '$app/state';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { safeNext } from '#lib/safe-next.js';
+	import { passwordTooShort } from '#lib/password.js';
+	import { afterLoginPath, getMe, setPassword } from '#lib/account-api.js';
+	import { pageApp } from '#lib/use-app.svelte.js';
 
 	// After logging in with a temporary password (RFC-003 §6.4): the session
 	// can do nothing else until the user chooses a new password.
-	const page$ = pageApp($page.url);
-	const m = $derived(page$.m);
-	const next = safeNext($page.url.searchParams.get('next'));
-	const here = $page.url.pathname + $page.url.search;
+	const page$ = pageApp(page.url);
 
+	const m = $derived(page$.m);
+	const next = safeNext(page.url.searchParams.get('next'));
+	const here = page.url.pathname + page.url.search;
 	let checked = $state(false);
 	let password = $state('');
 	let confirm = $state('');
@@ -27,11 +27,11 @@
 	onMount(async () => {
 		const me = await getMe();
 		if (me.status === 401) {
-			await goto(`/login?next=${encodeURIComponent(next ?? '/home')}`, { replaceState: true });
+			await goto(`/login?next=${encodeURIComponent(next ?? '/home')}`, { replace: true });
 			return;
 		}
 		if (me.ok && !me.data?.password_change_required) {
-			await goto(next ?? '/home', { replaceState: true });
+			await goto(next ?? '/home', { replace: true });
 			return;
 		}
 		checked = true;
@@ -52,9 +52,9 @@
 		const res = await setPassword(password, page$.context);
 		loading = false;
 		if (res.ok) {
-			await goto(afterLoginPath({ email_prompt: res.data?.email_prompt }, next), { replaceState: true });
+			await goto(afterLoginPath({ email_prompt: res.data?.email_prompt }, next), { replace: true });
 		} else if (res.status === 401) {
-			await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
+			await goto(`/login?next=${encodeURIComponent(here)}`, { replace: true });
 		} else {
 			error = res.status === 400 && res.error ? res.error : m.setPasswordFailed;
 		}

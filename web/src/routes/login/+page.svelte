@@ -1,27 +1,33 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import type { DemoMode } from '$lib/config';
-	import { safeNext } from '$lib/safe-next';
-	import { appForPage, appKeyForPage, authRequestIdFromNext, type AppPresentation } from '$lib/oidc-api';
-	import { authMessages } from '$lib/oauth-i18n';
-	import { afterLoginPath } from '$lib/account-api';
+	import { page } from '$app/state';
+	import type { DemoMode } from '#lib/config.js';
+	import { safeNext } from '#lib/safe-next.js';
+	import { appForPage, appKeyForPage, authRequestIdFromNext, type AppPresentation } from '#lib/oidc-api.js';
+	import { authMessages } from '#lib/oauth-i18n.js';
+	import { afterLoginPath, signedInPath } from '#lib/account-api.js';
 
 	// Demo-account flag from the root layout load (GET /api/v1/config).
-	const demo = $derived(($page.data.demoMode ?? { enabled: false }) as DemoMode);
+	const demo = $derived((page.data.demoMode ?? { enabled: false }) as DemoMode);
 
 	// Where to go after logging in: a same-site path from ?next= (e.g. the
 	// OIDC hand-off at /oauth/login), otherwise the dashboard.
-	const next = $derived(safeNext($page.url.searchParams.get('next')));
+	const next = $derived(safeNext(page.url.searchParams.get('next')));
 	// After a temporary password, the user chooses a new one first; users
 	// without a confirmed email are asked to add one (RFC-003).
-	const afterLogin = (result: { password_change_required?: boolean; email_prompt?: boolean } | null) =>
-		goto(afterLoginPath(result, next), { replaceState: true });
-	const forgotHref = $derived(next ? `/forgot-password?next=${encodeURIComponent(next)}` : '/forgot-password');
+	const afterLogin = (
+		result: 
+			{ password_change_required?: boolean; email_prompt?: boolean } |
+			null
+	) => goto(afterLoginPath(result, next), { replace: true });
+
+	const forgotHref = $derived(next
+		? `/forgot-password?next=${encodeURIComponent(next)}`
+		: '/forgot-password');
 
 	// When an app sent the user here, this is that app's login: its name and
 	// language, without aio-only extras. Wait for the app's details before
@@ -29,20 +35,32 @@
 	// The app is a login in progress (appRequestId) or, for pages an app links
 	// to directly (e.g. /account?client_id=…), the app named in ?next=.
 	const appRequestId = $derived(authRequestIdFromNext(next));
-	const appKey = $derived(appKeyForPage($page.url));
+	const appKey = $derived(appKeyForPage(page.url));
 	let app = $state<AppPresentation | null>(null);
 	let appLookupDone = $state(false);
 	$effect(() => {
 		const key = appKey;
 		app = null;
 		appLookupDone = !key;
-		if (key)
-			appForPage($page.url)
-				.then((info) => key === appKey && (app = info))
-				.catch(() => {})
-				.finally(() => key === appKey && (appLookupDone = true));
+
+		if (key) appForPage(page.url).then((info) => key === appKey && (app = info)).catch(() => {}).finally(() => key === appKey && (appLookupDone = true));
 	});
 	const m = $derived(authMessages(app?.locale));
+
+	// Already signed in: go on instead of showing the form. Not with ?next=:
+	// an app login arrives from /oauth/login, which checks the session itself
+	// and sends "login required" back here, so redirecting could loop.
+	let sessionChecked = $state(false);
+	$effect(() => {
+		if (next) {
+			sessionChecked = true;
+			return;
+		}
+		signedInPath().then((path) => {
+			if (path) goto(path, { replace: true });
+			else sessionChecked = true;
+		});
+	});
 
 	// Credentials go through plain fetch, not the api.ts client: that client
 	// treats any 401 as an expired session and redirects to /login, which
@@ -181,159 +199,159 @@
 	{#if app}<title>{m.loginTitleApp(app.client_name)}</title>{/if}
 </svelte:head>
 
-{#if appLookupDone}
+{#if appLookupDone && sessionChecked}
 <div class="flex items-start justify-center px-4 {appKey ? 'pt-10 sm:pt-16' : 'pt-[33vh]'}">
-	<Card.Root class="w-full max-w-md">
-		<Card.Header>
-			<div class="flex justify-between items-start">
-				<div>
-					{#if show2FAStep}
-						<Card.Title class="text-2xl">{m.twoFactorTitle}</Card.Title>
+		<Card.Root class="w-full max-w-md">
+			<Card.Header>
+				<div class="flex justify-between items-start">
+					<div>
+						{#if show2FAStep}
+							<Card.Title class="text-2xl">{m.twoFactorTitle}</Card.Title>
 						<Card.Description class="mt-2">
 							{useRecoveryCode ? m.enterRecoveryCode : m.enterTotpCode}
 						</Card.Description>
-					{:else}
-						<Card.Title class="text-2xl">{app ? m.loginTitleApp(app.client_name) : m.loginTitle}</Card.Title>
+						{:else}
+							<Card.Title class="text-2xl">{app ? m.loginTitleApp(app.client_name) : m.loginTitle}</Card.Title>
 						<Card.Description class="mt-2">
 							{app ? m.loginSubtitleApp : m.loginSubtitle}
 						</Card.Description>
+						{/if}
+					</div>
+					{#if !show2FAStep && !app}
+					<Button variant="ghost" class="text-sm" onclick={() => goto(next ? `/signup?next=${encodeURIComponent(next)}` : '/signup')}>{m.signUp}</Button>
 					{/if}
 				</div>
-				{#if !show2FAStep && !app}
-					<Button variant="ghost" class="text-sm" onclick={() => goto(next ? `/signup?next=${encodeURIComponent(next)}` : '/signup')}>{m.signUp}</Button>
-				{/if}
-			</div>
-		</Card.Header>
-		<Card.Content class="space-y-4">
-			{#if error}
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				{#if error}
 				<div class="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md dark:bg-red-950 dark:border-red-800 dark:text-red-400">
 					{error}
 				</div>
-			{/if}
+				{/if}
 
-			{#if show2FAStep}
-				<form onsubmit={handleVerify2FA} class="space-y-4">
-					{#if useRecoveryCode}
-						<div class="space-y-2">
-							<Label for="recovery-code">{m.recoveryCode}</Label>
-							<Input
-								id="recovery-code"
-								type="text"
-								placeholder="XXXX-XXXX"
-								bind:value={recoveryCode}
-								disabled={loading}
-								required
-								class="font-mono tracking-wider"
-							/>
-						</div>
-					{:else}
-						<div class="space-y-2">
-							<Label for="totp-code">{m.verificationCode}</Label>
-							<Input
-								id="totp-code"
-								type="text"
-								inputmode="numeric"
-								maxlength={6}
-								placeholder="000000"
-								bind:value={totpCode}
-								disabled={loading}
-								required
-								class="font-mono text-center text-2xl tracking-[0.5em]"
-							/>
-						</div>
-					{/if}
+				{#if show2FAStep}
+					<form onsubmit={handleVerify2FA} class="space-y-4">
+						{#if useRecoveryCode}
+							<div class="space-y-2">
+								<Label for="recovery-code">{m.recoveryCode}</Label>
+								<Input
+									id="recovery-code"
+									type="text"
+									placeholder="XXXX-XXXX"
+									bind:value={recoveryCode}
+									disabled={loading}
+									required
+									class="font-mono tracking-wider"
+								/>
+							</div>
+						{:else}
+							<div class="space-y-2">
+								<Label for="totp-code">{m.verificationCode}</Label>
+								<Input
+									id="totp-code"
+									type="text"
+									inputmode="numeric"
+									maxlength={6}
+									placeholder="000000"
+									bind:value={totpCode}
+									disabled={loading}
+									required
+									class="font-mono text-center text-2xl tracking-[0.5em]"
+								/>
+							</div>
+						{/if}
 					<Button type="submit" class="w-full" disabled={loading}>
 						{loading ? m.verifying : m.verify}
 					</Button>
-				</form>
+					</form>
 
-				<div class="flex justify-between items-center text-sm">
-					<button
-						type="button"
-						class="text-muted-foreground hover:underline"
+					<div class="flex justify-between items-center text-sm">
+						<button
+							type="button"
+							class="text-muted-foreground hover:underline"
 						onclick={() => { useRecoveryCode = !useRecoveryCode; error = ''; }}
 					>
 						{useRecoveryCode ? m.useAuthenticator : m.useRecoveryCode}
 					</button>
-					<button
-						type="button"
-						class="text-muted-foreground hover:underline"
-						onclick={reset2FA}
+						<button
+							type="button"
+							class="text-muted-foreground hover:underline"
+							onclick={reset2FA}
 					>
 						{m.backToLogin}
 					</button>
-				</div>
-			{:else}
-				<form onsubmit={handleLogin} class="space-y-4">
-					<div class="space-y-2">
-						<Label for="username">{m.username}</Label>
-						<Input
-							id="username"
-							type="text"
-							placeholder={m.usernamePlaceholder}
-							bind:value={username}
-							disabled={loading}
-							required
-						/>
 					</div>
-					<div class="space-y-2">
-						<div class="flex justify-between items-center">
-							<Label for="password">{m.password}</Label>
+				{:else}
+					<form onsubmit={handleLogin} class="space-y-4">
+						<div class="space-y-2">
+							<Label for="username">{m.username}</Label>
+							<Input
+								id="username"
+								type="text"
+								placeholder={m.usernamePlaceholder}
+								bind:value={username}
+								disabled={loading}
+								required
+							/>
+						</div>
+						<div class="space-y-2">
+							<div class="flex justify-between items-center">
+								<Label for="password">{m.password}</Label>
 							<a href={forgotHref} class="text-sm text-muted-foreground hover:underline">
 								{m.forgotLink}
 							</a>
+							</div>
+							<Input
+								id="password"
+								type="password"
+								bind:value={password}
+								disabled={loading}
+								required
+								placeholder={m.passwordPlaceholder}
+							/>
 						</div>
-						<Input
-							id="password"
-							type="password"
-							bind:value={password}
-							disabled={loading}
-							required
-							placeholder={m.passwordPlaceholder}
-						/>
-					</div>
 					<Button type="submit" class="w-full" disabled={loading}>
 						{loading ? m.loggingIn : m.loginButton}
 					</Button>
-				</form>
-				{#if app}
-					<p class="text-sm text-center text-muted-foreground">
-						{m.noAccount}
+					</form>
+					{#if app}
+						<p class="text-sm text-center text-muted-foreground">
+							{m.noAccount} 
 						<a href={`/signup?next=${encodeURIComponent(next ?? '')}`} class="underline hover:text-foreground">{m.signUp}</a>
-					</p>
-				{:else}
+						</p>
+					{:else}
 					<Button variant="outline" class="w-full" onclick={() => handleGoogleLogin()} disabled={loading}>
 						Login with Google
 					</Button>
-				{/if}
+					{/if}
 
-				{#if demo.enabled && !authRequestIdFromNext(next)}
+					{#if demo.enabled && !authRequestIdFromNext(next)}
 					<div class="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
-						<div class="flex items-center justify-between gap-2">
-							<span class="font-medium">Just want to look around?</span>
-							<button
-								type="button"
-								class="text-primary hover:underline disabled:opacity-50"
-								disabled={loading}
-								onclick={() => {
-									username = demo.username ?? '';
-									password = demo.password ?? '';
-									error = '';
-								}}
+							<div class="flex items-center justify-between gap-2">
+								<span class="font-medium">Just want to look around?</span>
+								<button
+									type="button"
+									class="text-primary hover:underline disabled:opacity-50"
+									disabled={loading}
+									onclick={() => {
+										username = demo.username ?? '';
+										password = demo.password ?? '';
+										error = '';
+									}}
 							>
 								Use demo account
 							</button>
-						</div>
-						<p class="mt-1 text-muted-foreground">
-							No sign-up needed — log in with
-							<code class="font-mono font-semibold text-foreground">{demo.username}</code>
-							/
+							</div>
+							<p class="mt-1 text-muted-foreground">
+								No sign-up needed — log in with 
+								<code class="font-mono font-semibold text-foreground">{demo.username}</code>
+								/ 
 							<code class="font-mono font-semibold text-foreground">{demo.password}</code>.
-						</p>
-					</div>
+							</p>
+						</div>
+					{/if}
 				{/if}
-			{/if}
-		</Card.Content>
-	</Card.Root>
-</div>
+			</Card.Content>
+		</Card.Root>
+	</div>
 {/if}

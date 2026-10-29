@@ -78,3 +78,14 @@ export function afterLoginPath(
 	if (result?.email_prompt) return `/add-email?${q}`;
 	return target;
 }
+
+// signedInPath is where /login and /signup send a visitor who already has an
+// aio session: the dashboard, or choosing a new password after a temporary
+// one. null when not signed in, so the page shows its form. /users/me also
+// answers for a session that must change its password first.
+export async function signedInPath(): Promise<string | null> {
+	let me = await getMe();
+	if (me.status === 401 && (await call('POST', '/api/v1/sessions/refresh')).ok) me = await getMe();
+	if (!me.ok) return null;
+	return afterLoginPath({ password_change_required: me.data?.password_change_required }, null);
+}

@@ -1,24 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { passwordTooShort } from '$lib/password';
-	import { changePassword, getMe, updateMyEmail, type Me } from '$lib/account-api';
-	import { pageApp } from '$lib/use-app.svelte';
-	import type { PublicConfig } from '$lib/config';
+	import { page } from '$app/state';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { passwordTooShort } from '#lib/password.js';
+	import { changePassword, getMe, updateMyEmail, type Me } from '#lib/account-api.js';
+	import { pageApp } from '#lib/use-app.svelte.js';
+	import type { PublicConfig } from '#lib/config.js';
 
 	// Password and email for users who come from an app (RFC-003 §6.7):
 	// /account?client_id=cashflow&return_to=…&ui_locales=id. Presented as the
 	// app, so they never see aio's own dashboard.
-	const page$ = pageApp($page.url);
-	const m = $derived(page$.m);
-	const emailEnabled = $derived(($page.data.publicConfig as PublicConfig | undefined)?.email_enabled ?? false);
-	const here = $page.url.pathname + $page.url.search;
+	const page$ = pageApp(page.url);
 
+	const m = $derived(page$.m);
+	const emailEnabled = $derived((page.data.publicConfig as PublicConfig | undefined)?.email_enabled ?? false);
+	const here = page.url.pathname + page.url.search;
 	let me = $state<Me | null>(null);
 	let newEmail = $state('');
 	let emailBusy = $state(false);
@@ -35,7 +35,7 @@
 	onMount(async () => {
 		const res = await getMe();
 		if (res.status === 401) {
-			await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
+			await goto(`/login?next=${encodeURIComponent(here)}`, { replace: true });
 			return;
 		}
 		me = res.data;

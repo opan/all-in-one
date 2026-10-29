@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from '$lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '#lib/api.js';
 
 // Mirrors internal/ratelimit/model/model.go JSON tags
 export type Scope = 'ip' | 'user' | 'global';

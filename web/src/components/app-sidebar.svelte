@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { Component } from 'svelte';
-  import * as Sidebar from "$lib/components/ui/sidebar/index";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index";
+  import * as Sidebar from "#lib/components/ui/sidebar/index.js";
+  import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
   import {
     SquareTerminal,
     Settings,
@@ -15,14 +14,14 @@
     ShieldCheck,
     Gauge,
   } from "@lucide/svelte/icons";
-  import type { IconProps } from '@lucide/svelte';
-	import TableBody from '$lib/components/ui/table/table-body.svelte';
-  import { apiDelete, isLoggedIn } from '$lib/api';
+  import type { LucideIcon } from '@lucide/svelte';
+	import TableBody from '#lib/components/ui/table/table-body.svelte';
+  import { apiDelete, isLoggedIn } from '#lib/api.js';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
-  import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
-  import { auth, loadAuth, hasFeature } from '$lib/stores/auth';
+  import { useSidebar } from '#lib/components/ui/sidebar/context.svelte.js';
+  import { auth, loadAuth, hasFeature } from '#lib/stores/auth.js';
 
   interface Props {
     currentPath?: string;
@@ -31,13 +30,13 @@
   type NavItem = {
     title: string;
     url?: string;
-    icon: Component<IconProps, {}, "">;
+    icon: LucideIcon;
     isExpandable: boolean;
     feature?: string;
     subitems?: Array<{
       title: string;
       url: string;
-      icon: Component<IconProps, {}, "">;
+      icon: LucideIcon;
     }>;
   };
 
@@ -68,16 +67,16 @@
       
       if (response.ok) {
         // Redirect to login page after successful sign out
-        await goto('/login', { replaceState: true });
+        await goto('/login', { replace: true });
       } else {
         console.error('Sign out failed');
         // Still redirect to login even if the API call fails
-        await goto('/login', { replaceState: true });
+        await goto('/login', { replace: true });
       }
     } catch (error) {
       console.error('Sign out error:', error);
       // Still redirect to login even if there's an error
-      await goto('/login', { replaceState: true });
+      await goto('/login', { replace: true });
     } finally {
       isSigningOut = false;
     }

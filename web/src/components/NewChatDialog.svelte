@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "$lib/components/ui/dialog";
-	import { Button } from "$lib/components/ui/button";
-	import { Input } from "$lib/components/ui/input";
-	import { searchUsers, sendInvite, type User } from "$lib/chat-api";
-	import { Skeleton } from "$lib/components/ui/skeleton";
+	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "#lib/components/ui/dialog/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { searchUsers, sendInvite, type User } from "#lib/chat-api.js";
+	import { Skeleton } from "#lib/components/ui/skeleton/index.js";
 
 	interface Props {
 		open?: boolean;

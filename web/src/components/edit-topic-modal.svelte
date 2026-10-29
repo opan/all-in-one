@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button/index";
-  import * as Dialog from "$lib/components/ui/dialog/index";
-  import { Input } from "$lib/components/ui/input/index";
-  import { Label } from "$lib/components/ui/label/index";
-  import { Textarea } from "$lib/components/ui/textarea/index";
-  import * as Card from "$lib/components/ui/card/index";
-  import type { FormSchema } from "$lib/types/json-forms";
-  import { topicSchemaPresets, type TopicSchemaPreset } from "$lib/data/listing-schema-presets";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import * as Dialog from "#lib/components/ui/dialog/index.js";
+  import { Input } from "#lib/components/ui/input/index.js";
+  import { Label } from "#lib/components/ui/label/index.js";
+  import { Textarea } from "#lib/components/ui/textarea/index.js";
+  import * as Card from "#lib/components/ui/card/index.js";
+  import type { FormSchema } from "#lib/types/json-forms.js";
+  import { topicSchemaPresets, type TopicSchemaPreset } from "#lib/data/listing-schema-presets.js";
 
   interface Props {
     open: boolean;

@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { goto } from '$app/navigation';
-import { apiGet } from '$lib/api';
+import { apiGet } from '#lib/api.js';
 
 // Mirrors internal/authnz/handler.CurrentUserResponse JSON tags
 export interface AuthUser {
@@ -36,7 +36,7 @@ export async function loadAuth(): Promise<AuthUser | null> {
 		auth.set(user);
 		if (user?.password_change_required && browser) {
 			const here = window.location.pathname + window.location.search;
-			await goto(`/set-password?next=${encodeURIComponent(here)}`, { replaceState: true });
+			await goto(`/set-password?next=${encodeURIComponent(here)}`, { replace: true });
 		}
 		return user;
 	} catch (error) {

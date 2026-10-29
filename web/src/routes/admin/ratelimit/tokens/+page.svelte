@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui/button/index';
-	import { Input } from '$lib/components/ui/input/index';
-	import { Label } from '$lib/components/ui/label/index';
-	import * as Dialog from '$lib/components/ui/dialog/index';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index';
-	import * as Table from '$lib/components/ui/table/index';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
 	import { toast, Toaster } from 'svelte-sonner';
 	import { Loader2 } from '@lucide/svelte/icons';
 	import {
@@ -14,7 +14,7 @@
 		revokeToken,
 		type AppToken,
 		type CreateTokenResponse
-	} from '$lib/ratelimit-api';
+	} from '#lib/ratelimit-api.js';
 
 	let tokens = $state<AppToken[]>([]);
 	let loading = $state(true);

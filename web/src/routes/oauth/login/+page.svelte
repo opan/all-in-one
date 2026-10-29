@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
+	import { page } from '$app/state';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import { Loader2 } from '@lucide/svelte/icons';
 	import {
 		completeAuthRequest,
 		getAuthRequest,
 		hasSession,
 		type AuthRequestInfo
-	} from '$lib/oidc-api';
-	import { authMessages } from '$lib/oauth-i18n';
+	} from '#lib/oidc-api.js';
+	import { authMessages } from '#lib/oauth-i18n.js';
 
 	let info = $state<AuthRequestInfo | null>(null);
 	let canSwitchAccount = $state(false);
@@ -24,7 +24,7 @@
 	// session, finish right away (single sign-on); otherwise send them through
 	// aio's login or signup page and come back here.
 	onMount(async () => {
-		const id = $page.url.searchParams.get('authRequestID');
+		const id = page.url.searchParams.get('authRequestID');
 		if (!id) {
 			error = m.missingRequest;
 			return;
@@ -37,9 +37,9 @@
 		}
 
 		here = `/oauth/login?authRequestID=${encodeURIComponent(id)}`;
-		if (!(await hasSession())) {
+		if (!await hasSession()) {
 			const target = info.signup ? '/signup' : '/login';
-			await goto(`${target}?next=${encodeURIComponent(here)}`, { replaceState: true });
+			await goto(`${target}?next=${encodeURIComponent(here)}`, { replace: true });
 			return;
 		}
 
@@ -48,9 +48,9 @@
 		if (result.kind === 'redirect') {
 			window.location.replace(result.url);
 		} else if (result.kind === 'login-required') {
-			await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
+			await goto(`/login?next=${encodeURIComponent(here)}`, { replace: true });
 		} else if (result.kind === 'password-change') {
-			await goto(`/set-password?next=${encodeURIComponent(here)}`, { replaceState: true });
+			await goto(`/set-password?next=${encodeURIComponent(here)}`, { replace: true });
 		} else {
 			error = result.message || m.couldNotFinish;
 			// e.g. logged in to aio as the shared demo account: let the user log
@@ -61,7 +61,7 @@
 
 	async function switchAccount() {
 		await fetch('/api/v1/sessions', { method: 'DELETE', credentials: 'include' });
-		await goto(`/login?next=${encodeURIComponent(here)}`, { replaceState: true });
+		await goto(`/login?next=${encodeURIComponent(here)}`, { replace: true });
 	}
 </script>
 

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
+	import { page } from '$app/state';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import ShieldBanIcon from '@lucide/svelte/icons/shield-ban';
 	import FileQuestionMarkIcon from '@lucide/svelte/icons/file-question-mark';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
-	const status = $derived($page.status);
-	const message = $derived($page.error?.message || 'Something went wrong.');
+	const status = $derived(page.status);
+	const message = $derived(page.error?.message || 'Something went wrong.');
 
 	const presentation = $derived(
 		status === 403

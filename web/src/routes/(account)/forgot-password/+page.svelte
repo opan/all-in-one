@@ -1,23 +1,23 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { safeNext } from '$lib/safe-next';
-	import { forgotPassword } from '$lib/account-api';
-	import { pageApp } from '$lib/use-app.svelte';
-	import type { PublicConfig } from '$lib/config';
+	import { page } from '$app/state';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { safeNext } from '#lib/safe-next.js';
+	import { forgotPassword } from '#lib/account-api.js';
+	import { pageApp } from '#lib/use-app.svelte.js';
+	import type { PublicConfig } from '#lib/config.js';
 
 	// Forgot password (RFC-003 §6.4, §6.5): users with a confirmed email get a
 	// temporary password; everyone else is told how to reach the admin.
-	const page$ = pageApp($page.url);
+	const page$ = pageApp(page.url);
 	const m = $derived(page$.m);
-	const config = $derived($page.data.publicConfig as PublicConfig | undefined);
+	const config = $derived(page.data.publicConfig as PublicConfig | undefined);
 	const emailEnabled = $derived(config?.email_enabled ?? false);
 	const support = $derived(config?.support_email ?? '');
 
-	const next = safeNext($page.url.searchParams.get('next'));
+	const next = safeNext(page.url.searchParams.get('next'));
 	const back = $derived.by(() => {
 		if (next) return { href: `/login?next=${encodeURIComponent(next)}`, label: m.backToLogin };
 		if (page$.app?.return_to) return { href: page$.app.return_to, label: m.backTo(page$.app.client_name) };

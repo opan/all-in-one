@@ -1,11 +1,11 @@
 <script lang="ts">
   import DataTable from "../../../components/data-table.svelte";
   import EditTopicModal from "../../../components/edit-topic-modal.svelte";
-  import { Button } from "$lib/components/ui/button/index";
-  import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
-  import type { ColumnDef } from "@tanstack/table-core";
-  import { apiClient, apiPut, apiPost, apiDelete } from "$lib/api";
-  import type { Topic, FormSchema } from "$lib/types/json-forms";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+  import type { DataTableColumn } from '#lib/data-table.js';
+  import { apiClient, apiPut, apiPost, apiDelete } from "#lib/api.js";
+  import type { Topic, FormSchema } from "#lib/types/json-forms.js";
 
   interface Props {
     data: {
@@ -48,7 +48,7 @@
     }
   }
 
-  const columns: ColumnDef<Topic>[] = [
+  const columns: DataTableColumn<Topic>[] = [
     {
       accessorKey: "id",
       header: "ID",

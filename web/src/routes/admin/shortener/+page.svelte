@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui/button/index';
-	import { Switch } from '$lib/components/ui/switch/index';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index';
-	import * as Table from '$lib/components/ui/table/index';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
 	import { toast, Toaster } from 'svelte-sonner';
 	import { Trash2, Loader2 } from '@lucide/svelte/icons';
 	import {
@@ -11,7 +11,7 @@
 		adminSetShortLinkActive,
 		adminDeleteShortLink,
 		type AdminShortLink
-	} from '$lib/shortener-admin-api';
+	} from '#lib/shortener-admin-api.js';
 
 	const PAGE_SIZE = 20;
 

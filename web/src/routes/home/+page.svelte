@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Component } from 'svelte';
-	import type { IconProps } from '@lucide/svelte';
+	import type { LucideIcon } from '@lucide/svelte';
 	import {
 		Table,
 		MessageSquare,
@@ -12,9 +11,9 @@
 		Mail,
 		ArrowRight
 	} from '@lucide/svelte/icons';
-	import * as Card from '$lib/components/ui/card/index';
-	import { auth, loadAuth } from '$lib/stores/auth';
-	import type { DashboardSummary } from '$lib/dashboard-api';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { auth, loadAuth } from '#lib/stores/auth.js';
+	import type { DashboardSummary } from '#lib/dashboard-api.js';
 
 	let { data }: { data: { summary: DashboardSummary } } = $props();
 
@@ -31,7 +30,7 @@
 	type StatTile = {
 		label: string;
 		value: number;
-		icon: Component<IconProps, {}, ''>;
+		icon: LucideIcon;
 		href: string;
 	};
 
@@ -58,7 +57,7 @@
 		title: string;
 		description: string;
 		href: string;
-		icon: Component<IconProps, {}, ''>;
+		icon: LucideIcon;
 	};
 
 	const allApps: AppCard[] = [
@@ -71,7 +70,7 @@
 
 	const isAdmin = $derived($auth?.is_admin === true);
 
-	const adminLinks: Array<{ title: string; href: string; icon: Component<IconProps, {}, ''> }> = [
+	const adminLinks: Array<{ title: string; href: string; icon: LucideIcon }> = [
 		{ title: 'Users', href: '/admin/users', icon: Users },
 		{ title: 'Access', href: '/admin/access', icon: ShieldCheck },
 		{ title: 'Shortener', href: '/admin/shortener', icon: Link2 },
