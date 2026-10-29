@@ -39,7 +39,10 @@
 - [ ] ADR (docs/adr) once cashflow/tally are done
 - [x] homelab: configmap `email.*` (Brevo) + env `ALLINONE_EMAIL_SMTP_PASSWORD` from
       `all-in-one-secrets.smtp_password` (optional), homelab b073e6b (2026-10-29)
-- [ ] opan: add the SMTP key to the secret; pick `auth.support_email`; turn off Brevo tracking
+- [x] opan: SMTP key in the secret; delivery tested with curl via Brevo, lands in inbox (2 Gmail accounts)
+- [x] `auth.support_email: support@mail.opanmustopah.com`, Cloudflare Email Routing → opan's Gmail
+      (homelab 13f937b, 2026-10-29)
+- [ ] opan: turn off Brevo click/open tracking (check: links in the reset email point at aio directly)
 - [ ] after deploy: send a test reset email; later DMARC `p=quarantine`
 - [ ] maybe: `email.reply_to` (no MX on mail.opanmustopah.com)
 - [x] cashflow + tally: "Lupa kata sandi?" (landing) and `/akun` → "Ubah kata sandi & email" with the
