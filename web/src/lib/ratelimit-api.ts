@@ -96,7 +96,8 @@ export async function deleteExternalTarget(key: string): Promise<void> {
 }
 
 export async function listTokens(): Promise<AppToken[]> {
-	return unwrap<AppToken[]>(await apiGet(`${BASE}/tokens`));
+	// The API sends null, not [], when there are no tokens yet.
+	return (await unwrap<AppToken[] | null>(await apiGet(`${BASE}/tokens`))) ?? [];
 }
 
 export async function createToken(input: {
