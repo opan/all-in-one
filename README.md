@@ -140,12 +140,12 @@ auth:
 
 email:
   enabled: false                  # Send account email (confirmation links, temporary passwords)
-  from: ""                        # e.g. "All-in-one <you@gmail.com>"
+  from: ""                        # e.g. "All-in-one <noreply@mail.example.com>", on a domain authenticated in Brevo
   smtp:
-    host: "smtp.gmail.com"
+    host: "smtp-relay.brevo.com"
     port: 587                     # STARTTLS; 465 for implicit TLS. Never sends in plaintext
-    username: ""                  # e.g. you@gmail.com
-    # password: set ALLINONE_EMAIL_SMTP_PASSWORD (a Google app password)
+    username: ""                  # Brevo SMTP login, e.g. 1a2b3c001@smtp-brevo.com
+    # password: set ALLINONE_EMAIL_SMTP_PASSWORD (a Brevo SMTP key)
 
 shortener:
   code_length: 7                  # Length of generated short codes
@@ -188,9 +188,9 @@ telemetry:
 | `ALLINONE_AUTH_SUPPORT_EMAIL` | Address shown to users who have no email on their account |
 | `ALLINONE_SERVER_PUBLIC_URL` | aio's public base URL for links in emails (default: the OIDC issuer) |
 | `ALLINONE_EMAIL_ENABLED` | `true` to send account email (default: `false`) |
-| `ALLINONE_EMAIL_FROM` | Sender, e.g. `All-in-one <you@gmail.com>` |
-| `ALLINONE_EMAIL_SMTP_HOST` / `_PORT` | SMTP server (default: `smtp.gmail.com` / `587`) |
-| `ALLINONE_EMAIL_SMTP_USERNAME` / `_PASSWORD` | SMTP login; for Gmail, your address and an app password |
+| `ALLINONE_EMAIL_FROM` | Sender, e.g. `All-in-one <noreply@mail.example.com>` |
+| `ALLINONE_EMAIL_SMTP_HOST` / `_PORT` | SMTP server (default: `smtp-relay.brevo.com` / `587`) |
+| `ALLINONE_EMAIL_SMTP_USERNAME` / `_PASSWORD` | SMTP login; for Brevo, the SMTP login and an SMTP key |
 | `ALLINONE_SERVER_PORT` | HTTP server port (default: `8080`) |
 | `ALLINONE_SERVER_SWAGGER_ENABLED` | `true` to enable Swagger UI (default: `false`) |
 | `ALLINONE_STORAGE_TYPE` | `sqlite` (default) |
@@ -432,12 +432,14 @@ Users recover their account by email ([RFC-003](docs/rfc/RFC-003-password-reset-
 
 ### Turning it on
 
-1. Create a Google **app password**: Google Account › Security › 2-Step Verification (must be on) › App passwords. It's 16 letters; Gmail allows about 500 emails a day.
+Email goes out through Brevo's SMTP relay (free plan: 300 emails a day). Any SMTP server works through the same settings.
+
+1. In Brevo, authenticate the sending domain (Senders, domains & dedicated IPs › Domains; add the DNS records it lists), add the sender address, and turn off click and open tracking so links in emails aren't rewritten. Then create an **SMTP key** under SMTP & API › SMTP keys; the same page shows your SMTP login.
 2. Add it to the Kubernetes secret, keeping the other keys:
 
    ```bash
    kubectl -n app patch secret all-in-one-secrets --type merge \
-     -p '{"stringData":{"smtp_password":"abcd efgh ijkl mnop"}}'
+     -p '{"stringData":{"smtp_password":"<Brevo SMTP key>"}}'
    ```
 
    and map it in the deployment:
@@ -453,12 +455,12 @@ Users recover their account by email ([RFC-003](docs/rfc/RFC-003-password-reset-
 
    ```yaml
    auth:
-     support_email: "you@gmail.com"
+     support_email: "support@mail.example.com"
    email:
      enabled: true
-     from: "All-in-one <you@gmail.com>"
+     from: "All-in-one <noreply@mail.example.com>"
      smtp:
-       username: "you@gmail.com"
+       username: "<Brevo SMTP login>"
    ```
 
    Links in emails point to `auth.oidc.issuer`; set `server.public_url` if aio's address differs or OIDC is off.
@@ -495,7 +497,7 @@ The pages show the app's name, icon, colour and language (from the registered cl
 |---|---|
 | aio won't start: `email.from must be an email address` | `email.from` missing or malformed |
 | aio won't start: `server.public_url (or auth.oidc.issuer)` | Email is on but aio doesn't know its public address |
-| `aio_email_sent_total{result="error"}` rising; logs say `smtp auth` | Wrong app password, or 2-Step Verification turned off |
+| `aio_email_sent_total{result="error"}` rising; logs say `smtp auth` | Wrong SMTP login or key, or the key was deleted in Brevo |
 | Logs say `does not offer STARTTLS` | The SMTP server or port doesn't support TLS; use 587 or 465 |
 | User says no email arrived | Check spam; `forgot password: no email sent` in the logs gives the reason (no confirmed email, cooldown, daily limit) |
 | "Send temporary password" is greyed out | The user has no verified email yet, or is blocked |

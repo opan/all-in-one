@@ -31,7 +31,7 @@ type Config struct {
 // default; with it off, password recovery goes through the admin only.
 type EmailConfig struct {
 	Enabled bool `mapstructure:"enabled"`
-	// From is the sender, e.g. "All-in-one <someone@gmail.com>".
+	// From is the sender, e.g. "All-in-one <noreply@mail.example.com>".
 	From string     `mapstructure:"from"`
 	SMTP SMTPConfig `mapstructure:"smtp"`
 }
@@ -255,7 +255,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("demo_mode.enabled", false)
 	viper.SetDefault("demo_mode.username", "demo")
 	viper.SetDefault("email.enabled", false)
-	viper.SetDefault("email.smtp.host", "smtp.gmail.com")
+	viper.SetDefault("email.smtp.host", "smtp-relay.brevo.com")
 	viper.SetDefault("email.smtp.port", 587)
 
 	// Enable environment variable support

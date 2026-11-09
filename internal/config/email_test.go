@@ -11,7 +11,7 @@ func TestValidateEmail(t *testing.T) {
 		return Config{
 			Server: ServerConfig{PublicURL: "https://aio.example.com"},
 			Email: EmailConfig{Enabled: true, From: "All-in-one <aio@example.com>",
-				SMTP: SMTPConfig{Host: "smtp.gmail.com", Port: 587}},
+				SMTP: SMTPConfig{Host: "smtp-relay.brevo.com", Port: 587}},
 		}
 	}
 	tests := []struct {

@@ -91,7 +91,7 @@ email:
     username: "<Brevo SMTP login>"
     # password: env ALLINONE_EMAIL_SMTP_PASSWORD (a Brevo SMTP key, from the k8s secret)
 auth:
-  support_email: "opan.neutron@gmail.com"   # shown to users who have no email on their account
+  support_email: "support@mail.opanmustopah.com"   # shown to users who have no email on their account
 ```
 
 - New package `internal/email`: a `Sender` interface with an SMTP implementation (`net/smtp` with STARTTLS,
